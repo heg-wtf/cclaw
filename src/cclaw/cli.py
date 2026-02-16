@@ -75,16 +75,18 @@ def bot_list() -> None:
 
     table = Table(title="Registered Bots")
     table.add_column("Name", style="cyan")
+    table.add_column("Model", style="magenta")
     table.add_column("Telegram", style="green")
     table.add_column("Path", style="dim")
 
     for bot_entry in config["bots"]:
-        from cclaw.config import cclaw_home, load_bot_config
+        from cclaw.config import DEFAULT_MODEL, cclaw_home, load_bot_config
 
         bot_config = load_bot_config(bot_entry["name"])
         telegram_username = bot_config.get("telegram_username", "N/A") if bot_config else "N/A"
+        model = bot_config.get("model", DEFAULT_MODEL) if bot_config else DEFAULT_MODEL
         path = str(cclaw_home() / bot_entry["path"])
-        table.add_row(bot_entry["name"], telegram_username, path)
+        table.add_row(bot_entry["name"], model, telegram_username, path)
 
     console.print(table)
 
@@ -123,6 +125,76 @@ def bot_remove(name: str) -> None:
     save_config(config)
 
     console.print(f"[green]Bot '{name}' removed.[/green]")
+
+
+@app.command()
+def logs(
+    lines: int = typer.Option(50, "--lines", "-n", help="Number of lines to show"),
+    follow: bool = typer.Option(False, "--follow", "-f", help="Follow log output"),
+) -> None:
+    """Show today's log file."""
+    import subprocess
+    from datetime import datetime
+
+    from rich.console import Console
+
+    from cclaw.config import cclaw_home
+
+    console = Console()
+    log_directory = cclaw_home() / "logs"
+    today = datetime.now().strftime("%y%m%d")
+    log_file = log_directory / f"cclaw-{today}.log"
+
+    if not log_file.exists():
+        console.print("[yellow]No log file for today.[/yellow]")
+        raise typer.Exit()
+
+    command = ["tail", f"-n{lines}"]
+    if follow:
+        command.append("-f")
+    command.append(str(log_file))
+
+    try:
+        subprocess.run(command)
+    except KeyboardInterrupt:
+        pass
+
+
+@bot_app.command("model")
+def bot_model(
+    name: str = typer.Argument(help="Bot name"),
+    model: str = typer.Argument(None, help="Model to set (sonnet/opus/haiku)"),
+) -> None:
+    """Show or change the model for a bot."""
+    from rich.console import Console
+
+    from cclaw.config import (
+        DEFAULT_MODEL,
+        VALID_MODELS,
+        is_valid_model,
+        load_bot_config,
+        save_bot_config,
+    )
+
+    console = Console()
+    bot_config = load_bot_config(name)
+    if not bot_config:
+        console.print(f"[red]Bot '{name}' not found.[/red]")
+        raise typer.Exit(1)
+
+    if model is None:
+        current = bot_config.get("model", DEFAULT_MODEL)
+        console.print(f"[cyan]{name}[/cyan] model: [magenta]{current}[/magenta]")
+        return
+
+    if not is_valid_model(model):
+        console.print(f"[red]Invalid model: {model}[/red]")
+        console.print(f"Available: {', '.join(VALID_MODELS)}")
+        raise typer.Exit(1)
+
+    bot_config["model"] = model
+    save_bot_config(name, bot_config)
+    console.print(f"[green]{name} model changed to {model}[/green]")
 
 
 @bot_app.command("edit")

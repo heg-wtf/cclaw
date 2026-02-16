@@ -5,7 +5,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from cclaw.claude_runner import run_claude
+from cclaw.claude_runner import (
+    _running_processes,
+    cancel_process,
+    is_process_running,
+    register_process,
+    run_claude,
+    unregister_process,
+)
 
 MOCK_SUBPROCESS = "cclaw.claude_runner.asyncio.create_subprocess_exec"
 MOCK_WHICH = "cclaw.claude_runner.shutil.which"
@@ -111,3 +118,126 @@ async def test_run_claude_not_found():
     with patch(MOCK_WHICH, return_value=None):
         with pytest.raises(RuntimeError, match="CLI not found"):
             await run_claude("/tmp/test", "Hello")
+
+
+@pytest.mark.asyncio
+async def test_run_claude_with_session_key_registers_process():
+    """run_claude registers and unregisters process when session_key is provided."""
+    mock_process = MagicMock()
+    mock_process.communicate = AsyncMock(return_value=(b"output", b""))
+    mock_process.returncode = 0
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        result = await run_claude("/tmp/test", "Hello", session_key="bot:123")
+
+    assert result == "output"
+    # Process should be unregistered after completion
+    assert "bot:123" not in _running_processes
+
+
+def test_register_and_unregister_process():
+    """register_process and unregister_process manage the registry."""
+    mock_process = MagicMock()
+    register_process("test:1", mock_process)
+    assert "test:1" in _running_processes
+
+    unregister_process("test:1")
+    assert "test:1" not in _running_processes
+
+    # Unregister non-existent key should not raise
+    unregister_process("test:nonexistent")
+
+
+def test_cancel_process_running():
+    """cancel_process kills a running process."""
+    mock_process = MagicMock()
+    mock_process.returncode = None  # Still running
+    _running_processes["test:cancel"] = mock_process
+
+    result = cancel_process("test:cancel")
+    assert result is True
+    mock_process.kill.assert_called_once()
+
+    # Cleanup
+    _running_processes.pop("test:cancel", None)
+
+
+def test_cancel_process_not_running():
+    """cancel_process returns False when no process is running."""
+    result = cancel_process("test:nonexistent")
+    assert result is False
+
+
+def test_cancel_process_already_finished():
+    """cancel_process returns False when process already finished."""
+    mock_process = MagicMock()
+    mock_process.returncode = 0  # Already finished
+    _running_processes["test:finished"] = mock_process
+
+    result = cancel_process("test:finished")
+    assert result is False
+
+    # Cleanup
+    _running_processes.pop("test:finished", None)
+
+
+def test_is_process_running_true():
+    """is_process_running returns True for running process."""
+    mock_process = MagicMock()
+    mock_process.returncode = None
+    _running_processes["test:running"] = mock_process
+
+    assert is_process_running("test:running") is True
+
+    # Cleanup
+    _running_processes.pop("test:running", None)
+
+
+def test_is_process_running_false():
+    """is_process_running returns False when no process registered."""
+    assert is_process_running("test:no") is False
+
+
+@pytest.mark.asyncio
+async def test_run_claude_cancelled_raises():
+    """run_claude raises CancelledError when process is killed (returncode -9)."""
+    mock_process = MagicMock()
+    mock_process.communicate = AsyncMock(return_value=(b"", b""))
+    mock_process.returncode = -9
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        with pytest.raises(asyncio.CancelledError, match="cancelled"):
+            await run_claude("/tmp/test", "Hello", session_key="bot:cancel")
+
+
+@pytest.mark.asyncio
+async def test_run_claude_with_model():
+    """run_claude passes --model flag when model is specified."""
+    mock_process = MagicMock()
+    mock_process.communicate = AsyncMock(return_value=(b"output", b""))
+    mock_process.returncode = 0
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        await run_claude("/tmp/test", "Hello", model="opus")
+
+    call_args = mock_exec.call_args[0]
+    assert "--model" in call_args
+    assert "opus" in call_args
+
+
+@pytest.mark.asyncio
+async def test_run_claude_without_model():
+    """run_claude does not pass --model flag when model is None."""
+    mock_process = MagicMock()
+    mock_process.communicate = AsyncMock(return_value=(b"output", b""))
+    mock_process.returncode = 0
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        await run_claude("/tmp/test", "Hello")
+
+    call_args = mock_exec.call_args[0]
+    assert "--model" not in call_args

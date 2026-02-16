@@ -126,6 +126,15 @@ def remove_bot_from_config(name: str) -> None:
     save_config(config)
 
 
+VALID_MODELS = ["sonnet", "opus", "haiku"]
+DEFAULT_MODEL = "sonnet"
+
+
+def is_valid_model(model: str) -> bool:
+    """Check if the model name is valid."""
+    return model in VALID_MODELS
+
+
 def bot_exists(name: str) -> bool:
     """Check if a bot with this name already exists."""
     config = load_config()

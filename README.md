@@ -66,6 +66,32 @@ cclaw stop               # 데몬 중지
 cclaw status             # 실행 상태 확인
 ```
 
+## CLI 명령어
+
+```bash
+# 온보딩/점검
+cclaw init                     # 최초 설정
+cclaw doctor                   # 환경 점검
+
+# 봇 관리
+cclaw bot list                 # 봇 목록 (모델 표시)
+cclaw bot add                  # 봇 추가
+cclaw bot remove <name>        # 봇 삭제
+cclaw bot edit <name>          # bot.yaml 편집
+cclaw bot model <name>         # 현재 모델 확인
+cclaw bot model <name> opus    # 모델 변경
+
+# 실행
+cclaw start                    # 포그라운드
+cclaw start --daemon           # 백그라운드 (launchd)
+cclaw stop                     # 데몬 중지
+cclaw status                   # 실행 상태
+
+# 로그
+cclaw logs                     # 오늘 로그 출력
+cclaw logs -f                  # tail -f 모드
+```
+
 ## Telegram 명령어
 
 | 명령어 | 설명 |
@@ -74,7 +100,11 @@ cclaw status             # 실행 상태 확인
 | `/reset` | 대화 초기화 (workspace 유지) |
 | `/resetall` | 세션 전체 삭제 |
 | `/files` | workspace 파일 목록 |
+| `/send <filename>` | workspace 파일 전송 |
 | `/status` | 세션 상태 |
+| `/model` | 현재 모델 표시 |
+| `/model <name>` | 모델 변경 (sonnet/opus/haiku) |
+| `/cancel` | 실행 중인 프로세스 중단 |
 | `/version` | 버전 정보 |
 | `/help` | 명령어 목록 |
 
@@ -82,6 +112,7 @@ cclaw status             # 실행 상태 확인
 
 사진이나 문서를 봇에게 보내면 자동으로 workspace에 저장되고 Claude Code에게 전달됩니다.
 캡션을 함께 보내면 캡션이 프롬프트로 사용됩니다.
+`/send` 명령어로 workspace 파일을 텔레그램으로 다시 받을 수 있습니다.
 
 ## 프로젝트 구조
 

@@ -135,3 +135,18 @@ def test_default_config():
     assert "bots" in config
     assert "settings" in config
     assert config["settings"]["command_timeout"] == 300
+
+
+def test_valid_models():
+    """VALID_MODELS and is_valid_model work correctly."""
+    from cclaw.config import DEFAULT_MODEL, VALID_MODELS, is_valid_model
+
+    assert DEFAULT_MODEL == "sonnet"
+    assert "sonnet" in VALID_MODELS
+    assert "opus" in VALID_MODELS
+    assert "haiku" in VALID_MODELS
+
+    assert is_valid_model("sonnet") is True
+    assert is_valid_model("opus") is True
+    assert is_valid_model("gpt4") is False
+    assert is_valid_model("") is False

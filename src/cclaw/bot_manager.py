@@ -57,26 +57,30 @@ async def _run_bots(bot_names: list[str] | None = None) -> None:
 
     for bot_entry in bots_to_run:
         name = bot_entry["name"]
-        bot_config = load_bot_config(name)
-        if not bot_config:
-            console.print(f"[yellow]Skipping {name}: bot.yaml not found.[/yellow]")
-            continue
+        try:
+            bot_config = load_bot_config(name)
+            if not bot_config:
+                console.print(f"[yellow]Skipping {name}: bot.yaml not found.[/yellow]")
+                continue
 
-        token = bot_config.get("telegram_token", "")
-        if not token:
-            console.print(f"[yellow]Skipping {name}: no token configured.[/yellow]")
-            continue
+            token = bot_config.get("telegram_token", "")
+            if not token:
+                console.print(f"[yellow]Skipping {name}: no token configured.[/yellow]")
+                continue
 
-        bot_path = bot_directory(name)
-        handlers = make_handlers(name, bot_path, bot_config)
+            bot_path = bot_directory(name)
+            handlers = make_handlers(name, bot_path, bot_config)
 
-        application = Application.builder().token(token).post_init(set_bot_commands).build()
+            application = Application.builder().token(token).post_init(set_bot_commands).build()
 
-        for handler in handlers:
-            application.add_handler(handler)
+            for handler in handlers:
+                application.add_handler(handler)
 
-        applications.append((name, application))
-        logger.info("Prepared bot: %s", name)
+            applications.append((name, application))
+            logger.info("Prepared bot: %s", name)
+        except Exception as error:
+            console.print(f"[red]Error preparing {name}: {error}[/red]")
+            logger.error("Failed to prepare bot %s: %s", name, error)
 
     if not applications:
         console.print("[red]No valid bots to start.[/red]")
@@ -101,18 +105,32 @@ async def _run_bots(bot_names: list[str] | None = None) -> None:
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, signal_handler)
 
+    started_applications = []
     try:
-        for _, application in applications:
-            await application.initialize()
-            await application.start()
-            await application.updater.start_polling(drop_pending_updates=True)
+        for name, application in applications:
+            try:
+                await application.initialize()
+                await application.start()
+                await application.updater.start_polling(drop_pending_updates=True)
+                started_applications.append((name, application))
+            except Exception as error:
+                console.print(f"[red]Failed to start {name}: {error}[/red]")
+                logger.error("Failed to start bot %s: %s", name, error)
+                try:
+                    await application.shutdown()
+                except Exception:
+                    pass
 
-        console.print("\nBots are running. Press Ctrl+C to stop.")
+        if not started_applications:
+            console.print("[red]No bots started successfully.[/red]")
+            return
+
+        console.print(f"\n{len(started_applications)} bot(s) running. Press Ctrl+C to stop.")
         await stop_event.wait()
 
     finally:
         console.print("\nStopping bots...")
-        for name, application in applications:
+        for name, application in started_applications:
             try:
                 await application.updater.stop()
                 await application.stop()
