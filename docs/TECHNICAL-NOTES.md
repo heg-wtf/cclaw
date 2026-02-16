@@ -14,6 +14,7 @@ Telegram 메시지는 최대 4096자. `utils.split_message()`로 긴 응답을 �
 
 `claude -p "<message>" --output-format text`로 실행한다. 작업 디렉토리는 subprocess의 `cwd` 파라미터로 세션 디렉토리를 지정한다.
 
+- `shutil.which("claude")`로 Claude CLI 전체 경로를 해석한다. `uv run`, `pip install`, `pipx install` 등 설치 방법에 관계없이 PATH에서 claude를 찾는다. 경로를 찾지 못하면 설치 안내와 함께 `RuntimeError`를 발생시킨다.
 - `--output-format text`: JSON이 아닌 텍스트 출력
 - `bot.yaml`의 `claude_args` 필드로 추가 인자 전달 가능
 - 기본 타임아웃: 300초 (`config.yaml`의 `command_timeout`)
