@@ -7,6 +7,9 @@ import pytest
 from cclaw.handlers import _is_user_allowed, make_handlers
 from cclaw.utils import split_message
 
+MOCK_CANCEL = "cclaw.handlers.cancel_process"
+MOCK_IS_RUNNING = "cclaw.handlers.is_process_running"
+
 
 @pytest.fixture
 def bot_path(tmp_path):
@@ -36,7 +39,7 @@ def bot_config():
 def test_make_handlers_returns_handlers(bot_path, bot_config):
     """make_handlers returns a list of handlers."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    assert len(handlers) == 9
+    assert len(handlers) == 12
 
 
 def test_is_user_allowed_empty_list():
@@ -139,7 +142,7 @@ async def test_reset_handler(bot_path, bot_config, mock_update):
 async def test_message_handler_calls_claude(bot_path, bot_config, mock_update):
     """Message handler forwards to Claude and replies."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[8]
+    message_handler = handlers[11]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Claude response"
@@ -160,6 +163,145 @@ async def test_message_handler_unauthorized(bot_path, bot_config, mock_update):
     await message_handler.callback(mock_update, MagicMock())
 
     mock_update.message.reply_text.assert_called_with("Unauthorized.")
+
+
+@pytest.mark.asyncio
+async def test_cancel_handler_no_process(bot_path, bot_config, mock_update):
+    """Cancel handler replies when no process is running."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    cancel_handler = handlers[9]
+
+    with patch(MOCK_IS_RUNNING, return_value=False):
+        await cancel_handler.callback(mock_update, MagicMock())
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "No running process" in call_text
+
+
+@pytest.mark.asyncio
+async def test_cancel_handler_kills_process(bot_path, bot_config, mock_update):
+    """Cancel handler kills running process."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    cancel_handler = handlers[9]
+
+    with patch(MOCK_IS_RUNNING, return_value=True), patch(MOCK_CANCEL, return_value=True):
+        await cancel_handler.callback(mock_update, MagicMock())
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "cancelled" in call_text.lower() or "\u26d4" in call_text
+
+
+@pytest.mark.asyncio
+async def test_send_handler_no_args(bot_path, bot_config, mock_update):
+    """Send handler shows usage when no filename provided."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    send_handler = handlers[5]
+
+    mock_context = MagicMock()
+    mock_context.args = []
+    await send_handler.callback(mock_update, mock_context)
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "Usage" in call_text or "No files" in call_text
+
+
+@pytest.mark.asyncio
+async def test_send_handler_file_not_found(bot_path, bot_config, mock_update):
+    """Send handler replies when file not found."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    send_handler = handlers[5]
+
+    mock_context = MagicMock()
+    mock_context.args = ["nonexistent.txt"]
+    await send_handler.callback(mock_update, mock_context)
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "not found" in call_text.lower()
+
+
+@pytest.mark.asyncio
+async def test_send_handler_sends_file(bot_path, bot_config, mock_update):
+    """Send handler sends an existing workspace file."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    send_handler = handlers[5]
+
+    # Create a session with a file in workspace
+    session_dir = bot_path / "sessions" / "chat_67890"
+    session_dir.mkdir(parents=True, exist_ok=True)
+    workspace = session_dir / "workspace"
+    workspace.mkdir(exist_ok=True)
+    test_file = workspace / "test.txt"
+    test_file.write_text("hello")
+
+    mock_context = MagicMock()
+    mock_context.args = ["test.txt"]
+    mock_update.message.reply_document = AsyncMock()
+
+    await send_handler.callback(mock_update, mock_context)
+
+    mock_update.message.reply_document.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_model_handler_show_current(bot_path, bot_config, mock_update):
+    """Model handler shows current model when no args."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    model_handler = handlers[7]
+
+    mock_context = MagicMock()
+    mock_context.args = []
+    await model_handler.callback(mock_update, mock_context)
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "sonnet" in call_text
+
+
+@pytest.mark.asyncio
+async def test_model_handler_change_model(bot_path, bot_config, mock_update):
+    """Model handler changes model and saves to bot.yaml."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    model_handler = handlers[7]
+
+    mock_context = MagicMock()
+    mock_context.args = ["opus"]
+
+    with patch("cclaw.handlers.save_bot_config") as mock_save:
+        await model_handler.callback(mock_update, mock_context)
+        mock_save.assert_called_once()
+        saved_config = mock_save.call_args[0][1]
+        assert saved_config["model"] == "opus"
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "opus" in call_text
+
+
+@pytest.mark.asyncio
+async def test_model_handler_invalid_model(bot_path, bot_config, mock_update):
+    """Model handler rejects invalid model names."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    model_handler = handlers[7]
+
+    mock_context = MagicMock()
+    mock_context.args = ["gpt4"]
+    await model_handler.callback(mock_update, mock_context)
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "Invalid" in call_text
+
+
+@pytest.mark.asyncio
+async def test_message_handler_passes_model(bot_path, bot_config, mock_update):
+    """Message handler passes model to run_claude."""
+    bot_config["model"] = "opus"
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    message_handler = handlers[11]
+
+    with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
+        mock_claude.return_value = "response"
+        await message_handler.callback(mock_update, MagicMock())
+
+    call_kwargs = mock_claude.call_args[1]
+    assert call_kwargs["model"] == "opus"
 
 
 @pytest.mark.asyncio

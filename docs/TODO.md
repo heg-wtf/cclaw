@@ -18,16 +18,28 @@
 - [x] start/stop/status CLI 커맨드
 - [x] launchd 데몬 지원
 
-### Phase 3: 파일 처리 (부분 완료)
+### Phase 3: 파일 처리
 - [x] 텔레그램 파일 수신 (사진/문서 → workspace/ 저장)
 - [x] 캡션 있으면 캡션 + 파일 경로로 Claude Code 호출
-- [ ] `/send` 커맨드 (workspace 파일 → 텔레그램 전송)
+- [x] `/send` 커맨드 (workspace 파일 → 텔레그램 전송)
 
-### Phase 4: UX 개선 (부분 완료)
+### Phase 4: UX 개선
 - [x] typing 액션 주기적 전송 (Claude Code 실행 중 4초 간격)
 - [x] Markdown → Telegram HTML 변환 (bold, italic, code, heading, link)
 - [x] 명령어 이모지 추가
-- [ ] `/cancel` 커맨드 (실행 중인 subprocess SIGTERM)
-- [ ] 에러 핸들링 강화 (타임아웃 메시지, 자동 재연결, 봇 스킵)
-- [ ] 로깅 개선 (일별 로테이션, `cclaw logs` tail)
-- [ ] 밀린 메시지 큐잉 (Mac 재시작 후 대량 수신 대응)
+- [x] `/cancel` 커맨드 (실행 중인 subprocess SIGTERM, 프로세스 추적)
+- [x] `/model` 커맨드 (모델 조회/변경, bot.yaml 저장)
+- [x] `cclaw bot model` CLI 커맨드 (모델 조회/변경)
+- [x] 에러 핸들링 강화 (타임아웃 메시지, 개별 봇 오류 격리)
+- [x] 로깅 개선 (일별 로테이션, `cclaw logs` / `cclaw logs -f`)
+- [x] 메시지 큐잉 (동시 요청 시 대기 + "Message queued" 알림)
+
+## 미구현 (향후 고려)
+
+### Phase 5: 고급 기능
+- [ ] 세션 내보내기/가져오기
+- [ ] 봇 간 세션 공유
+- [ ] 웹훅 모드 (Long Polling 대안)
+- [ ] 멀티 유저 권한 체계 (admin/user 역할 분리)
+- [ ] 대화 요약 커맨드 (`/summary`)
+- [ ] 자동 세션 정리 (오래된 세션 아카이브/삭제)

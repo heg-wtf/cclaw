@@ -16,7 +16,8 @@ from telegram.ext import (
     filters,
 )
 
-from cclaw.claude_runner import run_claude
+from cclaw.claude_runner import cancel_process, is_process_running, run_claude
+from cclaw.config import DEFAULT_MODEL, VALID_MODELS, is_valid_model, save_bot_config
 from cclaw.session import (
     ensure_session,
     list_workspace_files,
@@ -29,6 +30,7 @@ from cclaw.utils import markdown_to_telegram_html, split_message
 logger = logging.getLogger(__name__)
 
 SESSION_LOCKS: dict[str, asyncio.Lock] = {}
+MAX_QUEUE_SIZE = 5
 
 
 def _get_session_lock(key: str) -> asyncio.Lock:
@@ -55,6 +57,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
     description = bot_config.get("description", "")
     claude_arguments = bot_config.get("claude_args", [])
     command_timeout = bot_config.get("command_timeout", 300)
+    current_model = bot_config.get("model", DEFAULT_MODEL)
 
     async def check_authorization(update: Update) -> bool:
         """Check if the user is authorized."""
@@ -88,7 +91,10 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             "\U0001f504 /reset - Clear conversation (keep workspace)\n"
             "\U0001f5d1 /resetall - Delete entire session\n"
             "\U0001f4c2 /files - List workspace files\n"
+            "\U0001f4e4 /send - Send workspace file\n"
             "\U0001f4ca /status - Session status\n"
+            "\U0001f9e0 /model - Show or change model\n"
+            "\u26d4 /cancel - Stop running process\n"
             "\U00002139 /version - Show version\n"
             "\U00002753 /help - Show this message"
         )
@@ -155,6 +161,94 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         )
         await update.message.reply_text(text, parse_mode="Markdown")
 
+    async def send_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle /send command - send a workspace file to the user."""
+        if not await check_authorization(update):
+            return
+
+        chat_id = update.effective_chat.id
+        session_directory = ensure_session(bot_path, chat_id)
+        workspace = session_directory / "workspace"
+
+        if not context.args:
+            files = list_workspace_files(session_directory)
+            if not files:
+                await update.message.reply_text("\U0001f4c2 No files in workspace.")
+                return
+            file_list = "\n".join(f"  {f}" for f in files)
+            text = f"\U0001f4e4 Usage: `/send filename`\n\nAvailable files:\n```\n{file_list}\n```"
+            await update.message.reply_text(text, parse_mode="Markdown")
+            return
+
+        filename = " ".join(context.args)
+        file_path = workspace / filename
+
+        if not file_path.exists():
+            await update.message.reply_text(f"File not found: `{filename}`", parse_mode="Markdown")
+            return
+
+        if not file_path.is_file():
+            await update.message.reply_text(f"Not a file: `{filename}`", parse_mode="Markdown")
+            return
+
+        try:
+            await update.message.reply_document(
+                document=open(file_path, "rb"),
+                filename=file_path.name,
+            )
+        except Exception as error:
+            await update.message.reply_text(f"Failed to send file: {error}")
+            logger.error("Failed to send file %s: %s", filename, error)
+
+    async def model_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle /model command - show or change the Claude model."""
+        nonlocal current_model
+        if not await check_authorization(update):
+            return
+
+        if not context.args:
+            model_list = " / ".join(f"*{m}*" if m == current_model else m for m in VALID_MODELS)
+            text = (
+                f"\U0001f9e0 Current model: *{current_model}*\n\n"
+                f"Available: {model_list}\n"
+                "Usage: `/model sonnet`"
+            )
+            await update.message.reply_text(text, parse_mode="Markdown")
+            return
+
+        new_model = context.args[0].lower()
+        if not is_valid_model(new_model):
+            await update.message.reply_text(
+                f"Invalid model: `{new_model}`\nAvailable: {', '.join(VALID_MODELS)}",
+                parse_mode="Markdown",
+            )
+            return
+
+        current_model = new_model
+        bot_config["model"] = new_model
+        save_bot_config(bot_name, bot_config)
+        await update.message.reply_text(
+            f"\U0001f9e0 Model changed to *{new_model}*", parse_mode="Markdown"
+        )
+
+    async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle /cancel command - stop running Claude Code process."""
+        if not await check_authorization(update):
+            return
+
+        chat_id = update.effective_chat.id
+        session_key = f"{bot_name}:{chat_id}"
+
+        if not is_process_running(session_key):
+            await update.message.reply_text("No running process to cancel.")
+            return
+
+        cancelled = cancel_process(session_key)
+        if cancelled:
+            await update.message.reply_text("\u26d4 Execution cancelled.")
+        else:
+            await update.message.reply_text("No running process to cancel.")
+
     async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle regular text messages - forward to Claude Code."""
         if not await check_authorization(update):
@@ -166,8 +260,9 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         lock = _get_session_lock(lock_key)
 
         if lock.locked():
-            await update.message.reply_text("Processing a previous message. Please wait...")
-            return
+            await update.message.reply_text(
+                "\U0001f4e5 Message queued. Processing previous request..."
+            )
 
         async with lock:
             session_directory = ensure_session(bot_path, chat_id)
@@ -190,7 +285,12 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                     message=user_message,
                     extra_arguments=claude_arguments if claude_arguments else None,
                     timeout=command_timeout,
+                    session_key=lock_key,
+                    model=current_model,
                 )
+            except asyncio.CancelledError:
+                response = "\u26d4 Execution was cancelled."
+                logger.info("Claude cancelled for chat %d", chat_id)
             except TimeoutError:
                 response = "Request timed out. Please try a shorter request."
                 logger.error("Claude timed out for chat %d", chat_id)
@@ -229,8 +329,9 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         lock = _get_session_lock(lock_key)
 
         if lock.locked():
-            await update.message.reply_text("Processing a previous message. Please wait...")
-            return
+            await update.message.reply_text(
+                "\U0001f4e5 Message queued. Processing previous request..."
+            )
 
         async with lock:
             session_dir = ensure_session(bot_path, chat_id)
@@ -276,7 +377,12 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                     message=prompt,
                     extra_arguments=claude_arguments if claude_arguments else None,
                     timeout=command_timeout,
+                    session_key=lock_key,
+                    model=current_model,
                 )
+            except asyncio.CancelledError:
+                response = "\u26d4 Execution was cancelled."
+                logger.info("Claude cancelled for chat %d", chat_id)
             except TimeoutError:
                 response = "Request timed out. Please try a shorter request."
                 logger.error("Claude timed out for chat %d", chat_id)
@@ -302,8 +408,11 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         CommandHandler("reset", reset_handler),
         CommandHandler("resetall", resetall_handler),
         CommandHandler("files", files_handler),
+        CommandHandler("send", send_handler),
         CommandHandler("status", status_handler),
+        CommandHandler("model", model_handler),
         CommandHandler("version", version_handler),
+        CommandHandler("cancel", cancel_handler),
         MessageHandler(filters.PHOTO | filters.Document.ALL, file_handler),
         MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler),
     ]
@@ -316,7 +425,10 @@ BOT_COMMANDS = [
     BotCommand("reset", "\U0001f504 Clear conversation"),
     BotCommand("resetall", "\U0001f5d1 Delete entire session"),
     BotCommand("files", "\U0001f4c2 List workspace files"),
+    BotCommand("send", "\U0001f4e4 Send workspace file"),
     BotCommand("status", "\U0001f4ca Session status"),
+    BotCommand("model", "\U0001f9e0 Show or change model"),
+    BotCommand("cancel", "\u26d4 Stop running process"),
     BotCommand("version", "\U00002139 Show version"),
     BotCommand("help", "\U00002753 Show commands"),
 ]
