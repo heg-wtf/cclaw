@@ -49,16 +49,12 @@ def check_claude_code() -> EnvironmentCheckResult:
             "  Then run again: cclaw init",
         )
     try:
-        result = subprocess.run(
-            ["claude", "--version"], capture_output=True, text=True, timeout=10
-        )
+        result = subprocess.run(["claude", "--version"], capture_output=True, text=True, timeout=10)
         version = result.stdout.strip() or result.stderr.strip()
     except (subprocess.TimeoutExpired, OSError):
         version = "unknown"
 
-    return EnvironmentCheckResult(
-        name="Claude Code", available=True, version=version, message=""
-    )
+    return EnvironmentCheckResult(name="Claude Code", available=True, version=version, message="")
 
 
 def check_node() -> EnvironmentCheckResult:
@@ -72,16 +68,12 @@ def check_node() -> EnvironmentCheckResult:
             message="Node.js is not installed. Required for Claude Code.",
         )
     try:
-        result = subprocess.run(
-            ["node", "--version"], capture_output=True, text=True, timeout=10
-        )
+        result = subprocess.run(["node", "--version"], capture_output=True, text=True, timeout=10)
         version = result.stdout.strip()
     except (subprocess.TimeoutExpired, OSError):
         version = "unknown"
 
-    return EnvironmentCheckResult(
-        name="Node.js", available=True, version=version, message=""
-    )
+    return EnvironmentCheckResult(name="Node.js", available=True, version=version, message="")
 
 
 def check_python() -> EnvironmentCheckResult:
@@ -89,9 +81,7 @@ def check_python() -> EnvironmentCheckResult:
     import sys
 
     version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-    return EnvironmentCheckResult(
-        name="Python", available=True, version=version, message=""
-    )
+    return EnvironmentCheckResult(name="Python", available=True, version=version, message="")
 
 
 def run_environment_checks() -> list[EnvironmentCheckResult]:
@@ -251,7 +241,7 @@ def run_doctor() -> None:
         console.print("[yellow]No config.yaml found. Run 'cclaw init' first.[/yellow]")
         return
 
-    console.print(f"[green]OK[/green] config.yaml found")
+    console.print("[green]OK[/green] config.yaml found")
     console.print(f"  Log level: {config.get('settings', {}).get('log_level', 'N/A')}")
 
     bots = config.get("bots", [])

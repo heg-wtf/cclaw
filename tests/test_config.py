@@ -1,6 +1,5 @@
 """Tests for cclaw.config module."""
 
-import os
 from pathlib import Path
 
 import pytest
