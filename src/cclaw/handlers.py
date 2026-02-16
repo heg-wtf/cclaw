@@ -38,18 +38,14 @@ def _get_session_lock(key: str) -> asyncio.Lock:
     return SESSION_LOCKS[key]
 
 
-def _is_user_allowed(
-    user_id: int, allowed_users: list[int]
-) -> bool:
+def _is_user_allowed(user_id: int, allowed_users: list[int]) -> bool:
     """Check if user is allowed. Empty list means all users allowed."""
     if not allowed_users:
         return True
     return user_id in allowed_users
 
 
-def make_handlers(
-    bot_name: str, bot_path: Path, bot_config: dict[str, Any]
-) -> list:
+def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> list:
     """Create Telegram handlers for a bot.
 
     Returns a list of handler instances to add to the Application.
@@ -67,66 +63,56 @@ def make_handlers(
             return False
         return True
 
-    async def start_handler(
-        update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
+    async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /start command - introduce the bot."""
         if not await check_authorization(update):
             return
 
         text = (
-            f"\U0001F916 *{bot_name}*\n\n"
-            f"\U0001F3AD *Personality:* {personality}\n"
-            f"\U0001F4BC *Role:* {description}\n\n"
-            "\U0001F4AC Send me a message to start chatting!\n"
+            f"\U0001f916 *{bot_name}*\n\n"
+            f"\U0001f3ad *Personality:* {personality}\n"
+            f"\U0001f4bc *Role:* {description}\n\n"
+            "\U0001f4ac Send me a message to start chatting!\n"
             "\U00002753 Type /help for available commands."
         )
         await update.message.reply_text(text, parse_mode="Markdown")
 
-    async def help_handler(
-        update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
+    async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /help command."""
         if not await check_authorization(update):
             return
 
         text = (
-            "\U0001F4CB *Available Commands:*\n\n"
-            "\U0001F44B /start - Bot introduction\n"
-            "\U0001F504 /reset - Clear conversation (keep workspace)\n"
-            "\U0001F5D1 /resetall - Delete entire session\n"
-            "\U0001F4C2 /files - List workspace files\n"
-            "\U0001F4CA /status - Session status\n"
+            "\U0001f4cb *Available Commands:*\n\n"
+            "\U0001f44b /start - Bot introduction\n"
+            "\U0001f504 /reset - Clear conversation (keep workspace)\n"
+            "\U0001f5d1 /resetall - Delete entire session\n"
+            "\U0001f4c2 /files - List workspace files\n"
+            "\U0001f4ca /status - Session status\n"
             "\U00002139 /version - Show version\n"
             "\U00002753 /help - Show this message"
         )
         await update.message.reply_text(text, parse_mode="Markdown")
 
-    async def reset_handler(
-        update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
+    async def reset_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /reset command."""
         if not await check_authorization(update):
             return
 
         chat_id = update.effective_chat.id
         reset_session(bot_path, chat_id)
-        await update.message.reply_text("\U0001F504 Conversation reset. Workspace files preserved.")
+        await update.message.reply_text("\U0001f504 Conversation reset. Workspace files preserved.")
 
-    async def resetall_handler(
-        update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
+    async def resetall_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /resetall command."""
         if not await check_authorization(update):
             return
 
         chat_id = update.effective_chat.id
         reset_all_session(bot_path, chat_id)
-        await update.message.reply_text("\U0001F5D1 Session completely reset.")
+        await update.message.reply_text("\U0001f5d1 Session completely reset.")
 
-    async def files_handler(
-        update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
+    async def files_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /files command."""
         if not await check_authorization(update):
             return
@@ -136,15 +122,14 @@ def make_handlers(
         files = list_workspace_files(session_directory)
 
         if not files:
-            await update.message.reply_text("\U0001F4C2 No files in workspace.")
+            await update.message.reply_text("\U0001f4c2 No files in workspace.")
             return
 
         file_list = "\n".join(f"  {f}" for f in files)
-        await update.message.reply_text(f"\U0001F4C2 *Workspace files:*\n```\n{file_list}\n```", parse_mode="Markdown")
+        text = f"\U0001f4c2 *Workspace files:*\n```\n{file_list}\n```"
+        await update.message.reply_text(text, parse_mode="Markdown")
 
-    async def status_handler(
-        update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
+    async def status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /status command."""
         if not await check_authorization(update):
             return
@@ -162,17 +147,15 @@ def make_handlers(
         files = list_workspace_files(session_directory)
 
         text = (
-            f"\U0001F4CA *Session Status*\n\n"
-            f"\U0001F916 Bot: {bot_name}\n"
-            f"\U0001F4AC Chat ID: {chat_id}\n"
-            f"\U0001F4DD Conversation: {conversation_status}\n"
-            f"\U0001F4C2 Workspace files: {len(files)}"
+            f"\U0001f4ca *Session Status*\n\n"
+            f"\U0001f916 Bot: {bot_name}\n"
+            f"\U0001f4ac Chat ID: {chat_id}\n"
+            f"\U0001f4dd Conversation: {conversation_status}\n"
+            f"\U0001f4c2 Workspace files: {len(files)}"
         )
         await update.message.reply_text(text, parse_mode="Markdown")
 
-    async def message_handler(
-        update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
+    async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle regular text messages - forward to Claude Code."""
         if not await check_authorization(update):
             return
@@ -183,9 +166,7 @@ def make_handlers(
         lock = _get_session_lock(lock_key)
 
         if lock.locked():
-            await update.message.reply_text(
-                "Processing a previous message. Please wait..."
-            )
+            await update.message.reply_text("Processing a previous message. Please wait...")
             return
 
         async with lock:
@@ -229,9 +210,7 @@ def make_handlers(
                 except Exception:
                     await update.message.reply_text(chunk)
 
-    async def version_handler(
-        update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
+    async def version_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /version command."""
         if not await check_authorization(update):
             return
@@ -240,9 +219,7 @@ def make_handlers(
 
         await update.message.reply_text(f"\U00002139 cclaw v{__version__}")
 
-    async def file_handler(
-        update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
+    async def file_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle photo/document messages - download to workspace and forward to Claude."""
         if not await check_authorization(update):
             return
@@ -252,9 +229,7 @@ def make_handlers(
         lock = _get_session_lock(lock_key)
 
         if lock.locked():
-            await update.message.reply_text(
-                "Processing a previous message. Please wait..."
-            )
+            await update.message.reply_text("Processing a previous message. Please wait...")
             return
 
         async with lock:
@@ -337,11 +312,11 @@ def make_handlers(
 
 
 BOT_COMMANDS = [
-    BotCommand("start", "\U0001F44B Bot introduction"),
-    BotCommand("reset", "\U0001F504 Clear conversation"),
-    BotCommand("resetall", "\U0001F5D1 Delete entire session"),
-    BotCommand("files", "\U0001F4C2 List workspace files"),
-    BotCommand("status", "\U0001F4CA Session status"),
+    BotCommand("start", "\U0001f44b Bot introduction"),
+    BotCommand("reset", "\U0001f504 Clear conversation"),
+    BotCommand("resetall", "\U0001f5d1 Delete entire session"),
+    BotCommand("files", "\U0001f4c2 List workspace files"),
+    BotCommand("status", "\U0001f4ca Session status"),
     BotCommand("version", "\U00002139 Show version"),
     BotCommand("help", "\U00002753 Show commands"),
 ]

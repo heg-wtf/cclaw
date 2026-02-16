@@ -6,7 +6,6 @@ import html
 import logging
 import re
 from datetime import datetime
-from pathlib import Path
 
 from cclaw.config import cclaw_home
 

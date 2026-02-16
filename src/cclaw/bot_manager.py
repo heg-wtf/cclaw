@@ -10,7 +10,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import typer
 from rich.console import Console
 
 from cclaw.config import bot_directory, cclaw_home, load_bot_config, load_config
@@ -51,7 +50,7 @@ async def _run_bots(bot_names: list[str] | None = None) -> None:
     if bot_names:
         bots_to_run = [b for b in bots_to_run if b["name"] in bot_names]
         if not bots_to_run:
-            console.print(f"[red]No matching bots found.[/red]")
+            console.print("[red]No matching bots found.[/red]")
             return
 
     applications = []
@@ -71,12 +70,7 @@ async def _run_bots(bot_names: list[str] | None = None) -> None:
         bot_path = bot_directory(name)
         handlers = make_handlers(name, bot_path, bot_config)
 
-        application = (
-            Application.builder()
-            .token(token)
-            .post_init(set_bot_commands)
-            .build()
-        )
+        application = Application.builder().token(token).post_init(set_bot_commands).build()
 
         for handler in handlers:
             application.add_handler(handler)
@@ -152,7 +146,6 @@ def _start_daemon() -> None:
     plist_path = _plist_path()
     plist_path.parent.mkdir(parents=True, exist_ok=True)
 
-    cclaw_path = sys.executable.replace("python", "cclaw")
     # Find cclaw in the same venv bin directory
     venv_bin = Path(sys.executable).parent
     cclaw_executable = venv_bin / "cclaw"

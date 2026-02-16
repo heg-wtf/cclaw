@@ -61,10 +61,10 @@ def bot_add() -> None:
 @bot_app.command("list")
 def bot_list() -> None:
     """List all bots."""
-    from cclaw.config import load_config
-
     from rich.console import Console
     from rich.table import Table
+
+    from cclaw.config import load_config
 
     console = Console()
     config = load_config()
@@ -79,7 +79,7 @@ def bot_list() -> None:
     table.add_column("Path", style="dim")
 
     for bot_entry in config["bots"]:
-        from cclaw.config import load_bot_config, cclaw_home
+        from cclaw.config import cclaw_home, load_bot_config
 
         bot_config = load_bot_config(bot_entry["name"])
         telegram_username = bot_config.get("telegram_username", "N/A") if bot_config else "N/A"

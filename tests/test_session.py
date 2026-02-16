@@ -1,7 +1,5 @@
 """Tests for cclaw.session module."""
 
-from pathlib import Path
-
 import pytest
 
 from cclaw.session import (

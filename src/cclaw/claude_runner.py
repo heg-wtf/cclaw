@@ -42,7 +42,8 @@ async def run_claude(
         claude_path,
         "-p",
         message,
-        "--output-format", "text",
+        "--output-format",
+        "text",
     ]
 
     if extra_arguments:
@@ -58,9 +59,7 @@ async def run_claude(
     )
 
     try:
-        stdout, stderr = await asyncio.wait_for(
-            process.communicate(), timeout=timeout
-        )
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
     except asyncio.TimeoutError:
         process.kill()
         await process.communicate()
@@ -71,12 +70,8 @@ async def run_claude(
     error_output = stderr.decode("utf-8", errors="replace").strip()
 
     if process.returncode != 0:
-        logger.error(
-            "Claude Code failed (rc=%d): %s", process.returncode, error_output
-        )
-        raise RuntimeError(
-            f"Claude Code exited with code {process.returncode}: {error_output}"
-        )
+        logger.error("Claude Code failed (rc=%d): %s", process.returncode, error_output)
+        raise RuntimeError(f"Claude Code exited with code {process.returncode}: {error_output}")
 
     if error_output:
         logger.warning("Claude Code stderr: %s", error_output[:200])
