@@ -8,6 +8,14 @@ import pytest
 from cclaw.claude_runner import run_claude
 
 MOCK_SUBPROCESS = "cclaw.claude_runner.asyncio.create_subprocess_exec"
+MOCK_WHICH = "cclaw.claude_runner.shutil.which"
+
+
+@pytest.fixture(autouse=True)
+def mock_claude_path():
+    """Mock shutil.which to always return a claude path."""
+    with patch(MOCK_WHICH, return_value="/usr/local/bin/claude"):
+        yield
 
 
 @pytest.mark.asyncio
@@ -95,3 +103,11 @@ async def test_run_claude_working_directory():
 
     call_kwargs = mock_exec.call_args[1]
     assert call_kwargs["cwd"] == "/my/project"
+
+
+@pytest.mark.asyncio
+async def test_run_claude_not_found():
+    """run_claude raises RuntimeError when claude CLI is not found."""
+    with patch(MOCK_WHICH, return_value=None):
+        with pytest.raises(RuntimeError, match="CLI not found"):
+            await run_claude("/tmp/test", "Hello")
