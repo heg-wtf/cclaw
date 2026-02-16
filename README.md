@@ -30,29 +30,40 @@ Telegram + Claude Code 기반 개인 AI 어시스턴트.
 
 ## 설치
 
+### uv (권장)
+
 ```bash
 uv sync
+```
+
+### pip / pipx
+
+```bash
+pip install .
+# 또는
+pipx install .
 ```
 
 ## 사용법
 
 ```bash
 # 환경 점검
-uv run cclaw doctor
+cclaw doctor                    # pip/pipx 설치 시
+uv run cclaw doctor             # uv 사용 시
 
 # 최초 설정 (Telegram 봇 토큰 필요)
-uv run cclaw init
+cclaw init
 
 # 봇 관리
-uv run cclaw bot list
-uv run cclaw bot add
-uv run cclaw bot remove <name>
+cclaw bot list
+cclaw bot add
+cclaw bot remove <name>
 
 # 봇 실행
-uv run cclaw start              # 포그라운드
-uv run cclaw start --daemon     # 백그라운드 (launchd)
-uv run cclaw stop               # 데몬 중지
-uv run cclaw status             # 실행 상태 확인
+cclaw start              # 포그라운드
+cclaw start --daemon     # 백그라운드 (launchd)
+cclaw stop               # 데몬 중지
+cclaw status             # 실행 상태 확인
 ```
 
 ## Telegram 명령어
@@ -112,6 +123,8 @@ cclaw/
 
 ```bash
 uv run pytest
+# 또는
+pytest
 ```
 
 ## 라이선스

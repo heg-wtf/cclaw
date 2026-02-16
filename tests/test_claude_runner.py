@@ -25,7 +25,7 @@ async def test_run_claude_success():
     assert result == "Hello from Claude"
     mock_exec.assert_called_once()
     call_args = mock_exec.call_args[0]
-    assert "claude" in call_args
+    assert any("claude" in str(arg) for arg in call_args)
     assert "-p" in call_args
     assert "Hello" in call_args
 

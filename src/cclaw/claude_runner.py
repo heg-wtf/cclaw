@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import shutil
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +32,14 @@ async def run_claude(
         TimeoutError: If execution exceeds timeout.
         RuntimeError: If Claude Code returns a non-zero exit code.
     """
+    claude_path = shutil.which("claude")
+    if not claude_path:
+        raise RuntimeError(
+            "Claude Code CLI not found. Install: npm install -g @anthropic-ai/claude-code"
+        )
+
     command = [
-        "claude",
+        claude_path,
         "-p",
         message,
         "--output-format", "text",

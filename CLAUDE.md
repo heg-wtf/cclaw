@@ -21,6 +21,11 @@ uv run cclaw start           # 봇 실행
 uv run pytest                # 테스트
 uv run pytest -v             # 테스트 (상세)
 uv run pytest tests/test_config.py  # 개별 테스트
+
+# pip/pipx 설치 시에는 uv run 없이 직접 실행
+cclaw --help
+cclaw start
+pytest
 ```
 
 ## 코드 구조
@@ -28,7 +33,7 @@ uv run pytest tests/test_config.py  # 개별 테스트
 - `src/cclaw/cli.py` - Typer 앱 엔트리포인트, 모든 커맨드 정의
 - `src/cclaw/config.py` - `~/.cclaw/` 설정 관리 (YAML)
 - `src/cclaw/onboarding.py` - 환경 점검, 토큰 검증, 봇 생성 마법사
-- `src/cclaw/claude_runner.py` - `claude -p` subprocess 실행 (async)
+- `src/cclaw/claude_runner.py` - `claude -p` subprocess 실행 (async, `shutil.which`로 경로 해석)
 - `src/cclaw/session.py` - 세션 디렉토리/대화 로그/workspace 관리
 - `src/cclaw/handlers.py` - Telegram 핸들러 팩토리 (슬래시 커맨드 + 메시지 + 파일 수신)
 - `src/cclaw/bot_manager.py` - 멀티봇 polling, launchd 데몬
