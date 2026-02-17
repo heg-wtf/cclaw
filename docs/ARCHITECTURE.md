@@ -74,6 +74,21 @@ DB 없이 디렉토리 구조로 세션을 관리한다.
 - MCP 스킬: 세션 디렉토리에 `.mcp.json` 자동 생성
 - CLI 스킬: subprocess 실행 시 환경변수 자동 주입
 
+### 8. Cron 스케줄 자동화
+
+정해진 시간에 Claude Code를 자동 실행하고 결과를 텔레그램으로 전송한다.
+
+- `cron.yaml`에 job 목록 정의 (schedule 또는 at)
+- **반복 job**: 표준 cron 표현식 (`0 9 * * *` = 매일 오전 9시)
+- **일회성 job**: `at` 필드에 ISO datetime 또는 duration(`30m`, `2h`, `1d`)
+- `croniter` 라이브러리로 cron 표현식 유효성 검증 및 매칭
+- 스케줄러 루프: 30초마다 현재 시각과 job schedule 비교
+- 중복 실행 방지: 마지막 실행 시각을 메모리에 기록, 같은 분에 재실행 방지
+- 결과 전송: `bot.yaml`의 `allowed_users` 전원에게 텔레그램 DM 발송
+- 격리된 작업 디렉토리: `cron_sessions/{job_name}/`에서 Claude Code 실행
+- one-shot job: `delete_after_run=true` 시 실행 후 자동 삭제
+- 봇별 스킬/모델 설정 상속, job 레벨에서 오버라이드 가능
+
 ## 모듈 의존성
 
 ```
@@ -82,14 +97,17 @@ cli.py
 ├── bot_manager.py
 │   ├── config.py
 │   ├── skill.py (regenerate_bot_claude_md)
+│   ├── cron.py (list_cron_jobs, run_cron_scheduler)
 │   ├── handlers.py
 │   │   ├── claude_runner.py
 │   │   │   └── skill.py (merge_mcp_configs, collect_skill_environment_variables)
+│   │   ├── cron.py (list_cron_jobs, get_cron_job, execute_cron_job, next_run_time)
 │   │   ├── skill.py (attach/detach, is_skill, skill_status)
 │   │   ├── session.py
 │   │   ├── config.py (save_bot_config, VALID_MODELS)
 │   │   └── utils.py
 │   └── utils.py
+├── cron.py → config.py, claude_runner.py, utils.py
 ├── skill.py → config.py (순환 참조: config.py → skill.py는 lazy import로 해결)
 └── config.py
 ```
@@ -131,4 +149,15 @@ cli.py
 ### /skill attach 명령
 ```
 수신 → 권한 체크 → is_skill() → skill_status() == "active" 확인 → attach_skill_to_bot() → 메모리 bot_config 동기화 → 응답
+```
+
+### Cron 스케줄러
+```
+봇 시작 → cron.yaml 로드 → asyncio.create_task(run_cron_scheduler) → 30초 주기 루프
+  → 현재 시각과 schedule 매칭 → execute_cron_job → run_claude → allowed_users에게 결과 전송
+```
+
+### /cron run 명령
+```
+수신 → 권한 체크 → get_cron_job() → execute_cron_job() → 결과 전송
 ```

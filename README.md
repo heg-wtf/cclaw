@@ -20,6 +20,7 @@ A multi-bot, file-based session system that runs locally on Mac (Intel/Apple Sil
 | CLI | Typer + Rich |
 | Telegram | python-telegram-bot v21+ |
 | Configuration | PyYAML |
+| Cron Scheduler | croniter |
 | AI Engine | Claude Code CLI (`claude -p`) |
 | Process Manager | launchd (macOS) |
 
@@ -91,6 +92,14 @@ cclaw skill setup <name>       # Setup skill (check requirements, activate)
 cclaw skill test <name>        # Test skill requirements
 cclaw skill edit <name>        # Edit SKILL.md ($EDITOR)
 
+# Cron job management
+cclaw cron list <bot>          # List cron jobs
+cclaw cron add <bot>           # Add a cron job interactively
+cclaw cron remove <bot> <job>  # Remove a cron job
+cclaw cron enable <bot> <job>  # Enable a cron job
+cclaw cron disable <bot> <job> # Disable a cron job
+cclaw cron run <bot> <job>     # Run a cron job immediately (test)
+
 # Run
 cclaw start                    # Foreground
 cclaw start --daemon           # Background (launchd)
@@ -117,6 +126,8 @@ cclaw logs -f                  # Tail mode
 | `/skills` | List all skills (including unattached) |
 | `/skill attach <name>` | Attach a skill |
 | `/skill detach <name>` | Detach a skill |
+| `/cron list` | List cron jobs |
+| `/cron run <name>` | Run a cron job now |
 | `/cancel` | Stop running process |
 | `/version` | Version info |
 | `/help` | Show commands |
@@ -141,6 +152,7 @@ cclaw/
 │   ├── handlers.py         # Telegram handler factory
 │   ├── bot_manager.py      # Multi-bot lifecycle
 │   ├── skill.py            # Skill management (create/attach/MCP/CLAUDE.md composition)
+│   ├── cron.py             # Cron schedule automation
 │   └── utils.py            # Utilities
 └── tests/
 ```
@@ -156,6 +168,8 @@ Configuration and session data are stored in `~/.cclaw/`. Override the path with
 │   └── <bot-name>/
 │       ├── bot.yaml
 │       ├── CLAUDE.md
+│       ├── cron.yaml             # Cron job config (optional)
+│       ├── cron_sessions/        # Cron job working directories
 │       └── sessions/
 │           └── chat_<id>/
 │               ├── CLAUDE.md

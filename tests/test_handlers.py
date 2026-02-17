@@ -39,7 +39,7 @@ def bot_config():
 def test_make_handlers_returns_handlers(bot_path, bot_config):
     """make_handlers returns a list of handlers."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    assert len(handlers) == 14
+    assert len(handlers) == 15
 
 
 def test_is_user_allowed_empty_list():
@@ -142,7 +142,7 @@ async def test_reset_handler(bot_path, bot_config, mock_update):
 async def test_message_handler_calls_claude(bot_path, bot_config, mock_update):
     """Message handler forwards to Claude and replies."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[13]
+    message_handler = handlers[14]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Claude response"
@@ -294,7 +294,7 @@ async def test_message_handler_passes_model(bot_path, bot_config, mock_update):
     """Message handler passes model to run_claude."""
     bot_config["model"] = "opus"
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[13]
+    message_handler = handlers[14]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -442,7 +442,7 @@ async def test_message_handler_passes_skill_names(bot_path, bot_config, mock_upd
     """Message handler passes skill_names to run_claude when skills are attached."""
     bot_config["skills"] = ["my-skill"]
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[13]
+    message_handler = handlers[14]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -456,7 +456,7 @@ async def test_message_handler_passes_skill_names(bot_path, bot_config, mock_upd
 async def test_message_handler_no_skill_names(bot_path, bot_config, mock_update):
     """Message handler passes None for skill_names when no skills attached."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[13]
+    message_handler = handlers[14]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"

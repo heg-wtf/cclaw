@@ -137,6 +137,51 @@ subprocess의 `env` 파라미터에 주입한다.
 `bots_using_skill()`로 각 스킬의 연결 상태를 표시한다.
 봇에 연결되지 않은 스킬도 포함된다.
 
+## Cron 스케줄 자동화
+
+### cron.yaml 스키마
+
+```yaml
+jobs:
+  - name: morning-email       # job 식별자
+    schedule: "0 9 * * *"     # 표준 cron 표현식
+    message: "오늘 아침 이메일 요약해줘"
+    skills: [gmail]           # 선택 (없으면 봇 기본 스킬)
+    model: haiku              # 선택 (없으면 봇 기본 모델)
+    enabled: true
+  - name: call-reminder       # 일회성 job
+    at: "2026-02-20T15:00:00" # ISO datetime 또는 "30m"/"2h"/"1d"
+    message: "클라이언트 콜백 시간입니다"
+    delete_after_run: true    # 실행 후 자동 삭제
+```
+
+### 스케줄러 동작
+
+- `bot_manager.py`에서 봇 시작 시 `asyncio.create_task(run_cron_scheduler())`로 실행
+- 30초 주기로 현재 시각과 job schedule 매칭 확인
+- `croniter`의 `get_next()`로 현재 분에 해당하는 fire time 계산
+- 마지막 실행 시각을 메모리(`last_run_times` dict)에 기록하여 같은 분에 중복 실행 방지
+- `stop_event`로 graceful shutdown (봇 종료 시 cron도 함께 종료)
+
+### 결과 전송
+
+- `bot.yaml`의 `allowed_users` 전원에게 `application.bot.send_message()`로 전송
+- DM에서는 user_id == chat_id이므로 별도 채팅 ID 관리 불필요
+- `allowed_users`가 비어있으면 전송 스킵 (경고 로그)
+- 메시지 앞에 `[cron: job_name]` 헤더 추가
+
+### 작업 디렉토리 격리
+
+- 각 job은 `~/.cclaw/bots/{name}/cron_sessions/{job_name}/` 디렉토리에서 실행
+- 봇의 CLAUDE.md를 복사하여 Claude Code가 봇 컨텍스트를 인식
+- 일반 세션과 완전히 분리되어 cron job 간 간섭 없음
+
+### one-shot job
+
+- `at` 필드가 있으면 schedule 대신 일회성 실행
+- ISO 8601 datetime (`2026-02-20T15:00:00`) 또는 duration shorthand (`30m`, `2h`, `1d`) 지원
+- `delete_after_run: true`이면 실행 후 `cron.yaml`에서 자동 삭제
+
 ### Telegram /skill 핸들러
 
 핸들러 클로저 내 `attached_skills` 변수로 현재 연결된 스킬을 추적한다.

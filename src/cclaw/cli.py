@@ -7,6 +7,8 @@ bot_app = typer.Typer(help="Bot management")
 app.add_typer(bot_app, name="bot")
 skill_app = typer.Typer(help="Skill management")
 app.add_typer(skill_app, name="skill")
+cron_app = typer.Typer(help="Cron job management")
+app.add_typer(cron_app, name="cron")
 
 
 @app.command()
@@ -486,3 +488,232 @@ def skill_edit(name: str) -> None:
     skill_md_path = skill_directory(name) / "SKILL.md"
     editor = os.environ.get("EDITOR", "vi")
     subprocess.run([editor, str(skill_md_path)])
+
+
+# --- Cron subcommands ---
+
+
+@cron_app.command("list")
+def cron_list(bot: str = typer.Argument(help="Bot name")) -> None:
+    """List cron jobs for a bot."""
+    from rich.console import Console
+    from rich.table import Table
+
+    from cclaw.config import load_bot_config
+    from cclaw.cron import list_cron_jobs, next_run_time
+
+    console = Console()
+
+    if not load_bot_config(bot):
+        console.print(f"[red]Bot '{bot}' not found.[/red]")
+        raise typer.Exit(1)
+
+    jobs = list_cron_jobs(bot)
+    if not jobs:
+        console.print(f"[yellow]No cron jobs for '{bot}'. Run 'cclaw cron add {bot}'.[/yellow]")
+        return
+
+    table = Table(title=f"Cron Jobs - {bot}")
+    table.add_column("Name", style="cyan")
+    table.add_column("Schedule", style="magenta")
+    table.add_column("Message", style="dim", max_width=40)
+    table.add_column("Next Run", style="green")
+    table.add_column("Status", style="yellow")
+
+    for job in jobs:
+        schedule_display = job.get("schedule") or f"at: {job.get('at', 'N/A')}"
+        enabled = job.get("enabled", True)
+        status = "enabled" if enabled else "disabled"
+        status_style = "green" if enabled else "red"
+
+        next_time = next_run_time(job) if enabled else None
+        next_display = next_time.strftime("%Y-%m-%d %H:%M UTC") if next_time else "-"
+
+        message = job.get("message", "")
+        if len(message) > 40:
+            message = message[:37] + "..."
+
+        table.add_row(
+            job.get("name", ""),
+            schedule_display,
+            message,
+            next_display,
+            f"[{status_style}]{status}[/{status_style}]",
+        )
+
+    console.print(table)
+
+
+@cron_app.command("add")
+def cron_add(bot: str = typer.Argument(help="Bot name")) -> None:
+    """Add a cron job to a bot interactively."""
+    from rich.console import Console
+
+    from cclaw.config import load_bot_config
+    from cclaw.cron import (
+        add_cron_job,
+        get_cron_job,
+        parse_one_shot_time,
+        validate_cron_schedule,
+    )
+
+    console = Console()
+
+    if not load_bot_config(bot):
+        console.print(f"[red]Bot '{bot}' not found.[/red]")
+        raise typer.Exit(1)
+
+    name = typer.prompt("Job name")
+    if get_cron_job(bot, name):
+        console.print(f"[red]Job '{name}' already exists.[/red]")
+        raise typer.Exit(1)
+
+    use_one_shot = typer.confirm("One-shot (run once at specific time)?", default=False)
+
+    job: dict = {"name": name, "enabled": True}
+
+    if use_one_shot:
+        at_value = typer.prompt("Run at (ISO datetime or duration like 30m/2h/1d)")
+        parsed = parse_one_shot_time(at_value)
+        if not parsed:
+            console.print(f"[red]Invalid time: {at_value}[/red]")
+            raise typer.Exit(1)
+        job["at"] = at_value
+        delete_after = typer.confirm("Delete after run?", default=True)
+        job["delete_after_run"] = delete_after
+    else:
+        schedule = typer.prompt("Cron schedule (e.g. '0 9 * * *' for daily 9am)")
+        if not validate_cron_schedule(schedule):
+            console.print(f"[red]Invalid cron expression: {schedule}[/red]")
+            raise typer.Exit(1)
+        job["schedule"] = schedule
+
+    message = typer.prompt("Message to send to Claude")
+    job["message"] = message
+
+    skills_input = typer.prompt("Skills (comma-separated, or empty)", default="")
+    if skills_input.strip():
+        job["skills"] = [skill.strip() for skill in skills_input.split(",")]
+
+    model_input = typer.prompt("Model (sonnet/opus/haiku, or empty for bot default)", default="")
+    if model_input.strip():
+        from cclaw.config import is_valid_model
+
+        if not is_valid_model(model_input.strip()):
+            console.print(f"[red]Invalid model: {model_input}[/red]")
+            raise typer.Exit(1)
+        job["model"] = model_input.strip()
+
+    add_cron_job(bot, job)
+    console.print(f"[green]Cron job '{name}' added to '{bot}'.[/green]")
+
+
+@cron_app.command("remove")
+def cron_remove(
+    bot: str = typer.Argument(help="Bot name"),
+    job: str = typer.Argument(help="Job name"),
+) -> None:
+    """Remove a cron job."""
+    from rich.console import Console
+
+    from cclaw.cron import remove_cron_job
+
+    console = Console()
+
+    if not remove_cron_job(bot, job):
+        console.print(f"[red]Job '{job}' not found in bot '{bot}'.[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Job '{job}' removed from '{bot}'.[/green]")
+
+
+@cron_app.command("enable")
+def cron_enable(
+    bot: str = typer.Argument(help="Bot name"),
+    job: str = typer.Argument(help="Job name"),
+) -> None:
+    """Enable a cron job."""
+    from rich.console import Console
+
+    from cclaw.cron import enable_cron_job
+
+    console = Console()
+
+    if not enable_cron_job(bot, job):
+        console.print(f"[red]Job '{job}' not found in bot '{bot}'.[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Job '{job}' enabled.[/green]")
+
+
+@cron_app.command("disable")
+def cron_disable(
+    bot: str = typer.Argument(help="Bot name"),
+    job: str = typer.Argument(help="Job name"),
+) -> None:
+    """Disable a cron job."""
+    from rich.console import Console
+
+    from cclaw.cron import disable_cron_job
+
+    console = Console()
+
+    if not disable_cron_job(bot, job):
+        console.print(f"[red]Job '{job}' not found in bot '{bot}'.[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Job '{job}' disabled.[/green]")
+
+
+@cron_app.command("run")
+def cron_run(
+    bot: str = typer.Argument(help="Bot name"),
+    job: str = typer.Argument(help="Job name"),
+) -> None:
+    """Run a cron job immediately (for testing)."""
+    import asyncio
+
+    from rich.console import Console
+
+    from cclaw.claude_runner import run_claude
+    from cclaw.config import DEFAULT_MODEL, load_bot_config
+    from cclaw.cron import cron_session_directory, get_cron_job
+
+    console = Console()
+
+    bot_config = load_bot_config(bot)
+    if not bot_config:
+        console.print(f"[red]Bot '{bot}' not found.[/red]")
+        raise typer.Exit(1)
+
+    cron_job = get_cron_job(bot, job)
+    if not cron_job:
+        console.print(f"[red]Job '{job}' not found in bot '{bot}'.[/red]")
+        raise typer.Exit(1)
+
+    message = cron_job.get("message", "")
+    model = cron_job.get("model") or bot_config.get("model", DEFAULT_MODEL)
+    job_skills = cron_job.get("skills") or bot_config.get("skills", [])
+    command_timeout = bot_config.get("command_timeout", 300)
+    working_directory = str(cron_session_directory(bot, job))
+
+    console.print(f"[cyan]Running job '{job}'...[/cyan]")
+    console.print(f"  Message: {message}")
+    console.print(f"  Model: {model}")
+
+    async def _run() -> str:
+        return await run_claude(
+            working_directory=working_directory,
+            message=message,
+            timeout=command_timeout,
+            session_key=f"cron:{bot}:{job}",
+            model=model,
+            skill_names=job_skills if job_skills else None,
+        )
+
+    try:
+        response = asyncio.run(_run())
+        console.print(f"\n[green]Result:[/green]\n{response}")
+    except Exception as error:
+        console.print(f"[red]Error: {error}[/red]")
+        raise typer.Exit(1)

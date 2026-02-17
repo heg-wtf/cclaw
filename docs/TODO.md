@@ -47,9 +47,21 @@
 - [x] 봇 시작 시 CLAUDE.md 재생성 (`regenerate_bot_claude_md`)
 - [x] 세션 CLAUDE.md 전파 (`update_session_claude_md`)
 
+### Phase 6: Cron 스케줄 자동화
+- [x] Cron 데이터 구조 (`cron.py`: load/save/CRUD, croniter 검증, one-shot 파싱)
+- [x] Cron 스케줄러 루프 (30초 주기, 중복 실행 방지, one-shot 삭제)
+- [x] `bot_manager.py` 통합 (봇 시작 시 cron 태스크 생성, graceful shutdown)
+- [x] `config.py` 헬퍼 (`load_cron_config`, `save_cron_config`, `cron_session_directory`)
+- [x] CLI 서브커맨드 (`cclaw cron list/add/remove/enable/disable/run`)
+- [x] Telegram `/cron` 핸들러 (`/cron list`, `/cron run`)
+- [x] Cron job 결과 → `allowed_users` 전원 텔레그램 전송
+- [x] 격리된 작업 디렉토리 (`cron_sessions/{job_name}/`)
+- [x] 테스트 (`test_cron.py`: 29개 테스트)
+- [x] `croniter>=2.0` 의존성 추가
+
 ## 미구현 (향후 고려)
 
-### Phase 6: 고급 기능
+### Phase 7: 고급 기능
 - [ ] 세션 내보내기/가져오기
 - [ ] 봇 간 세션 공유
 - [ ] 웹훅 모드 (Long Polling 대안)

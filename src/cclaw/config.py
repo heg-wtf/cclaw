@@ -130,6 +130,31 @@ def remove_bot_from_config(name: str) -> None:
     save_config(config)
 
 
+def load_cron_config(name: str) -> dict[str, Any]:
+    """Load a bot's cron.yaml. Returns empty config if not found."""
+    path = bot_directory(name) / "cron.yaml"
+    if not path.exists():
+        return {"jobs": []}
+    with open(path) as file:
+        data = yaml.safe_load(file)
+    if not data or "jobs" not in data:
+        return {"jobs": []}
+    return data
+
+
+def save_cron_config(name: str, config: dict[str, Any]) -> None:
+    """Save a bot's cron.yaml."""
+    path = bot_directory(name) / "cron.yaml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as file:
+        yaml.dump(config, file, default_flow_style=False, allow_unicode=True)
+
+
+def cron_session_directory(bot_name: str, job_name: str) -> Path:
+    """Return the cron session directory path for a job."""
+    return bot_directory(bot_name) / "cron_sessions" / job_name
+
+
 VALID_MODELS = ["sonnet", "opus", "haiku"]
 DEFAULT_MODEL = "sonnet"
 
