@@ -9,6 +9,8 @@ skill_app = typer.Typer(help="Skill management")
 app.add_typer(skill_app, name="skill")
 cron_app = typer.Typer(help="Cron job management")
 app.add_typer(cron_app, name="cron")
+heartbeat_app = typer.Typer(help="Heartbeat management")
+app.add_typer(heartbeat_app, name="heartbeat")
 
 
 @app.command()
@@ -717,3 +719,182 @@ def cron_run(
     except Exception as error:
         console.print(f"[red]Error: {error}[/red]")
         raise typer.Exit(1)
+
+
+# --- Heartbeat subcommands ---
+
+
+@heartbeat_app.command("status")
+def heartbeat_status() -> None:
+    """Show heartbeat status for all bots."""
+    from rich.console import Console
+    from rich.table import Table
+
+    from cclaw.config import DEFAULT_MODEL, load_bot_config, load_config
+    from cclaw.heartbeat import get_heartbeat_config
+
+    console = Console()
+    config = load_config()
+
+    if not config or not config.get("bots"):
+        console.print("[yellow]No bots configured.[/yellow]")
+        return
+
+    table = Table(title="Heartbeat Status")
+    table.add_column("Bot", style="cyan")
+    table.add_column("Enabled", style="green")
+    table.add_column("Interval", style="magenta")
+    table.add_column("Active Hours", style="dim")
+    table.add_column("Model", style="yellow")
+
+    for bot_entry in config["bots"]:
+        name = bot_entry["name"]
+        bot_config = load_bot_config(name)
+        if not bot_config:
+            continue
+
+        heartbeat_config = get_heartbeat_config(name)
+        enabled = heartbeat_config.get("enabled", False)
+        interval = heartbeat_config.get("interval_minutes", 30)
+        active_hours = heartbeat_config.get("active_hours", {})
+        start = active_hours.get("start", "07:00")
+        end = active_hours.get("end", "23:00")
+        model = bot_config.get("model", DEFAULT_MODEL)
+
+        enabled_display = "[green]on[/green]" if enabled else "[red]off[/red]"
+        table.add_row(name, enabled_display, f"{interval}m", f"{start}-{end}", model)
+
+    console.print(table)
+
+
+@heartbeat_app.command("enable")
+def heartbeat_enable(bot: str = typer.Argument(help="Bot name")) -> None:
+    """Enable heartbeat for a bot."""
+    from rich.console import Console
+
+    from cclaw.config import load_bot_config
+    from cclaw.heartbeat import enable_heartbeat
+
+    console = Console()
+
+    if not load_bot_config(bot):
+        console.print(f"[red]Bot '{bot}' not found.[/red]")
+        raise typer.Exit(1)
+
+    if enable_heartbeat(bot):
+        console.print(f"[green]Heartbeat enabled for '{bot}'.[/green]")
+    else:
+        console.print(f"[red]Failed to enable heartbeat for '{bot}'.[/red]")
+        raise typer.Exit(1)
+
+
+@heartbeat_app.command("disable")
+def heartbeat_disable(bot: str = typer.Argument(help="Bot name")) -> None:
+    """Disable heartbeat for a bot."""
+    from rich.console import Console
+
+    from cclaw.config import load_bot_config
+    from cclaw.heartbeat import disable_heartbeat
+
+    console = Console()
+
+    if not load_bot_config(bot):
+        console.print(f"[red]Bot '{bot}' not found.[/red]")
+        raise typer.Exit(1)
+
+    if disable_heartbeat(bot):
+        console.print(f"[green]Heartbeat disabled for '{bot}'.[/green]")
+    else:
+        console.print(f"[red]Failed to disable heartbeat for '{bot}'.[/red]")
+        raise typer.Exit(1)
+
+
+@heartbeat_app.command("run")
+def heartbeat_run(bot: str = typer.Argument(help="Bot name")) -> None:
+    """Run heartbeat immediately (for testing)."""
+    import asyncio
+
+    from rich.console import Console
+
+    from cclaw.claude_runner import run_claude
+    from cclaw.config import DEFAULT_MODEL, load_bot_config
+    from cclaw.heartbeat import (
+        HEARTBEAT_OK_MARKER,
+        heartbeat_session_directory,
+        load_heartbeat_markdown,
+    )
+
+    console = Console()
+
+    bot_config = load_bot_config(bot)
+    if not bot_config:
+        console.print(f"[red]Bot '{bot}' not found.[/red]")
+        raise typer.Exit(1)
+
+    heartbeat_content = load_heartbeat_markdown(bot)
+    if not heartbeat_content:
+        console.print(
+            f"[yellow]No HEARTBEAT.md found. Run 'cclaw heartbeat enable {bot}' first.[/yellow]"
+        )
+        raise typer.Exit(1)
+
+    model = bot_config.get("model", DEFAULT_MODEL)
+    attached_skills = bot_config.get("skills", [])
+    command_timeout = bot_config.get("command_timeout", 300)
+    working_directory = str(heartbeat_session_directory(bot))
+
+    message = f"다음 체크리스트를 확인하고 결과를 알려주세요.\n\n{heartbeat_content}"
+
+    console.print(f"[cyan]Running heartbeat for '{bot}'...[/cyan]")
+    console.print(f"  Model: {model}")
+
+    async def _run() -> str:
+        return await run_claude(
+            working_directory=working_directory,
+            message=message,
+            timeout=command_timeout,
+            session_key=f"heartbeat:{bot}",
+            model=model,
+            skill_names=attached_skills if attached_skills else None,
+        )
+
+    try:
+        response = asyncio.run(_run())
+        if HEARTBEAT_OK_MARKER in response:
+            console.print("\n[green]Result: HEARTBEAT_OK (no notification needed)[/green]")
+        else:
+            console.print("\n[yellow]Result: notification would be sent[/yellow]")
+        console.print(f"\n{response}")
+    except Exception as error:
+        console.print(f"[red]Error: {error}[/red]")
+        raise typer.Exit(1)
+
+
+@heartbeat_app.command("edit")
+def heartbeat_edit(bot: str = typer.Argument(help="Bot name")) -> None:
+    """Edit HEARTBEAT.md for a bot."""
+    import os
+    import subprocess
+
+    from rich.console import Console
+
+    from cclaw.config import load_bot_config
+    from cclaw.heartbeat import (
+        default_heartbeat_content,
+        heartbeat_session_directory,
+    )
+
+    console = Console()
+
+    if not load_bot_config(bot):
+        console.print(f"[red]Bot '{bot}' not found.[/red]")
+        raise typer.Exit(1)
+
+    session_directory = heartbeat_session_directory(bot)
+    heartbeat_md_path = session_directory / "HEARTBEAT.md"
+
+    if not heartbeat_md_path.exists():
+        heartbeat_md_path.write_text(default_heartbeat_content())
+
+    editor = os.environ.get("EDITOR", "vi")
+    subprocess.run([editor, str(heartbeat_md_path)])

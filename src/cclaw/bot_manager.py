@@ -147,6 +147,23 @@ async def _run_bots(bot_names: list[str] | None = None) -> None:
                 cron_tasks.append(task)
                 console.print(f"  [green]CRON[/green] {name} ({len(jobs)} job(s))")
 
+        # Start heartbeat schedulers for bots that have heartbeat enabled
+        from cclaw.heartbeat import run_heartbeat_scheduler
+
+        heartbeat_tasks = []
+        for name, application in started_applications:
+            bot_config = load_bot_config(name)
+            if not bot_config:
+                continue
+            heartbeat_config = bot_config.get("heartbeat", {})
+            if heartbeat_config.get("enabled"):
+                task = asyncio.create_task(
+                    run_heartbeat_scheduler(name, bot_config, application, stop_event)
+                )
+                heartbeat_tasks.append(task)
+                interval = heartbeat_config.get("interval_minutes", 30)
+                console.print(f"  [green]HEARTBEAT[/green] {name} (every {interval}m)")
+
         console.print(f"\n{len(started_applications)} bot(s) running. Press Ctrl+C to stop.")
         await stop_event.wait()
 
@@ -158,6 +175,12 @@ async def _run_bots(bot_names: list[str] | None = None) -> None:
             task.cancel()
         if cron_tasks:
             await asyncio.gather(*cron_tasks, return_exceptions=True)
+
+        # Cancel heartbeat tasks
+        for task in heartbeat_tasks:
+            task.cancel()
+        if heartbeat_tasks:
+            await asyncio.gather(*heartbeat_tasks, return_exceptions=True)
 
         for name, application in started_applications:
             try:

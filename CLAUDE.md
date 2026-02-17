@@ -33,6 +33,11 @@ uv run cclaw cron remove <bot> <job> # cron job 삭제
 uv run cclaw cron enable <bot> <job> # cron job 활성화
 uv run cclaw cron disable <bot> <job> # cron job 비활성화
 uv run cclaw cron run <bot> <job>    # cron job 즉시 실행 (테스트용)
+uv run cclaw heartbeat status        # 봇별 heartbeat 상태 표시
+uv run cclaw heartbeat enable <bot>  # heartbeat 활성화
+uv run cclaw heartbeat disable <bot> # heartbeat 비활성화
+uv run cclaw heartbeat run <bot>     # heartbeat 즉시 실행 (테스트용)
+uv run cclaw heartbeat edit <bot>    # HEARTBEAT.md 편집
 uv run cclaw logs            # 오늘 로그 출력
 uv run cclaw logs -f         # tail -f 모드
 uv run pytest                # 테스트
@@ -47,13 +52,14 @@ pytest
 
 ## 코드 구조
 
-- `src/cclaw/cli.py` - Typer 앱 엔트리포인트, 모든 커맨드 정의 (skills, bot, skill, cron 서브커맨드 포함)
+- `src/cclaw/cli.py` - Typer 앱 엔트리포인트, 모든 커맨드 정의 (skills, bot, skill, cron, heartbeat 서브커맨드 포함)
 - `src/cclaw/config.py` - `~/.cclaw/` 설정 관리 (YAML)
 - `src/cclaw/onboarding.py` - 환경 점검, 토큰 검증, 봇 생성 마법사
 - `src/cclaw/claude_runner.py` - `claude -p` subprocess 실행 (async, `shutil.which`로 경로 해석, 프로세스 추적, 모델 선택, 스킬 MCP/env 주입)
 - `src/cclaw/session.py` - 세션 디렉토리/대화 로그/workspace 관리
-- `src/cclaw/handlers.py` - Telegram 핸들러 팩토리 (슬래시 커맨드 + 메시지 + 파일 수신/전송 + 모델 변경 + 프로세스 취소 + /skills 전체 목록 + /skill 관리 + /cron 관리)
-- `src/cclaw/bot_manager.py` - 멀티봇 polling, launchd 데몬, 개별 봇 오류 격리, cron 스케줄러 통합
+- `src/cclaw/handlers.py` - Telegram 핸들러 팩토리 (슬래시 커맨드 + 메시지 + 파일 수신/전송 + 모델 변경 + 프로세스 취소 + /skills 전체 목록 + /skill 관리 + /cron 관리 + /heartbeat 관리)
+- `src/cclaw/bot_manager.py` - 멀티봇 polling, launchd 데몬, 개별 봇 오류 격리, cron/heartbeat 스케줄러 통합
+- `src/cclaw/heartbeat.py` - Heartbeat 주기적 상황 인지 (설정 CRUD, active hours 체크, HEARTBEAT.md 관리, HEARTBEAT_OK 감지, 스케줄러 루프)
 - `src/cclaw/cron.py` - Cron 스케줄 자동화 (cron.yaml CRUD, croniter 기반 스케줄 매칭, one-shot 지원, 스케줄러 루프)
 - `src/cclaw/skill.py` - 스킬 관리 (인식/로딩/생성/삭제, 봇-스킬 연결, CLAUDE.md 조합, MCP/환경변수 병합)
 - `src/cclaw/utils.py` - 메시지 분할, Markdown→HTML 변환, 로깅 설정
@@ -86,11 +92,15 @@ pytest
 ├── config.yaml           # 전역 설정 (봇 목록, log_level, command_timeout)
 ├── cclaw.pid             # 실행 중 PID
 ├── bots/<name>/
-│   ├── bot.yaml          # 봇 설정 (토큰, 성격, 역할, allowed_users, model, skills)
+│   ├── bot.yaml          # 봇 설정 (토큰, 성격, 역할, allowed_users, model, skills, heartbeat)
 │   ├── CLAUDE.md         # 봇 시스템 프롬프트 (스킬 내용 포함)
 │   ├── cron.yaml         # Cron job 설정 (schedule/at, message, skills, model)
 │   ├── cron_sessions/<job_name>/  # Cron job별 작업 디렉토리
 │   │   └── CLAUDE.md     # 봇 CLAUDE.md 복사본
+│   ├── heartbeat_sessions/       # Heartbeat 전용 작업 디렉토리
+│   │   ├── CLAUDE.md     # 봇 CLAUDE.md 복사본
+│   │   ├── HEARTBEAT.md  # 체크리스트 (사용자 편집 가능)
+│   │   └── workspace/    # 파일 저장소
 │   └── sessions/chat_<id>/
 │       ├── CLAUDE.md     # 세션별 컨텍스트
 │       ├── conversation.md  # 대화 로그

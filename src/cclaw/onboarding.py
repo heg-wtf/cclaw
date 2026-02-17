@@ -184,6 +184,14 @@ def create_bot(token: str, bot_info: dict, profile: dict) -> None:
         "personality": profile["personality"],
         "allowed_users": [],
         "claude_args": [],
+        "heartbeat": {
+            "enabled": False,
+            "interval_minutes": 30,
+            "active_hours": {
+                "start": "07:00",
+                "end": "23:00",
+            },
+        },
     }
 
     save_bot_config(profile["name"], bot_config)

@@ -100,6 +100,13 @@ cclaw cron enable <bot> <job>  # cron job 활성화
 cclaw cron disable <bot> <job> # cron job 비활성화
 cclaw cron run <bot> <job>     # cron job 즉시 실행 (테스트용)
 
+# Heartbeat 관리
+cclaw heartbeat status         # 봇별 heartbeat 상태 표시
+cclaw heartbeat enable <bot>   # heartbeat 활성화
+cclaw heartbeat disable <bot>  # heartbeat 비활성화
+cclaw heartbeat run <bot>      # heartbeat 즉시 실행 (테스트용)
+cclaw heartbeat edit <bot>     # HEARTBEAT.md 편집 ($EDITOR)
+
 # 실행
 cclaw start                    # 포그라운드
 cclaw start --daemon           # 백그라운드 (launchd)
@@ -128,6 +135,10 @@ cclaw logs -f                  # tail -f 모드
 | `/skill detach <name>` | 스킬 해제 |
 | `/cron list` | cron job 목록 |
 | `/cron run <name>` | cron job 즉시 실행 |
+| `/heartbeat` | heartbeat 상태 |
+| `/heartbeat on` | heartbeat 활성화 |
+| `/heartbeat off` | heartbeat 비활성화 |
+| `/heartbeat run` | heartbeat 즉시 실행 |
 | `/cancel` | 실행 중인 프로세스 중단 |
 | `/version` | 버전 정보 |
 | `/help` | 명령어 목록 |
@@ -153,6 +164,7 @@ cclaw/
 │   ├── bot_manager.py      # 멀티봇 라이프사이클
 │   ├── skill.py            # 스킬 관리 (생성/연결/MCP/CLAUDE.md 조합)
 │   ├── cron.py             # Cron 스케줄 자동화
+│   ├── heartbeat.py        # Heartbeat (주기적 상황 인지)
 │   └── utils.py            # 유틸리티
 └── tests/
 ```
@@ -170,6 +182,10 @@ cclaw/
 │       ├── CLAUDE.md
 │       ├── cron.yaml             # Cron job 설정 (선택)
 │       ├── cron_sessions/        # Cron job별 작업 디렉토리
+│       ├── heartbeat_sessions/   # Heartbeat 전용 작업 디렉토리
+│       │   ├── CLAUDE.md
+│       │   ├── HEARTBEAT.md      # 체크리스트 (사용자 편집 가능)
+│       │   └── workspace/
 │       └── sessions/
 │           └── chat_<id>/
 │               ├── CLAUDE.md

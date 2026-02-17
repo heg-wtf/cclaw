@@ -89,6 +89,20 @@ DB 없이 디렉토리 구조로 세션을 관리한다.
 - one-shot job: `delete_after_run=true` 시 실행 후 자동 삭제
 - 봇별 스킬/모델 설정 상속, job 레벨에서 오버라이드 가능
 
+### 9. Heartbeat (주기적 상황 인지)
+
+주기적으로 Claude Code를 깨워 HEARTBEAT.md 체크리스트를 실행하고, 알릴 것이 있을 때만 텔레그램에 메시지를 보내는 프로액티브 에이전트 기능.
+
+- `bot.yaml`의 `heartbeat` 섹션에 설정 (봇당 1개)
+- **interval_minutes**: 실행 간격 (기본 30분)
+- **active_hours**: 활성 시간 범위 (HH:MM, 로컬 시간 기준, 자정 넘김 지원)
+- `HEARTBEAT.md`: 사용자가 편집 가능한 체크리스트 템플릿
+- **HEARTBEAT_OK 감지**: 응답에 `HEARTBEAT_OK` 마커 포함 시 알림 없이 로그만 기록
+- HEARTBEAT_OK가 없으면 `allowed_users` 전원에게 텔레그램 DM 발송
+- 봇에 연결된 스킬 전체를 heartbeat에서도 사용 (별도 스킬 목록 없음)
+- 스케줄러 루프에서 매 주기마다 `bot.yaml`을 재읽기하여 런타임 설정 변경 반영
+- 격리된 작업 디렉토리: `heartbeat_sessions/`에서 Claude Code 실행
+
 ## 모듈 의존성
 
 ```
@@ -98,16 +112,19 @@ cli.py
 │   ├── config.py
 │   ├── skill.py (regenerate_bot_claude_md)
 │   ├── cron.py (list_cron_jobs, run_cron_scheduler)
+│   ├── heartbeat.py (run_heartbeat_scheduler)
 │   ├── handlers.py
 │   │   ├── claude_runner.py
 │   │   │   └── skill.py (merge_mcp_configs, collect_skill_environment_variables)
 │   │   ├── cron.py (list_cron_jobs, get_cron_job, execute_cron_job, next_run_time)
+│   │   ├── heartbeat.py (get/enable/disable_heartbeat, execute_heartbeat)
 │   │   ├── skill.py (attach/detach, is_skill, skill_status)
 │   │   ├── session.py
 │   │   ├── config.py (save_bot_config, VALID_MODELS)
 │   │   └── utils.py
 │   └── utils.py
 ├── cron.py → config.py, claude_runner.py, utils.py
+├── heartbeat.py → config.py, claude_runner.py, utils.py
 ├── skill.py → config.py (순환 참조: config.py → skill.py는 lazy import로 해결)
 └── config.py
 ```
@@ -160,4 +177,22 @@ cli.py
 ### /cron run 명령
 ```
 수신 → 권한 체크 → get_cron_job() → execute_cron_job() → 결과 전송
+```
+
+### Heartbeat 스케줄러
+```
+봇 시작 → heartbeat.enabled 확인 → asyncio.create_task(run_heartbeat_scheduler) → interval_minutes 주기 루프
+  → active_hours 범위 확인 → 범위 밖이면 스킵
+  → HEARTBEAT.md 로드 → run_claude → 응답에 HEARTBEAT_OK 포함 여부 확인
+  → HEARTBEAT_OK 있으면 로그만 기록
+  → HEARTBEAT_OK 없으면 allowed_users에게 텔레그램 전송
+```
+
+### /heartbeat 명령
+```
+수신 → 권한 체크 → subcommand 분기
+  → (없음): get_heartbeat_config() → 상태 표시
+  → on: enable_heartbeat() → 활성화 (HEARTBEAT.md 자동 생성)
+  → off: disable_heartbeat() → 비활성화
+  → run: execute_heartbeat() → 즉시 실행
 ```

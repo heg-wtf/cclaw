@@ -188,3 +188,50 @@ jobs:
 attach/detach 후 로컬 `bot_config["skills"]`를 직접 갱신하여 메모리와 디스크 상태를 동기화한다.
 (`attach_skill_to_bot()`은 디스크의 config만 수정하므로, 메모리의 `bot_config`도 별도로 업데이트해야 한다.)
 `run_claude()` 호출 시 `skill_names=attached_skills`를 전달한다.
+
+## Heartbeat (주기적 상황 인지)
+
+### 설정 위치
+
+cron은 별도 `cron.yaml`을 사용하지만, heartbeat는 `bot.yaml` 내 `heartbeat` 섹션에 저장한다 (봇당 1개).
+
+```yaml
+heartbeat:
+  enabled: false
+  interval_minutes: 30
+  active_hours:
+    start: "07:00"
+    end: "23:00"
+```
+
+### HEARTBEAT_OK 마커
+
+`HEARTBEAT_OK_MARKER = "HEARTBEAT_OK"` 문자열이 Claude 응답에 포함되면 알림을 보내지 않는다.
+대소문자 정확 매치 (`HEARTBEAT_OK in response`).
+HEARTBEAT.md 템플릿에 "HEARTBEAT_OK는 반드시 응답 마지막에 포함할 것" 규칙을 포함한다.
+
+### Active Hours
+
+로컬 시간(`datetime.now()`) 기준 HH:MM 비교.
+자정 넘김 지원: `start > end`이면 야간 범위로 간주 (예: 22:00-06:00).
+
+### 스케줄러 동적 설정 반영
+
+`run_heartbeat_scheduler()`는 매 주기마다 `load_bot_config()`로 bot.yaml을 재읽기한다.
+Telegram `/heartbeat on`/`off`으로 런타임에 활성/비활성을 변경하면 다음 주기부터 반영된다.
+
+### HEARTBEAT.md 생성 시점
+
+봇 생성 시(`onboarding.py`)에는 `heartbeat` 설정만 bot.yaml에 추가하고 HEARTBEAT.md는 생성하지 않는다.
+`cclaw heartbeat enable` 또는 Telegram `/heartbeat on` 실행 시 HEARTBEAT.md가 없으면 기본 템플릿을 자동 생성한다.
+
+### 작업 디렉토리
+
+`~/.cclaw/bots/{name}/heartbeat_sessions/`에서 Claude Code를 실행한다.
+봇의 CLAUDE.md를 복사하고, workspace/ 하위 디렉토리를 생성한다.
+cron_sessions/와 동일한 격리 패턴.
+
+### 결과 전송
+
+bot.yaml의 `allowed_users` 전원에게 전송한다 (cron과 동일 패턴).
+메시지 앞에 `[heartbeat: bot_name]` 헤더를 추가한다.
