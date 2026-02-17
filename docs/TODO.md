@@ -34,9 +34,20 @@
 - [x] 로깅 개선 (일별 로테이션, `cclaw logs` / `cclaw logs -f`)
 - [x] 메시지 큐잉 (동시 요청 시 대기 + "Message queued" 알림)
 
+### Phase 5: 스킬 시스템
+- [x] 스킬 데이터 구조 (`skill.py`: 인식, 로딩, 생성, 삭제, 상태 관리)
+- [x] 스킬 CLI 커맨드 (`cclaw skill add/list/remove/setup/test/edit`)
+- [x] 봇-스킬 연결 (`attach_skill_to_bot`, `detach_skill_from_bot`)
+- [x] CLAUDE.md 조합 (`compose_claude_md`: 봇 프로필 + 스킬 내용 합성)
+- [x] Telegram `/skill` 핸들러 (list/attach/detach)
+- [x] MCP 스킬 지원 (`.mcp.json` 생성, `merge_mcp_configs`)
+- [x] CLI 스킬 환경변수 주입 (`collect_skill_environment_variables`)
+- [x] 봇 시작 시 CLAUDE.md 재생성 (`regenerate_bot_claude_md`)
+- [x] 세션 CLAUDE.md 전파 (`update_session_claude_md`)
+
 ## 미구현 (향후 고려)
 
-### Phase 5: 고급 기능
+### Phase 6: 고급 기능
 - [ ] 세션 내보내기/가져오기
 - [ ] 봇 간 세션 공유
 - [ ] 웹훅 모드 (Long Polling 대안)

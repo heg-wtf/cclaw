@@ -81,6 +81,14 @@ cclaw bot edit <name>          # bot.yaml 편집
 cclaw bot model <name>         # 현재 모델 확인
 cclaw bot model <name> opus    # 모델 변경
 
+# 스킬 관리
+cclaw skill add                # 대화형 스킬 생성
+cclaw skill list               # 스킬 목록 (유형, 상태, 연결된 봇)
+cclaw skill remove <name>      # 스킬 삭제
+cclaw skill setup <name>       # 스킬 셋업 (요구사항 확인 → 활성화)
+cclaw skill test <name>        # 스킬 요구사항 테스트
+cclaw skill edit <name>        # SKILL.md 편집 ($EDITOR)
+
 # 실행
 cclaw start                    # 포그라운드
 cclaw start --daemon           # 백그라운드 (launchd)
@@ -104,6 +112,9 @@ cclaw logs -f                  # tail -f 모드
 | `/status` | 세션 상태 |
 | `/model` | 현재 모델 표시 |
 | `/model <name>` | 모델 변경 (sonnet/opus/haiku) |
+| `/skill list` | 연결된 스킬 목록 |
+| `/skill attach <name>` | 스킬 연결 |
+| `/skill detach <name>` | 스킬 해제 |
 | `/cancel` | 실행 중인 프로세스 중단 |
 | `/version` | 버전 정보 |
 | `/help` | 명령어 목록 |
@@ -127,6 +138,7 @@ cclaw/
 │   ├── session.py          # 세션 디렉토리 관리
 │   ├── handlers.py         # Telegram 핸들러 팩토리
 │   ├── bot_manager.py      # 멀티봇 라이프사이클
+│   ├── skill.py            # 스킬 관리 (생성/연결/MCP/CLAUDE.md 조합)
 │   └── utils.py            # 유틸리티
 └── tests/
 ```
@@ -147,6 +159,11 @@ cclaw/
 │               ├── CLAUDE.md
 │               ├── conversation.md
 │               └── workspace/
+├── skills/
+│   └── <skill-name>/
+│       ├── SKILL.md          # 스킬 지시사항 (필수)
+│       ├── skill.yaml        # 스킬 설정 (도구 기반 스킬만)
+│       └── mcp.json          # MCP 서버 설정 (MCP 스킬만)
 └── logs/
 ```
 

@@ -241,3 +241,73 @@ async def test_run_claude_without_model():
 
     call_args = mock_exec.call_args[0]
     assert "--model" not in call_args
+
+
+@pytest.mark.asyncio
+async def test_run_claude_with_skill_names_mcp(tmp_path):
+    """run_claude writes .mcp.json when skills have MCP config."""
+    mock_process = MagicMock()
+    mock_process.communicate = AsyncMock(return_value=(b"output", b""))
+    mock_process.returncode = 0
+
+    mcp_config = {"mcpServers": {"test-server": {"command": "test"}}}
+
+    with (
+        patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec,
+        patch(
+            "cclaw.skill.merge_mcp_configs",
+            return_value=mcp_config,
+        ),
+        patch(
+            "cclaw.skill.collect_skill_environment_variables",
+            return_value={},
+        ),
+    ):
+        mock_exec.return_value = mock_process
+        await run_claude(str(tmp_path), "Hello", skill_names=["test-skill"])
+
+    import json
+
+    mcp_json_path = tmp_path / ".mcp.json"
+    assert mcp_json_path.exists()
+    with open(mcp_json_path) as file:
+        written_config = json.load(file)
+    assert "test-server" in written_config["mcpServers"]
+
+
+@pytest.mark.asyncio
+async def test_run_claude_with_skill_names_env(tmp_path):
+    """run_claude passes environment variables from skills."""
+    mock_process = MagicMock()
+    mock_process.communicate = AsyncMock(return_value=(b"output", b""))
+    mock_process.returncode = 0
+
+    with (
+        patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec,
+        patch("cclaw.skill.merge_mcp_configs", return_value=None),
+        patch(
+            "cclaw.skill.collect_skill_environment_variables",
+            return_value={"API_KEY": "test-key"},
+        ),
+    ):
+        mock_exec.return_value = mock_process
+        await run_claude(str(tmp_path), "Hello", skill_names=["env-skill"])
+
+    call_kwargs = mock_exec.call_args[1]
+    assert call_kwargs["env"] is not None
+    assert call_kwargs["env"]["API_KEY"] == "test-key"
+
+
+@pytest.mark.asyncio
+async def test_run_claude_without_skill_names():
+    """run_claude does not inject MCP/env when skill_names is None."""
+    mock_process = MagicMock()
+    mock_process.communicate = AsyncMock(return_value=(b"output", b""))
+    mock_process.returncode = 0
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        await run_claude("/tmp/test", "Hello", skill_names=None)
+
+    call_kwargs = mock_exec.call_args[1]
+    assert call_kwargs["env"] is None

@@ -4,8 +4,10 @@
 
 ```
 Telegram ←→ python-telegram-bot (Long Polling) ←→ handlers.py ←→ claude_runner.py ←→ Claude Code CLI
-                                                       ↕
-                                                  session.py ←→ ~/.cclaw/bots/<name>/sessions/
+                                                       ↕                 ↕
+                                                  session.py         skill.py
+                                                       ↕                 ↕
+                                              ~/.cclaw/bots/      ~/.cclaw/skills/
 ```
 
 ## 핵심 설계 결정
@@ -61,6 +63,17 @@ DB 없이 디렉토리 구조로 세션을 관리한다.
 - CLI `cclaw bot model <name> <model>`로도 변경 가능
 - 유효 모델: sonnet, opus, haiku
 
+### 7. 스킬 시스템
+
+봇에 도구/지식을 연결하여 기능을 확장한다.
+
+- 스킬의 최소 단위: 폴더 + `SKILL.md` 하나
+- **마크다운 전용 스킬**: `SKILL.md`만 있으면 즉시 active. 봇에 지식/지시를 추가
+- **도구 기반 스킬**: `skill.yaml`로 유형(cli/mcp/browser), 필요 명령어, 환경변수 정의. `cclaw skill setup`으로 활성화
+- 스킬 연결 시 `compose_claude_md()`로 봇 프롬프트 + 스킬 내용을 합성하여 CLAUDE.md 재생성
+- MCP 스킬: 세션 디렉토리에 `.mcp.json` 자동 생성
+- CLI 스킬: subprocess 실행 시 환경변수 자동 주입
+
 ## 모듈 의존성
 
 ```
@@ -68,12 +81,16 @@ cli.py
 ├── onboarding.py → config.py
 ├── bot_manager.py
 │   ├── config.py
+│   ├── skill.py (regenerate_bot_claude_md)
 │   ├── handlers.py
 │   │   ├── claude_runner.py
+│   │   │   └── skill.py (merge_mcp_configs, collect_skill_environment_variables)
+│   │   ├── skill.py (attach/detach, is_skill, skill_status)
 │   │   ├── session.py
 │   │   ├── config.py (save_bot_config, VALID_MODELS)
 │   │   └── utils.py
 │   └── utils.py
+├── skill.py → config.py (순환 참조: config.py → skill.py는 lazy import로 해결)
 └── config.py
 ```
 
@@ -104,4 +121,9 @@ cli.py
 ### /send 명령
 ```
 수신 → 권한 체크 → workspace 파일 조회 → reply_document()로 전송
+```
+
+### /skill attach 명령
+```
+수신 → 권한 체크 → is_skill() → skill_status() == "active" 확인 → attach_skill_to_bot() → CLAUDE.md 재생성 → 응답
 ```

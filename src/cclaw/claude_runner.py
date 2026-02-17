@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
 import shutil
 
 logger = logging.getLogger(__name__)
@@ -50,6 +52,7 @@ async def run_claude(
     timeout: int = DEFAULT_TIMEOUT,
     session_key: str | None = None,
     model: str | None = None,
+    skill_names: list[str] | None = None,
 ) -> str:
     """Run Claude Code CLI as a subprocess and return its output.
 
@@ -60,6 +63,7 @@ async def run_claude(
         timeout: Maximum execution time in seconds.
         session_key: Optional key for process tracking (enables /cancel).
         model: Claude model to use (sonnet, opus, haiku).
+        skill_names: Optional list of skill names to inject MCP config and env vars.
 
     Returns:
         The text output from Claude Code.
@@ -89,6 +93,21 @@ async def run_claude(
     if extra_arguments:
         command.extend(extra_arguments)
 
+    # Inject MCP config and environment variables from skills
+    environment = None
+    if skill_names:
+        from cclaw.skill import collect_skill_environment_variables, merge_mcp_configs
+
+        mcp_config = merge_mcp_configs(skill_names)
+        if mcp_config:
+            mcp_json_path = os.path.join(working_directory, ".mcp.json")
+            with open(mcp_json_path, "w") as mcp_file:
+                json.dump(mcp_config, mcp_file, indent=2)
+
+        skill_environment_variables = collect_skill_environment_variables(skill_names)
+        if skill_environment_variables:
+            environment = {**os.environ, **skill_environment_variables}
+
     logger.info("Running claude in %s: %s", working_directory, message[:100])
 
     process = await asyncio.create_subprocess_exec(
@@ -96,6 +115,7 @@ async def run_claude(
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         cwd=working_directory,
+        env=environment,
     )
 
     if session_key:

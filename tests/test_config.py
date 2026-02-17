@@ -150,3 +150,42 @@ def test_valid_models():
     assert is_valid_model("opus") is True
     assert is_valid_model("gpt4") is False
     assert is_valid_model("") is False
+
+
+def test_save_bot_config_with_skills(temp_cclaw_home):
+    """save_bot_config includes skill content in CLAUDE.md when skills are present."""
+    # Create a skill first
+    skill_dir = temp_cclaw_home / "skills" / "test-skill"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text("# test-skill\n\nDo something useful.")
+
+    bot_config = {
+        "telegram_token": "fake-token",
+        "personality": "Friendly",
+        "description": "Helper",
+        "allowed_users": [],
+        "claude_args": [],
+        "skills": ["test-skill"],
+    }
+    save_bot_config("skill-bot", bot_config)
+
+    claude_md = (bot_directory("skill-bot") / "CLAUDE.md").read_text()
+    assert "Available Skills" in claude_md
+    assert "test-skill" in claude_md
+    assert "Do something useful" in claude_md
+
+
+def test_save_bot_config_without_skills(temp_cclaw_home):
+    """save_bot_config without skills produces CLAUDE.md without skill section."""
+    bot_config = {
+        "telegram_token": "fake-token",
+        "personality": "Friendly",
+        "description": "Helper",
+        "allowed_users": [],
+        "claude_args": [],
+    }
+    save_bot_config("no-skill-bot", bot_config)
+
+    claude_md = (bot_directory("no-skill-bot") / "CLAUDE.md").read_text()
+    assert "Available Skills" not in claude_md
+    assert "# no-skill-bot" in claude_md

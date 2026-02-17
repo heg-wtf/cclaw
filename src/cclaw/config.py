@@ -67,10 +67,14 @@ def save_bot_config(name: str, bot_config: dict[str, Any]) -> None:
     with open(directory / "bot.yaml", "w") as file:
         yaml.dump(bot_config, file, default_flow_style=False, allow_unicode=True)
 
-    claude_md_content = generate_claude_md(
-        name=name,
+    # Lazy import to avoid circular dependency with skill module
+    from cclaw.skill import compose_claude_md
+
+    claude_md_content = compose_claude_md(
+        bot_name=name,
         personality=bot_config.get("personality", ""),
         description=bot_config.get("description", ""),
+        skill_names=bot_config.get("skills", []),
     )
     with open(directory / "CLAUDE.md", "w") as file:
         file.write(claude_md_content)
