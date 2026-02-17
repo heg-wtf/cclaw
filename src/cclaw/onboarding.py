@@ -13,6 +13,7 @@ from rich.panel import Panel
 
 from cclaw.config import (
     add_bot_to_config,
+    bot_directory,
     bot_exists,
     cclaw_home,
     load_bot_config,
@@ -273,7 +274,7 @@ def run_doctor() -> None:
         else:
             console.print(f"  [red]FAIL[/red] {name}: token invalid")
 
-        session_directory = cclaw_home() / bot_entry["path"] / "sessions"
+        session_directory = bot_directory(name) / "sessions"
         if session_directory.exists():
             session_count = len(list(session_directory.iterdir()))
             console.print(f"       Sessions: {session_count}")

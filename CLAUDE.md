@@ -70,6 +70,7 @@ pytest
 - 타입 힌트 사용 (`from __future__ import annotations`)
 - async/await 패턴 (Telegram, Claude Runner)
 - `CCLAW_HOME` 환경변수로 테스트 시 경로 오버라이드 가능
+- 모든 경로는 절대경로 사용. `config.py`의 `bot_directory(name)` 등 헬퍼 함수를 통해 접근. `pathlib.Path` 사용 권장
 
 ## 테스트 규칙
 

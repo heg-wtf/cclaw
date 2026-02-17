@@ -116,7 +116,7 @@ def add_bot_to_config(name: str) -> None:
 
     existing = [b for b in config["bots"] if b["name"] == name]
     if not existing:
-        config["bots"].append({"name": name, "path": f"bots/{name}"})
+        config["bots"].append({"name": name, "path": str(bot_directory(name))})
 
     save_config(config)
 
