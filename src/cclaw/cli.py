@@ -86,12 +86,12 @@ def bot_list() -> None:
     table.add_column("Path", style="dim")
 
     for bot_entry in config["bots"]:
-        from cclaw.config import DEFAULT_MODEL, cclaw_home, load_bot_config
+        from cclaw.config import DEFAULT_MODEL, bot_directory, load_bot_config
 
         bot_config = load_bot_config(bot_entry["name"])
         telegram_username = bot_config.get("telegram_username", "N/A") if bot_config else "N/A"
         model = bot_config.get("model", DEFAULT_MODEL) if bot_config else DEFAULT_MODEL
-        path = str(cclaw_home() / bot_entry["path"])
+        path = str(bot_directory(bot_entry["name"]))
         table.add_row(bot_entry["name"], model, telegram_username, path)
 
     console.print(table)
@@ -104,7 +104,8 @@ def bot_remove(name: str) -> None:
 
     from rich.console import Console
 
-    from cclaw.config import cclaw_home, load_config, save_config
+    from cclaw.config import bot_directory as get_bot_directory
+    from cclaw.config import load_config, save_config
 
     console = Console()
     config = load_config()
@@ -123,9 +124,9 @@ def bot_remove(name: str) -> None:
         console.print("[yellow]Cancelled.[/yellow]")
         return
 
-    bot_directory = cclaw_home() / bot_entry["path"]
-    if bot_directory.exists():
-        shutil.rmtree(bot_directory)
+    target_directory = get_bot_directory(name)
+    if target_directory.exists():
+        shutil.rmtree(target_directory)
 
     config["bots"] = [b for b in config["bots"] if b["name"] != name]
     save_config(config)
@@ -248,21 +249,16 @@ def bot_edit(name: str) -> None:
 
     from rich.console import Console
 
-    from cclaw.config import cclaw_home, load_config
+    from cclaw.config import bot_directory, load_bot_config
 
     console = Console()
-    config = load_config()
+    bot_config = load_bot_config(name)
 
-    if not config or not config.get("bots"):
-        console.print("[red]No bots configured.[/red]")
-        raise typer.Exit(1)
-
-    bot_entry = next((b for b in config["bots"] if b["name"] == name), None)
-    if not bot_entry:
+    if not bot_config:
         console.print(f"[red]Bot '{name}' not found.[/red]")
         raise typer.Exit(1)
 
-    bot_yaml_path = cclaw_home() / bot_entry["path"] / "bot.yaml"
+    bot_yaml_path = bot_directory(name) / "bot.yaml"
     editor = "vi"
     subprocess.run([editor, str(bot_yaml_path)])
 

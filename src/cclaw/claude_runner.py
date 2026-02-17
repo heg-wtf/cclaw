@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import shutil
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +101,7 @@ async def run_claude(
 
         mcp_config = merge_mcp_configs(skill_names)
         if mcp_config:
-            mcp_json_path = os.path.join(working_directory, ".mcp.json")
+            mcp_json_path = str(Path(working_directory) / ".mcp.json")
             with open(mcp_json_path, "w") as mcp_file:
                 json.dump(mcp_config, mcp_file, indent=2)
 

@@ -5,6 +5,10 @@
 런타임 데이터 경로는 기본값 `~/.cclaw/`이며, `CCLAW_HOME` 환경변수로 변경 가능하다.
 테스트에서는 `monkeypatch.setenv("CCLAW_HOME", str(tmp_path))`로 격리한다.
 
+## 경로 관리 원칙
+
+모든 경로는 절대경로를 사용한다. `config.py`의 `bot_directory(name)` 함수가 `cclaw_home() / "bots" / name` 절대경로를 반환하며, 다른 모듈에서는 이 함수를 통해 봇 디렉토리에 접근한다. `config.yaml`의 봇 엔트리에도 절대경로가 저장된다. 상대경로 사용을 지양하고, 경로 조합에는 `pathlib.Path`를 사용한다.
+
 ## Telegram 메시지 제한
 
 Telegram 메시지는 최대 4096자. `utils.split_message()`로 긴 응답을 분할 전송한다.
