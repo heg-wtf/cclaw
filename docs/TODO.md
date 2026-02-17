@@ -59,9 +59,20 @@
 - [x] 테스트 (`test_cron.py`: 29개 테스트)
 - [x] `croniter>=2.0` 의존성 추가
 
+### Phase 7: Heartbeat (주기적 상황 인지)
+- [x] Heartbeat 코어 모듈 (`heartbeat.py`: 설정 CRUD, active hours, HEARTBEAT.md 관리)
+- [x] execute_heartbeat (Claude 실행, HEARTBEAT_OK 감지, 조건부 알림)
+- [x] run_heartbeat_scheduler (interval_minutes 기반 타이머 루프, active hours 게이트)
+- [x] `bot_manager.py` 통합 (봇 시작 시 heartbeat 태스크 생성, graceful shutdown)
+- [x] `onboarding.py` 기본 설정 (봇 생성 시 heartbeat 섹션 추가)
+- [x] CLI 서브커맨드 (`cclaw heartbeat status/enable/disable/run/edit`)
+- [x] Telegram `/heartbeat` 핸들러 (상태 표시, on/off/run)
+- [x] BOT_COMMANDS 및 /help 업데이트
+- [x] 테스트 (`test_heartbeat.py`: 26개 테스트, `test_handlers.py` 업데이트)
+
 ## 미구현 (향후 고려)
 
-### Phase 7: 고급 기능
+### Phase 8: 고급 기능
 - [ ] 세션 내보내기/가져오기
 - [ ] 봇 간 세션 공유
 - [ ] 웹훅 모드 (Long Polling 대안)

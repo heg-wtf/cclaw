@@ -98,6 +98,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             "\U0001f9e9 /skills - List all skills\n"
             "\U0001f9e9 /skill - Manage skills (attach/detach)\n"
             "\u23f0 /cron - Cron job management\n"
+            "\U0001f493 /heartbeat - Heartbeat management\n"
             "\u26d4 /cancel - Stop running process\n"
             "\U00002139 /version - Show version\n"
             "\U00002753 /help - Show this message"
@@ -596,6 +597,82 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                 "Unknown subcommand. Use: list, attach, detach",
             )
 
+    async def heartbeat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle /heartbeat command - manage heartbeat settings."""
+        if not await check_authorization(update):
+            return
+
+        from cclaw.heartbeat import (
+            disable_heartbeat,
+            enable_heartbeat,
+            execute_heartbeat,
+            get_heartbeat_config,
+        )
+
+        if not context.args:
+            heartbeat_config = get_heartbeat_config(bot_name)
+            enabled = heartbeat_config.get("enabled", False)
+            interval = heartbeat_config.get("interval_minutes", 30)
+            active_hours = heartbeat_config.get("active_hours", {})
+            start = active_hours.get("start", "07:00")
+            end = active_hours.get("end", "23:00")
+            status_text = "on" if enabled else "off"
+            text = (
+                f"\U0001f493 *Heartbeat Status*\n\n"
+                f"Status: *{status_text}*\n"
+                f"Interval: {interval}m\n"
+                f"Active hours: {start} - {end}\n\n"
+                "`/heartbeat on` - Enable\n"
+                "`/heartbeat off` - Disable\n"
+                "`/heartbeat run` - Run now"
+            )
+            await update.message.reply_text(text, parse_mode="Markdown")
+            return
+
+        subcommand = context.args[0].lower()
+
+        if subcommand == "on":
+            if enable_heartbeat(bot_name):
+                await update.message.reply_text("\U0001f493 Heartbeat enabled.")
+            else:
+                await update.message.reply_text("Failed to enable heartbeat.")
+
+        elif subcommand == "off":
+            if disable_heartbeat(bot_name):
+                await update.message.reply_text("\U0001f493 Heartbeat disabled.")
+            else:
+                await update.message.reply_text("Failed to disable heartbeat.")
+
+        elif subcommand == "run":
+            await update.message.reply_text("\U0001f493 Running heartbeat check...")
+
+            async def send_typing_periodically() -> None:
+                try:
+                    while True:
+                        await update.message.chat.send_action("typing")
+                        await asyncio.sleep(4)
+                except asyncio.CancelledError:
+                    pass
+
+            typing_task = asyncio.create_task(send_typing_periodically())
+
+            try:
+                await execute_heartbeat(
+                    bot_name=bot_name,
+                    bot_config=bot_config,
+                    send_message_callback=context.bot.send_message,
+                )
+                await update.message.reply_text("\U0001f493 Heartbeat check completed.")
+            except Exception as error:
+                await update.message.reply_text(f"Heartbeat failed: {error}")
+            finally:
+                typing_task.cancel()
+
+        else:
+            await update.message.reply_text(
+                "Unknown subcommand. Use: on, off, run",
+            )
+
     handlers = [
         CommandHandler("start", start_handler),
         CommandHandler("help", help_handler),
@@ -610,6 +687,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         CommandHandler("skills", skills_handler),
         CommandHandler("skill", skill_handler),
         CommandHandler("cron", cron_handler),
+        CommandHandler("heartbeat", heartbeat_handler),
         MessageHandler(filters.PHOTO | filters.Document.ALL, file_handler),
         MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler),
     ]
@@ -628,6 +706,7 @@ BOT_COMMANDS = [
     BotCommand("skills", "\U0001f9e9 List all skills"),
     BotCommand("skill", "\U0001f9e9 Manage skills"),
     BotCommand("cron", "\u23f0 Cron job management"),
+    BotCommand("heartbeat", "\U0001f493 Heartbeat management"),
     BotCommand("cancel", "\u26d4 Stop running process"),
     BotCommand("version", "\U00002139 Show version"),
     BotCommand("help", "\U00002753 Show commands"),

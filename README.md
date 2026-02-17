@@ -100,6 +100,13 @@ cclaw cron enable <bot> <job>  # Enable a cron job
 cclaw cron disable <bot> <job> # Disable a cron job
 cclaw cron run <bot> <job>     # Run a cron job immediately (test)
 
+# Heartbeat management
+cclaw heartbeat status         # Show heartbeat status for all bots
+cclaw heartbeat enable <bot>   # Enable heartbeat
+cclaw heartbeat disable <bot>  # Disable heartbeat
+cclaw heartbeat run <bot>      # Run heartbeat immediately (test)
+cclaw heartbeat edit <bot>     # Edit HEARTBEAT.md ($EDITOR)
+
 # Run
 cclaw start                    # Foreground
 cclaw start --daemon           # Background (launchd)
@@ -128,6 +135,10 @@ cclaw logs -f                  # Tail mode
 | `/skill detach <name>` | Detach a skill |
 | `/cron list` | List cron jobs |
 | `/cron run <name>` | Run a cron job now |
+| `/heartbeat` | Heartbeat status |
+| `/heartbeat on` | Enable heartbeat |
+| `/heartbeat off` | Disable heartbeat |
+| `/heartbeat run` | Run heartbeat now |
 | `/cancel` | Stop running process |
 | `/version` | Version info |
 | `/help` | Show commands |
@@ -153,6 +164,7 @@ cclaw/
 │   ├── bot_manager.py      # Multi-bot lifecycle
 │   ├── skill.py            # Skill management (create/attach/MCP/CLAUDE.md composition)
 │   ├── cron.py             # Cron schedule automation
+│   ├── heartbeat.py        # Heartbeat (periodic situation awareness)
 │   └── utils.py            # Utilities
 └── tests/
 ```
@@ -170,6 +182,10 @@ Configuration and session data are stored in `~/.cclaw/`. Override the path with
 │       ├── CLAUDE.md
 │       ├── cron.yaml             # Cron job config (optional)
 │       ├── cron_sessions/        # Cron job working directories
+│       ├── heartbeat_sessions/   # Heartbeat working directory
+│       │   ├── CLAUDE.md
+│       │   ├── HEARTBEAT.md      # Checklist (user-editable)
+│       │   └── workspace/
 │       └── sessions/
 │           └── chat_<id>/
 │               ├── CLAUDE.md

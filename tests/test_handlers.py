@@ -39,7 +39,7 @@ def bot_config():
 def test_make_handlers_returns_handlers(bot_path, bot_config):
     """make_handlers returns a list of handlers."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    assert len(handlers) == 15
+    assert len(handlers) == 16
 
 
 def test_is_user_allowed_empty_list():
@@ -142,7 +142,7 @@ async def test_reset_handler(bot_path, bot_config, mock_update):
 async def test_message_handler_calls_claude(bot_path, bot_config, mock_update):
     """Message handler forwards to Claude and replies."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[14]
+    message_handler = handlers[15]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Claude response"
@@ -294,7 +294,7 @@ async def test_message_handler_passes_model(bot_path, bot_config, mock_update):
     """Message handler passes model to run_claude."""
     bot_config["model"] = "opus"
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[14]
+    message_handler = handlers[15]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -442,7 +442,7 @@ async def test_message_handler_passes_skill_names(bot_path, bot_config, mock_upd
     """Message handler passes skill_names to run_claude when skills are attached."""
     bot_config["skills"] = ["my-skill"]
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[14]
+    message_handler = handlers[15]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -456,7 +456,7 @@ async def test_message_handler_passes_skill_names(bot_path, bot_config, mock_upd
 async def test_message_handler_no_skill_names(bot_path, bot_config, mock_update):
     """Message handler passes None for skill_names when no skills attached."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[14]
+    message_handler = handlers[15]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -464,3 +464,59 @@ async def test_message_handler_no_skill_names(bot_path, bot_config, mock_update)
 
     call_kwargs = mock_claude.call_args[1]
     assert call_kwargs["skill_names"] is None
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_handler_no_args(bot_path, bot_config, mock_update):
+    """Heartbeat handler shows status when no args."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    heartbeat_handler = handlers[13]
+
+    mock_context = MagicMock()
+    mock_context.args = []
+
+    with patch(
+        "cclaw.heartbeat.get_heartbeat_config",
+        return_value={
+            "enabled": False,
+            "interval_minutes": 30,
+            "active_hours": {"start": "07:00", "end": "23:00"},
+        },
+    ):
+        await heartbeat_handler.callback(mock_update, mock_context)
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "Heartbeat" in call_text
+    assert "off" in call_text
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_handler_on(bot_path, bot_config, mock_update):
+    """Heartbeat handler enables heartbeat."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    heartbeat_handler = handlers[13]
+
+    mock_context = MagicMock()
+    mock_context.args = ["on"]
+
+    with patch("cclaw.heartbeat.enable_heartbeat", return_value=True):
+        await heartbeat_handler.callback(mock_update, mock_context)
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "enabled" in call_text
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_handler_off(bot_path, bot_config, mock_update):
+    """Heartbeat handler disables heartbeat."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    heartbeat_handler = handlers[13]
+
+    mock_context = MagicMock()
+    mock_context.args = ["off"]
+
+    with patch("cclaw.heartbeat.disable_heartbeat", return_value=True):
+        await heartbeat_handler.callback(mock_update, mock_context)
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "disabled" in call_text
