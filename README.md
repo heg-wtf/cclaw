@@ -1,36 +1,38 @@
 # cclaw (claude-claw)
 
-Telegram + Claude Code 기반 개인 AI 어시스턴트.
-로컬 Mac(Intel/Apple Silicon)에서 실행되는 멀티봇, 파일 기반 세션 시스템.
+> [한국어](README.ko.md)
 
-## 설계 원칙
+Personal AI assistant powered by Telegram + Claude Code.
+A multi-bot, file-based session system that runs locally on Mac (Intel/Apple Silicon).
 
-- **로컬 퍼스트**: 서버 없음. Long Polling. SSL/공인IP 불필요.
-- **파일 기반**: DB 없음. 세션 = 디렉토리. 대화 = 마크다운.
-- **Claude Code 위임**: LLM API 직접 호출 없음. `claude -p`를 subprocess로 실행.
-- **CLI 퍼스트**: 온보딩부터 봇 관리까지 터미널에서 완결.
+## Design Principles
 
-## 기술 스택
+- **Local First**: No server required. Long Polling. No SSL or public IP needed.
+- **File Based**: No database. Session = directory. Conversation = markdown.
+- **Claude Code Delegation**: No direct LLM API calls. Runs `claude -p` as a subprocess.
+- **CLI First**: Everything from onboarding to bot management is done in the terminal.
 
-| 구분 | 선택 |
-|------|------|
-| 패키지 관리 | uv |
+## Tech Stack
+
+| Component | Choice |
+|-----------|--------|
+| Package Manager | uv |
 | CLI | Typer + Rich |
 | Telegram | python-telegram-bot v21+ |
-| 설정 | PyYAML |
-| AI 엔진 | Claude Code CLI (`claude -p`) |
-| 프로세스 관리 | launchd (macOS) |
+| Configuration | PyYAML |
+| AI Engine | Claude Code CLI (`claude -p`) |
+| Process Manager | launchd (macOS) |
 
-## 요구사항
+## Requirements
 
 - Python >= 3.11
-- Node.js (Claude Code 런타임)
+- Node.js (Claude Code runtime)
 - [Claude Code CLI](https://www.npmjs.com/package/@anthropic-ai/claude-code)
 - [uv](https://docs.astral.sh/uv/)
 
-## 설치
+## Installation
 
-### uv (권장)
+### uv (Recommended)
 
 ```bash
 uv sync
@@ -40,112 +42,112 @@ uv sync
 
 ```bash
 pip install .
-# 또는
+# or
 pipx install .
 ```
 
-## 사용법
+## Quick Start
 
 ```bash
-# 환경 점검
-cclaw doctor                    # pip/pipx 설치 시
-uv run cclaw doctor             # uv 사용 시
+# Check environment
+cclaw doctor                    # pip/pipx install
+uv run cclaw doctor             # uv
 
-# 최초 설정 (Telegram 봇 토큰 필요)
+# Initial setup (Telegram bot token required)
 cclaw init
 
-# 봇 관리
+# Bot management
 cclaw bot list
 cclaw bot add
 cclaw bot remove <name>
 
-# 봇 실행
-cclaw start              # 포그라운드
-cclaw start --daemon     # 백그라운드 (launchd)
-cclaw stop               # 데몬 중지
-cclaw status             # 실행 상태 확인
+# Run bots
+cclaw start              # Foreground
+cclaw start --daemon     # Background (launchd)
+cclaw stop               # Stop daemon
+cclaw status             # Show running status
 ```
 
-## CLI 명령어
+## CLI Commands
 
 ```bash
-# 온보딩/점검
-cclaw init                     # 최초 설정
-cclaw doctor                   # 환경 점검
+# Onboarding
+cclaw init                     # Initial setup
+cclaw doctor                   # Environment check
 
-# 봇 관리
-cclaw bot list                 # 봇 목록 (모델 표시)
-cclaw bot add                  # 봇 추가
-cclaw bot remove <name>        # 봇 삭제
-cclaw bot edit <name>          # bot.yaml 편집
-cclaw bot model <name>         # 현재 모델 확인
-cclaw bot model <name> opus    # 모델 변경
+# Bot management
+cclaw bot list                 # List bots (with model info)
+cclaw bot add                  # Add a bot
+cclaw bot remove <name>        # Remove a bot
+cclaw bot edit <name>          # Edit bot.yaml
+cclaw bot model <name>         # Show current model
+cclaw bot model <name> opus    # Change model
 
-# 스킬 관리
-cclaw skill add                # 대화형 스킬 생성
-cclaw skill list               # 스킬 목록 (유형, 상태, 연결된 봇)
-cclaw skill remove <name>      # 스킬 삭제
-cclaw skill setup <name>       # 스킬 셋업 (요구사항 확인 → 활성화)
-cclaw skill test <name>        # 스킬 요구사항 테스트
-cclaw skill edit <name>        # SKILL.md 편집 ($EDITOR)
+# Skill management
+cclaw skills                   # List all skills (including unattached)
+cclaw skill add                # Create a skill interactively
+cclaw skill remove <name>      # Remove a skill
+cclaw skill setup <name>       # Setup skill (check requirements, activate)
+cclaw skill test <name>        # Test skill requirements
+cclaw skill edit <name>        # Edit SKILL.md ($EDITOR)
 
-# 실행
-cclaw start                    # 포그라운드
-cclaw start --daemon           # 백그라운드 (launchd)
-cclaw stop                     # 데몬 중지
-cclaw status                   # 실행 상태
+# Run
+cclaw start                    # Foreground
+cclaw start --daemon           # Background (launchd)
+cclaw stop                     # Stop daemon
+cclaw status                   # Show status
 
-# 로그
-cclaw logs                     # 오늘 로그 출력
-cclaw logs -f                  # tail -f 모드
+# Logs
+cclaw logs                     # Show today's log
+cclaw logs -f                  # Tail mode
 ```
 
-## Telegram 명령어
+## Telegram Commands
 
-| 명령어 | 설명 |
-|--------|------|
-| `/start` | 봇 소개 |
-| `/reset` | 대화 초기화 (workspace 유지) |
-| `/resetall` | 세션 전체 삭제 |
-| `/files` | workspace 파일 목록 |
-| `/send <filename>` | workspace 파일 전송 |
-| `/status` | 세션 상태 |
-| `/model` | 현재 모델 표시 |
-| `/model <name>` | 모델 변경 (sonnet/opus/haiku) |
-| `/skill list` | 연결된 스킬 목록 |
-| `/skill attach <name>` | 스킬 연결 |
-| `/skill detach <name>` | 스킬 해제 |
-| `/cancel` | 실행 중인 프로세스 중단 |
-| `/version` | 버전 정보 |
-| `/help` | 명령어 목록 |
+| Command | Description |
+|---------|-------------|
+| `/start` | Bot introduction |
+| `/reset` | Clear conversation (keep workspace) |
+| `/resetall` | Delete entire session |
+| `/files` | List workspace files |
+| `/send <filename>` | Send workspace file |
+| `/status` | Session status |
+| `/model` | Show current model |
+| `/model <name>` | Change model (sonnet/opus/haiku) |
+| `/skills` | List all skills (including unattached) |
+| `/skill attach <name>` | Attach a skill |
+| `/skill detach <name>` | Detach a skill |
+| `/cancel` | Stop running process |
+| `/version` | Version info |
+| `/help` | Show commands |
 
-## 파일 처리
+## File Handling
 
-사진이나 문서를 봇에게 보내면 자동으로 workspace에 저장되고 Claude Code에게 전달됩니다.
-캡션을 함께 보내면 캡션이 프롬프트로 사용됩니다.
-`/send` 명령어로 workspace 파일을 텔레그램으로 다시 받을 수 있습니다.
+Send photos or documents to the bot and they are automatically saved to the workspace and forwarded to Claude Code.
+If a caption is included, it is used as the prompt.
+Use the `/send` command to retrieve workspace files back via Telegram.
 
-## 프로젝트 구조
+## Project Structure
 
 ```
 cclaw/
 ├── pyproject.toml
 ├── src/cclaw/
-│   ├── cli.py              # Typer CLI 엔트리포인트
-│   ├── config.py           # 설정 로드/저장
-│   ├── onboarding.py       # 초기 설정 마법사
-│   ├── claude_runner.py    # Claude Code subprocess 실행
-│   ├── session.py          # 세션 디렉토리 관리
-│   ├── handlers.py         # Telegram 핸들러 팩토리
-│   ├── bot_manager.py      # 멀티봇 라이프사이클
-│   ├── skill.py            # 스킬 관리 (생성/연결/MCP/CLAUDE.md 조합)
-│   └── utils.py            # 유틸리티
+│   ├── cli.py              # Typer CLI entry point
+│   ├── config.py           # Configuration load/save
+│   ├── onboarding.py       # Setup wizard
+│   ├── claude_runner.py    # Claude Code subprocess runner
+│   ├── session.py          # Session directory management
+│   ├── handlers.py         # Telegram handler factory
+│   ├── bot_manager.py      # Multi-bot lifecycle
+│   ├── skill.py            # Skill management (create/attach/MCP/CLAUDE.md composition)
+│   └── utils.py            # Utilities
 └── tests/
 ```
 
-## 런타임 데이터
+## Runtime Data
 
-`~/.cclaw/` 디렉토리에 설정과 세션 데이터가 저장됩니다. `CCLAW_HOME` 환경변수로 경로를 변경할 수 있습니다.
+Configuration and session data are stored in `~/.cclaw/`. Override the path with the `CCLAW_HOME` environment variable.
 
 ```
 ~/.cclaw/
@@ -161,20 +163,20 @@ cclaw/
 │               └── workspace/
 ├── skills/
 │   └── <skill-name>/
-│       ├── SKILL.md          # 스킬 지시사항 (필수)
-│       ├── skill.yaml        # 스킬 설정 (도구 기반 스킬만)
-│       └── mcp.json          # MCP 서버 설정 (MCP 스킬만)
+│       ├── SKILL.md          # Skill instructions (required)
+│       ├── skill.yaml        # Skill config (tool-based skills only)
+│       └── mcp.json          # MCP server config (MCP skills only)
 └── logs/
 ```
 
-## 테스트
+## Testing
 
 ```bash
 uv run pytest
-# 또는
+# or
 pytest
 ```
 
-## 라이선스
+## License
 
 MIT

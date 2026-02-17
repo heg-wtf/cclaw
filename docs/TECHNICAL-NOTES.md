@@ -131,8 +131,15 @@ subprocess의 `env` 파라미터에 주입한다.
 `ensure_session()`은 기존 동작을 유지한다 (세션 CLAUDE.md가 없을 때만 봇 CLAUDE.md를 복사).
 스킬 attach/detach 시 `update_session_claude_md()`가 기존 모든 세션의 CLAUDE.md를 명시적으로 덮어쓴다.
 
+### Telegram /skills 핸들러
+
+`/skills` 커맨드는 `list_skills()`로 전체 스킬 목록을 조회하고,
+`bots_using_skill()`로 각 스킬의 연결 상태를 표시한다.
+봇에 연결되지 않은 스킬도 포함된다.
+
 ### Telegram /skill 핸들러
 
 핸들러 클로저 내 `attached_skills` 변수로 현재 연결된 스킬을 추적한다.
-attach/detach 후 `bot_config["skills"]`를 직접 갱신하여 closure 동기화.
+attach/detach 후 로컬 `bot_config["skills"]`를 직접 갱신하여 메모리와 디스크 상태를 동기화한다.
+(`attach_skill_to_bot()`은 디스크의 config만 수정하므로, 메모리의 `bot_config`도 별도로 업데이트해야 한다.)
 `run_claude()` 호출 시 `skill_names=attached_skills`를 전달한다.
