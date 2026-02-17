@@ -97,6 +97,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             "\U0001f9e0 /model - Show or change model\n"
             "\U0001f9e9 /skills - List all skills\n"
             "\U0001f9e9 /skill - Manage skills (attach/detach)\n"
+            "\u23f0 /cron - Cron job management\n"
             "\u26d4 /cancel - Stop running process\n"
             "\U00002139 /version - Show version\n"
             "\U00002753 /help - Show this message"
@@ -430,6 +431,84 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
 
         await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
+    async def cron_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle /cron command - list or run cron jobs."""
+        if not await check_authorization(update):
+            return
+
+        from cclaw.cron import execute_cron_job, get_cron_job, list_cron_jobs, next_run_time
+
+        if not context.args:
+            text = (
+                "\u23f0 *Cron Commands:*\n\n"
+                "`/cron list` - Show cron jobs\n"
+                "`/cron run <name>` - Run a job now"
+            )
+            await update.message.reply_text(text, parse_mode="Markdown")
+            return
+
+        subcommand = context.args[0].lower()
+
+        if subcommand == "list":
+            jobs = list_cron_jobs(bot_name)
+            if not jobs:
+                await update.message.reply_text("\u23f0 No cron jobs configured.")
+                return
+
+            lines = ["\u23f0 *Cron Jobs:*\n"]
+            for job in jobs:
+                enabled = job.get("enabled", True)
+                status_icon = "\u2705" if enabled else "\U0001f6d1"
+                schedule_display = job.get("schedule") or f"at: {job.get('at', 'N/A')}"
+                next_time = next_run_time(job) if enabled else None
+                next_display = next_time.strftime("%m-%d %H:%M") if next_time else "-"
+                message_preview = job.get("message", "")[:30]
+                lines.append(
+                    f"{status_icon} `{job['name']}` ({schedule_display})\n"
+                    f"   Next: {next_display} | {message_preview}"
+                )
+            await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+        elif subcommand == "run":
+            if len(context.args) < 2:
+                await update.message.reply_text("Usage: `/cron run <name>`", parse_mode="Markdown")
+                return
+
+            job_name = context.args[1]
+            cron_job = get_cron_job(bot_name, job_name)
+            if not cron_job:
+                await update.message.reply_text(f"Job '{job_name}' not found.")
+                return
+
+            await update.message.reply_text(f"\u23f0 Running job '{job_name}'...")
+
+            async def send_typing_periodically() -> None:
+                try:
+                    while True:
+                        await update.message.chat.send_action("typing")
+                        await asyncio.sleep(4)
+                except asyncio.CancelledError:
+                    pass
+
+            typing_task = asyncio.create_task(send_typing_periodically())
+
+            try:
+                await execute_cron_job(
+                    bot_name=bot_name,
+                    job=cron_job,
+                    bot_config=bot_config,
+                    send_message_callback=context.bot.send_message,
+                )
+            except Exception as error:
+                await update.message.reply_text(f"Job failed: {error}")
+            finally:
+                typing_task.cancel()
+
+        else:
+            await update.message.reply_text(
+                "Unknown subcommand. Use: list, run",
+            )
+
     async def skill_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /skill command - manage skill attachments."""
         nonlocal attached_skills
@@ -530,6 +609,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         CommandHandler("cancel", cancel_handler),
         CommandHandler("skills", skills_handler),
         CommandHandler("skill", skill_handler),
+        CommandHandler("cron", cron_handler),
         MessageHandler(filters.PHOTO | filters.Document.ALL, file_handler),
         MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler),
     ]
@@ -547,6 +627,7 @@ BOT_COMMANDS = [
     BotCommand("model", "\U0001f9e0 Show or change model"),
     BotCommand("skills", "\U0001f9e9 List all skills"),
     BotCommand("skill", "\U0001f9e9 Manage skills"),
+    BotCommand("cron", "\u23f0 Cron job management"),
     BotCommand("cancel", "\u26d4 Stop running process"),
     BotCommand("version", "\U00002139 Show version"),
     BotCommand("help", "\U00002753 Show commands"),

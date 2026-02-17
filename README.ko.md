@@ -20,6 +20,7 @@ Telegram + Claude Code 기반 개인 AI 어시스턴트.
 | CLI | Typer + Rich |
 | Telegram | python-telegram-bot v21+ |
 | 설정 | PyYAML |
+| Cron 스케줄러 | croniter |
 | AI 엔진 | Claude Code CLI (`claude -p`) |
 | 프로세스 관리 | launchd (macOS) |
 
@@ -91,6 +92,14 @@ cclaw skill setup <name>       # 스킬 셋업 (요구사항 확인 → 활성�
 cclaw skill test <name>        # 스킬 요구사항 테스트
 cclaw skill edit <name>        # SKILL.md 편집 ($EDITOR)
 
+# Cron job 관리
+cclaw cron list <bot>          # cron job 목록
+cclaw cron add <bot>           # 대화형 cron job 생성
+cclaw cron remove <bot> <job>  # cron job 삭제
+cclaw cron enable <bot> <job>  # cron job 활성화
+cclaw cron disable <bot> <job> # cron job 비활성화
+cclaw cron run <bot> <job>     # cron job 즉시 실행 (테스트용)
+
 # 실행
 cclaw start                    # 포그라운드
 cclaw start --daemon           # 백그라운드 (launchd)
@@ -117,6 +126,8 @@ cclaw logs -f                  # tail -f 모드
 | `/skills` | 전체 스킬 목록 (미연결 포함) |
 | `/skill attach <name>` | 스킬 연결 |
 | `/skill detach <name>` | 스킬 해제 |
+| `/cron list` | cron job 목록 |
+| `/cron run <name>` | cron job 즉시 실행 |
 | `/cancel` | 실행 중인 프로세스 중단 |
 | `/version` | 버전 정보 |
 | `/help` | 명령어 목록 |
@@ -141,6 +152,7 @@ cclaw/
 │   ├── handlers.py         # Telegram 핸들러 팩토리
 │   ├── bot_manager.py      # 멀티봇 라이프사이클
 │   ├── skill.py            # 스킬 관리 (생성/연결/MCP/CLAUDE.md 조합)
+│   ├── cron.py             # Cron 스케줄 자동화
 │   └── utils.py            # 유틸리티
 └── tests/
 ```
@@ -156,6 +168,8 @@ cclaw/
 │   └── <bot-name>/
 │       ├── bot.yaml
 │       ├── CLAUDE.md
+│       ├── cron.yaml             # Cron job 설정 (선택)
+│       ├── cron_sessions/        # Cron job별 작업 디렉토리
 │       └── sessions/
 │           └── chat_<id>/
 │               ├── CLAUDE.md

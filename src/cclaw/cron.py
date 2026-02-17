@@ -1,0 +1,332 @@
+"""Cron schedule automation for cclaw bots."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import re
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any
+
+import yaml
+from croniter import croniter
+
+from cclaw.config import bot_directory
+
+logger = logging.getLogger(__name__)
+
+
+# --- Data structures & CRUD ---
+
+
+def cron_config_path(bot_name: str) -> Path:
+    """Return the path to a bot's cron.yaml."""
+    return bot_directory(bot_name) / "cron.yaml"
+
+
+def load_cron_config(bot_name: str) -> dict[str, Any]:
+    """Load a bot's cron.yaml. Returns empty config if it doesn't exist."""
+    path = cron_config_path(bot_name)
+    if not path.exists():
+        return {"jobs": []}
+    with open(path) as file:
+        data = yaml.safe_load(file)
+    if not data or "jobs" not in data:
+        return {"jobs": []}
+    return data
+
+
+def save_cron_config(bot_name: str, config: dict[str, Any]) -> None:
+    """Save a bot's cron.yaml."""
+    path = cron_config_path(bot_name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as file:
+        yaml.dump(config, file, default_flow_style=False, allow_unicode=True)
+
+
+def list_cron_jobs(bot_name: str) -> list[dict[str, Any]]:
+    """Return the list of cron jobs for a bot."""
+    config = load_cron_config(bot_name)
+    return config.get("jobs", [])
+
+
+def get_cron_job(bot_name: str, job_name: str) -> dict[str, Any] | None:
+    """Get a specific cron job by name."""
+    for job in list_cron_jobs(bot_name):
+        if job.get("name") == job_name:
+            return job
+    return None
+
+
+def add_cron_job(bot_name: str, job: dict[str, Any]) -> None:
+    """Add a cron job to a bot's configuration."""
+    config = load_cron_config(bot_name)
+    existing_names = {j["name"] for j in config["jobs"]}
+    if job["name"] in existing_names:
+        raise ValueError(f"Job '{job['name']}' already exists")
+    config["jobs"].append(job)
+    save_cron_config(bot_name, config)
+
+
+def remove_cron_job(bot_name: str, job_name: str) -> bool:
+    """Remove a cron job by name. Returns True if found and removed."""
+    config = load_cron_config(bot_name)
+    original_count = len(config["jobs"])
+    config["jobs"] = [j for j in config["jobs"] if j.get("name") != job_name]
+    if len(config["jobs"]) == original_count:
+        return False
+    save_cron_config(bot_name, config)
+    return True
+
+
+def enable_cron_job(bot_name: str, job_name: str) -> bool:
+    """Enable a cron job. Returns True if found."""
+    config = load_cron_config(bot_name)
+    for job in config["jobs"]:
+        if job.get("name") == job_name:
+            job["enabled"] = True
+            save_cron_config(bot_name, config)
+            return True
+    return False
+
+
+def disable_cron_job(bot_name: str, job_name: str) -> bool:
+    """Disable a cron job. Returns True if found."""
+    config = load_cron_config(bot_name)
+    for job in config["jobs"]:
+        if job.get("name") == job_name:
+            job["enabled"] = False
+            save_cron_config(bot_name, config)
+            return True
+    return False
+
+
+# --- Validation ---
+
+
+def validate_cron_schedule(schedule: str) -> bool:
+    """Validate a cron expression using croniter."""
+    return croniter.is_valid(schedule)
+
+
+def parse_one_shot_time(at_value: str) -> datetime | None:
+    """Parse a one-shot time value.
+
+    Supports:
+    - ISO 8601 datetime: "2026-02-20T15:00:00"
+    - Duration shorthand: "30m", "2h", "1d"
+
+    Returns a timezone-aware datetime or None if parsing fails.
+    """
+    # Try duration shorthand first
+    duration_match = re.match(r"^(\d+)([mhd])$", at_value.strip())
+    if duration_match:
+        amount = int(duration_match.group(1))
+        unit = duration_match.group(2)
+        now = datetime.now(timezone.utc)
+        if unit == "m":
+            return now + timedelta(minutes=amount)
+        elif unit == "h":
+            return now + timedelta(hours=amount)
+        elif unit == "d":
+            return now + timedelta(days=amount)
+
+    # Try ISO 8601 datetime
+    try:
+        parsed = datetime.fromisoformat(at_value)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed
+    except ValueError:
+        return None
+
+
+def next_run_time(job: dict[str, Any]) -> datetime | None:
+    """Calculate the next run time for a job.
+
+    Returns None if the job has no valid schedule.
+    """
+    if "at" in job:
+        at_time = parse_one_shot_time(job["at"])
+        return at_time
+
+    schedule = job.get("schedule")
+    if not schedule or not validate_cron_schedule(schedule):
+        return None
+
+    now = datetime.now(timezone.utc)
+    cron = croniter(schedule, now)
+    return cron.get_next(datetime).replace(tzinfo=timezone.utc)
+
+
+# --- Cron session directory ---
+
+
+def cron_session_directory(bot_name: str, job_name: str) -> Path:
+    """Return the cron session directory for a job, ensuring it exists."""
+    directory = bot_directory(bot_name) / "cron_sessions" / job_name
+    directory.mkdir(parents=True, exist_ok=True)
+
+    # Copy bot's CLAUDE.md if not present
+    bot_claude_md = bot_directory(bot_name) / "CLAUDE.md"
+    session_claude_md = directory / "CLAUDE.md"
+    if not session_claude_md.exists() and bot_claude_md.exists():
+        import shutil
+
+        shutil.copy2(bot_claude_md, session_claude_md)
+
+    return directory
+
+
+# --- Scheduler ---
+
+
+async def execute_cron_job(
+    bot_name: str,
+    job: dict[str, Any],
+    bot_config: dict[str, Any],
+    send_message_callback: Any,
+) -> None:
+    """Execute a single cron job and send results via callback.
+
+    Args:
+        bot_name: Name of the bot.
+        job: The cron job configuration dict.
+        bot_config: The bot's configuration.
+        send_message_callback: Async callable(user_id, text) to send messages.
+    """
+    from cclaw.claude_runner import run_claude
+    from cclaw.config import DEFAULT_MODEL
+    from cclaw.utils import markdown_to_telegram_html, split_message
+
+    job_name = job["name"]
+    message = job.get("message", "")
+    model = job.get("model") or bot_config.get("model", DEFAULT_MODEL)
+    job_skills = job.get("skills") or bot_config.get("skills", [])
+    command_timeout = bot_config.get("command_timeout", 300)
+
+    working_directory = str(cron_session_directory(bot_name, job_name))
+
+    logger.info("Executing cron job '%s' for bot '%s'", job_name, bot_name)
+
+    try:
+        response = await run_claude(
+            working_directory=working_directory,
+            message=message,
+            timeout=command_timeout,
+            session_key=f"cron:{bot_name}:{job_name}",
+            model=model,
+            skill_names=job_skills if job_skills else None,
+        )
+    except Exception as error:
+        response = f"Cron job '{job_name}' failed: {error}"
+        logger.error("Cron job '%s' failed: %s", job_name, error)
+
+    # Send results to all allowed users
+    allowed_users = bot_config.get("allowed_users", [])
+    if not allowed_users:
+        logger.warning("Cron job '%s': no allowed_users configured, skipping send", job_name)
+        return
+
+    header = f"[cron: {job_name}]\n\n"
+    html_response = markdown_to_telegram_html(header + response)
+    chunks = split_message(html_response)
+
+    for user_id in allowed_users:
+        for chunk in chunks:
+            try:
+                await send_message_callback(chat_id=user_id, text=chunk, parse_mode="HTML")
+            except Exception:
+                try:
+                    await send_message_callback(chat_id=user_id, text=chunk)
+                except Exception as send_error:
+                    logger.error("Failed to send cron result to user %d: %s", user_id, send_error)
+
+
+async def run_cron_scheduler(
+    bot_name: str,
+    bot_config: dict[str, Any],
+    application: Any,
+    stop_event: asyncio.Event,
+) -> None:
+    """Run the cron scheduler loop for a bot.
+
+    Checks every 30 seconds for jobs that need to run.
+    Uses application.bot.send_message as the message callback.
+
+    Args:
+        bot_name: Name of the bot.
+        bot_config: The bot's configuration.
+        application: The telegram Application instance.
+        stop_event: Event that signals shutdown.
+    """
+    check_interval = 30  # seconds
+    last_run_times: dict[str, datetime] = {}
+
+    logger.info("Cron scheduler started for bot '%s'", bot_name)
+
+    while not stop_event.is_set():
+        try:
+            now = datetime.now(timezone.utc)
+            # Truncate to minute for comparison
+            current_minute = now.replace(second=0, microsecond=0)
+
+            jobs = list_cron_jobs(bot_name)
+
+            for job in jobs:
+                job_name = job.get("name")
+                if not job_name:
+                    continue
+
+                if not job.get("enabled", True):
+                    continue
+
+                should_run = False
+
+                if "at" in job:
+                    # One-shot job
+                    at_time = parse_one_shot_time(job["at"])
+                    if at_time and at_time <= now:
+                        last_run = last_run_times.get(job_name)
+                        if last_run is None:
+                            should_run = True
+                elif "schedule" in job:
+                    schedule = job["schedule"]
+                    if validate_cron_schedule(schedule):
+                        cron = croniter(schedule, current_minute - timedelta(seconds=1))
+                        previous_fire = cron.get_next(datetime).replace(tzinfo=timezone.utc)
+                        previous_fire_minute = previous_fire.replace(second=0, microsecond=0)
+
+                        if previous_fire_minute == current_minute:
+                            last_run = last_run_times.get(job_name)
+                            if last_run is None or last_run < current_minute:
+                                should_run = True
+
+                if should_run:
+                    last_run_times[job_name] = current_minute
+                    asyncio.create_task(
+                        execute_cron_job(
+                            bot_name=bot_name,
+                            job=job,
+                            bot_config=bot_config,
+                            send_message_callback=application.bot.send_message,
+                        )
+                    )
+
+                    # Handle one-shot cleanup
+                    if "at" in job and job.get("delete_after_run", False):
+                        remove_cron_job(bot_name, job_name)
+                        logger.info("One-shot job '%s' deleted after run", job_name)
+
+        except Exception as error:
+            logger.error("Cron scheduler error for bot '%s': %s", bot_name, error)
+
+        # Wait for the next check interval or stop
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=check_interval)
+            break  # stop_event was set
+        except asyncio.TimeoutError:
+            pass  # Continue loop
+
+    logger.info("Cron scheduler stopped for bot '%s'", bot_name)

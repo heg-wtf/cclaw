@@ -112,6 +112,7 @@ async def _run_bots(bot_names: list[str] | None = None) -> None:
         loop.add_signal_handler(sig, signal_handler)
 
     started_applications = []
+    cron_tasks = []
     try:
         for name, application in applications:
             try:
@@ -131,11 +132,33 @@ async def _run_bots(bot_names: list[str] | None = None) -> None:
             console.print("[red]No bots started successfully.[/red]")
             return
 
+        # Start cron schedulers for bots that have cron jobs
+        from cclaw.cron import list_cron_jobs, run_cron_scheduler
+
+        for name, application in started_applications:
+            bot_config = load_bot_config(name)
+            if not bot_config:
+                continue
+            jobs = list_cron_jobs(name)
+            if jobs:
+                task = asyncio.create_task(
+                    run_cron_scheduler(name, bot_config, application, stop_event)
+                )
+                cron_tasks.append(task)
+                console.print(f"  [green]CRON[/green] {name} ({len(jobs)} job(s))")
+
         console.print(f"\n{len(started_applications)} bot(s) running. Press Ctrl+C to stop.")
         await stop_event.wait()
 
     finally:
         console.print("\nStopping bots...")
+
+        # Cancel cron tasks
+        for task in cron_tasks:
+            task.cancel()
+        if cron_tasks:
+            await asyncio.gather(*cron_tasks, return_exceptions=True)
+
         for name, application in started_applications:
             try:
                 await application.updater.stop()
