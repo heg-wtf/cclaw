@@ -123,7 +123,12 @@ cli.py
 수신 → 권한 체크 → workspace 파일 조회 → reply_document()로 전송
 ```
 
+### /skills 명령
+```
+수신 → 권한 체크 → list_skills() → bots_using_skill()로 연결 상태 조회 → 전체 스킬 목록 응답
+```
+
 ### /skill attach 명령
 ```
-수신 → 권한 체크 → is_skill() → skill_status() == "active" 확인 → attach_skill_to_bot() → CLAUDE.md 재생성 → 응답
+수신 → 권한 체크 → is_skill() → skill_status() == "active" 확인 → attach_skill_to_bot() → 메모리 bot_config 동기화 → 응답
 ```

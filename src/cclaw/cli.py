@@ -130,6 +130,44 @@ def bot_remove(name: str) -> None:
 
 
 @app.command()
+def skills() -> None:
+    """List all skills (including unattached)."""
+    from rich.console import Console
+    from rich.table import Table
+
+    from cclaw.skill import bots_using_skill, list_skills
+
+    console = Console()
+    all_skills = list_skills()
+
+    if not all_skills:
+        console.print("[yellow]No skills found. Run 'cclaw skill add' to create one.[/yellow]")
+        return
+
+    table = Table(title="All Skills")
+    table.add_column("Name", style="cyan")
+    table.add_column("Type", style="magenta")
+    table.add_column("Status", style="green")
+    table.add_column("Bots", style="dim")
+    table.add_column("Description", style="dim")
+
+    for skill in all_skills:
+        skill_type_display = skill["type"] or "markdown"
+        status = skill["status"]
+        status_style = "green" if status == "active" else "yellow"
+        connected_bots = ", ".join(bots_using_skill(skill["name"])) or "-"
+        table.add_row(
+            skill["name"],
+            skill_type_display,
+            f"[{status_style}]{status}[/{status_style}]",
+            connected_bots,
+            skill["description"],
+        )
+
+    console.print(table)
+
+
+@app.command()
 def logs(
     lines: int = typer.Option(50, "--lines", "-n", help="Number of lines to show"),
     follow: bool = typer.Option(False, "--follow", "-f", help="Follow log output"),

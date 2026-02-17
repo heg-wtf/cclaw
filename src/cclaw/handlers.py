@@ -95,7 +95,8 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             "\U0001f4e4 /send - Send workspace file\n"
             "\U0001f4ca /status - Session status\n"
             "\U0001f9e0 /model - Show or change model\n"
-            "\U0001f9e9 /skill - Manage skills (list/attach/detach)\n"
+            "\U0001f9e9 /skills - List all skills\n"
+            "\U0001f9e9 /skill - Manage skills (attach/detach)\n"
             "\u26d4 /cancel - Stop running process\n"
             "\U00002139 /version - Show version\n"
             "\U00002753 /help - Show this message"
@@ -406,6 +407,29 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                 except Exception:
                     await update.message.reply_text(chunk)
 
+    async def skills_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle /skills command - list all available skills."""
+        if not await check_authorization(update):
+            return
+
+        from cclaw.skill import bots_using_skill, list_skills
+
+        all_skills = list_skills()
+
+        if not all_skills:
+            await update.message.reply_text("\U0001f9e9 No skills available.")
+            return
+
+        lines = ["\U0001f9e9 *All Skills:*\n"]
+        for skill in all_skills:
+            skill_type_display = skill["type"] or "markdown"
+            status_icon = "\u2705" if skill["status"] == "active" else "\U0001f6d1"
+            connected_bots = bots_using_skill(skill["name"])
+            attached_label = f" \u2190 {', '.join(connected_bots)}" if connected_bots else ""
+            lines.append(f"{status_icon} `{skill['name']}` ({skill_type_display}){attached_label}")
+
+        await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
     async def skill_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /skill command - manage skill attachments."""
         nonlocal attached_skills
@@ -462,7 +486,10 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                 return
 
             attach_skill_to_bot(bot_name, skill_name)
-            attached_skills = bot_config.get("skills", [])
+            bot_config.setdefault("skills", [])
+            if skill_name not in bot_config["skills"]:
+                bot_config["skills"].append(skill_name)
+            attached_skills = bot_config["skills"]
             await update.message.reply_text(f"\U0001f9e9 Skill '{skill_name}' attached.")
 
         elif subcommand == "detach":
@@ -480,6 +507,8 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                 return
 
             detach_skill_from_bot(bot_name, skill_name)
+            if skill_name in bot_config.get("skills", []):
+                bot_config["skills"].remove(skill_name)
             attached_skills = bot_config.get("skills", [])
             await update.message.reply_text(f"\U0001f9e9 Skill '{skill_name}' detached.")
 
@@ -499,6 +528,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         CommandHandler("model", model_handler),
         CommandHandler("version", version_handler),
         CommandHandler("cancel", cancel_handler),
+        CommandHandler("skills", skills_handler),
         CommandHandler("skill", skill_handler),
         MessageHandler(filters.PHOTO | filters.Document.ALL, file_handler),
         MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler),
@@ -515,6 +545,7 @@ BOT_COMMANDS = [
     BotCommand("send", "\U0001f4e4 Send workspace file"),
     BotCommand("status", "\U0001f4ca Session status"),
     BotCommand("model", "\U0001f9e0 Show or change model"),
+    BotCommand("skills", "\U0001f9e9 List all skills"),
     BotCommand("skill", "\U0001f9e9 Manage skills"),
     BotCommand("cancel", "\u26d4 Stop running process"),
     BotCommand("version", "\U00002139 Show version"),
