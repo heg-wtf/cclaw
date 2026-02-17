@@ -93,3 +93,46 @@ Claude Code 실행 중 4초 간격으로 `send_action("typing")`을 전송한다
 
 사진/문서를 수신하면 workspace에 다운로드 후 Claude에게 파일 경로와 함께 전달한다.
 사진은 가장 큰 사이즈(`photo[-1]`)를 선택한다.
+
+## 스킬 시스템
+
+### 스킬 유형
+
+- **마크다운 전용** (`skill.yaml` 없음): `SKILL.md`만 있으면 항상 active. 별도 설정 불필요.
+- **도구 기반** (`skill.yaml` 있음): `type`이 cli/mcp/browser. 초기 상태 inactive. `cclaw skill setup`으로 요구사항 확인 후 active로 전환.
+
+### CLAUDE.md 합성
+
+`compose_claude_md()`가 봇 프로필 + 스킬 SKILL.md 내용을 하나의 CLAUDE.md로 조합한다.
+스킬이 없으면 기존 `generate_claude_md()`와 동일한 출력.
+`save_bot_config()` 호출 시 자동으로 CLAUDE.md가 재생성된다.
+봇 시작 시에도 `regenerate_bot_claude_md()`로 최신 스킬 상태를 반영한다.
+
+### 순환 참조 해결
+
+`config.py` ↔ `skill.py` 양방향 의존이 발생한다.
+`config.py`의 `save_bot_config()` 내에서 `from cclaw.skill import compose_claude_md`를 lazy import로 해결한다.
+
+### MCP 스킬
+
+MCP 스킬은 `mcp.json` 파일에 `mcpServers` 설정을 정의한다.
+`run_claude()` 호출 시 `merge_mcp_configs()`로 연결된 모든 MCP 스킬의 설정을 병합하여
+세션 디렉토리에 `.mcp.json`을 생성한다. Claude Code가 이를 자동으로 인식한다.
+
+### CLI 스킬 환경변수
+
+CLI 스킬은 `skill.yaml`의 `environment_variable_values`에 값을 저장한다.
+`cclaw skill setup`에서 환경변수 값을 입력받는다.
+`run_claude()` 호출 시 `collect_skill_environment_variables()`로 수집하여
+subprocess의 `env` 파라미터에 주입한다.
+
+### 세션 CLAUDE.md 전파
+
+`ensure_session()`은 기존 동작을 유지한다 (세션 CLAUDE.md가 없을 때만 봇 CLAUDE.md를 복사).
+스킬 attach/detach 시 `update_session_claude_md()`가 기존 모든 세션의 CLAUDE.md를 명시적으로 덮어쓴다.
+
+### Telegram /skill 핸들러
+
+핸들러 클로저 내 `attached_skills` 변수로 현재 연결된 스킬을 추적한다.
+attach/detach 후 `bot_config["skills"]`를 직접 갱신하여 closure 동기화.
+`run_claude()` 호출 시 `skill_names=attached_skills`를 전달한다.

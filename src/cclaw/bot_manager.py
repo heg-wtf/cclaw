@@ -68,6 +68,12 @@ async def _run_bots(bot_names: list[str] | None = None) -> None:
                 console.print(f"[yellow]Skipping {name}: no token configured.[/yellow]")
                 continue
 
+            # Regenerate CLAUDE.md if skills are attached (to pick up any changes)
+            if bot_config.get("skills"):
+                from cclaw.skill import regenerate_bot_claude_md
+
+                regenerate_bot_claude_md(name)
+
             bot_path = bot_directory(name)
             handlers = make_handlers(name, bot_path, bot_config)
 

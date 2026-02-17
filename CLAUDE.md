@@ -21,6 +21,12 @@ uv run cclaw start           # 봇 실행
 uv run cclaw bot list        # 봇 목록 (모델 표시)
 uv run cclaw bot model <name>       # 현재 모델 확인
 uv run cclaw bot model <name> opus  # 모델 변경
+uv run cclaw skill add               # 대화형 스킬 생성
+uv run cclaw skill list              # 스킬 목록
+uv run cclaw skill setup <name>      # 스킬 셋업/활성화
+uv run cclaw skill edit <name>       # SKILL.md 편집
+uv run cclaw skill remove <name>     # 스킬 삭제
+uv run cclaw skill test <name>       # 요구사항 테스트
 uv run cclaw logs            # 오늘 로그 출력
 uv run cclaw logs -f         # tail -f 모드
 uv run pytest                # 테스트
@@ -35,13 +41,14 @@ pytest
 
 ## 코드 구조
 
-- `src/cclaw/cli.py` - Typer 앱 엔트리포인트, 모든 커맨드 정의
+- `src/cclaw/cli.py` - Typer 앱 엔트리포인트, 모든 커맨드 정의 (bot, skill 서브커맨드 포함)
 - `src/cclaw/config.py` - `~/.cclaw/` 설정 관리 (YAML)
 - `src/cclaw/onboarding.py` - 환경 점검, 토큰 검증, 봇 생성 마법사
-- `src/cclaw/claude_runner.py` - `claude -p` subprocess 실행 (async, `shutil.which`로 경로 해석, 프로세스 추적, 모델 선택)
+- `src/cclaw/claude_runner.py` - `claude -p` subprocess 실행 (async, `shutil.which`로 경로 해석, 프로세스 추적, 모델 선택, 스킬 MCP/env 주입)
 - `src/cclaw/session.py` - 세션 디렉토리/대화 로그/workspace 관리
-- `src/cclaw/handlers.py` - Telegram 핸들러 팩토리 (슬래시 커맨드 + 메시지 + 파일 수신/전송 + 모델 변경 + 프로세스 취소)
+- `src/cclaw/handlers.py` - Telegram 핸들러 팩토리 (슬래시 커맨드 + 메시지 + 파일 수신/전송 + 모델 변경 + 프로세스 취소 + 스킬 관리)
 - `src/cclaw/bot_manager.py` - 멀티봇 polling, launchd 데몬, 개별 봇 오류 격리
+- `src/cclaw/skill.py` - 스킬 관리 (인식/로딩/생성/삭제, 봇-스킬 연결, CLAUDE.md 조합, MCP/환경변수 병합)
 - `src/cclaw/utils.py` - 메시지 분할, Markdown→HTML 변환, 로깅 설정
 
 ## 코드 스타일
@@ -72,11 +79,15 @@ pytest
 ├── config.yaml           # 전역 설정 (봇 목록, log_level, command_timeout)
 ├── cclaw.pid             # 실행 중 PID
 ├── bots/<name>/
-│   ├── bot.yaml          # 봇 설정 (토큰, 성격, 역할, allowed_users, model)
-│   ├── CLAUDE.md         # 봇 시스템 프롬프트
+│   ├── bot.yaml          # 봇 설정 (토큰, 성격, 역할, allowed_users, model, skills)
+│   ├── CLAUDE.md         # 봇 시스템 프롬프트 (스킬 내용 포함)
 │   └── sessions/chat_<id>/
 │       ├── CLAUDE.md     # 세션별 컨텍스트
 │       ├── conversation.md  # 대화 로그
 │       └── workspace/    # 파일 저장소
+├── skills/<name>/
+│   ├── SKILL.md          # 스킬 지시사항 (필수, 봇 CLAUDE.md에 합성됨)
+│   ├── skill.yaml        # 스킬 설정 (도구 기반 스킬만: type, status, required_commands, environment_variables)
+│   └── mcp.json          # MCP 서버 설정 (MCP 스킬만: mcpServers)
 └── logs/                 # 일별 로테이션 로그
 ```

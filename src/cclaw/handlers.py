@@ -58,6 +58,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
     claude_arguments = bot_config.get("claude_args", [])
     command_timeout = bot_config.get("command_timeout", 300)
     current_model = bot_config.get("model", DEFAULT_MODEL)
+    attached_skills = bot_config.get("skills", [])
 
     async def check_authorization(update: Update) -> bool:
         """Check if the user is authorized."""
@@ -94,6 +95,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             "\U0001f4e4 /send - Send workspace file\n"
             "\U0001f4ca /status - Session status\n"
             "\U0001f9e0 /model - Show or change model\n"
+            "\U0001f9e9 /skill - Manage skills (list/attach/detach)\n"
             "\u26d4 /cancel - Stop running process\n"
             "\U00002139 /version - Show version\n"
             "\U00002753 /help - Show this message"
@@ -287,6 +289,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                     timeout=command_timeout,
                     session_key=lock_key,
                     model=current_model,
+                    skill_names=attached_skills if attached_skills else None,
                 )
             except asyncio.CancelledError:
                 response = "\u26d4 Execution was cancelled."
@@ -379,6 +382,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                     timeout=command_timeout,
                     session_key=lock_key,
                     model=current_model,
+                    skill_names=attached_skills if attached_skills else None,
                 )
             except asyncio.CancelledError:
                 response = "\u26d4 Execution was cancelled."
@@ -402,6 +406,88 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                 except Exception:
                     await update.message.reply_text(chunk)
 
+    async def skill_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle /skill command - manage skill attachments."""
+        nonlocal attached_skills
+        if not await check_authorization(update):
+            return
+
+        if not context.args:
+            text = (
+                "\U0001f9e9 *Skill Commands:*\n\n"
+                "`/skill list` - Show attached skills\n"
+                "`/skill attach <name>` - Attach a skill\n"
+                "`/skill detach <name>` - Detach a skill"
+            )
+            await update.message.reply_text(text, parse_mode="Markdown")
+            return
+
+        subcommand = context.args[0].lower()
+
+        if subcommand == "list":
+            if not attached_skills:
+                await update.message.reply_text("\U0001f9e9 No skills attached.")
+                return
+            skill_list = "\n".join(f"  - {s}" for s in attached_skills)
+            await update.message.reply_text(
+                f"\U0001f9e9 *Attached Skills:*\n```\n{skill_list}\n```",
+                parse_mode="Markdown",
+            )
+
+        elif subcommand == "attach":
+            if len(context.args) < 2:
+                await update.message.reply_text(
+                    "Usage: `/skill attach <name>`", parse_mode="Markdown"
+                )
+                return
+
+            from cclaw.skill import attach_skill_to_bot, is_skill, skill_status
+
+            skill_name = context.args[1]
+            if not is_skill(skill_name):
+                await update.message.reply_text(f"Skill '{skill_name}' not found.")
+                return
+
+            status = skill_status(skill_name)
+            if status == "inactive":
+                await update.message.reply_text(
+                    f"Skill '{skill_name}' is inactive. "
+                    f"Run `cclaw skill setup {skill_name}` first.",
+                    parse_mode="Markdown",
+                )
+                return
+
+            if skill_name in attached_skills:
+                await update.message.reply_text(f"Skill '{skill_name}' is already attached.")
+                return
+
+            attach_skill_to_bot(bot_name, skill_name)
+            attached_skills = bot_config.get("skills", [])
+            await update.message.reply_text(f"\U0001f9e9 Skill '{skill_name}' attached.")
+
+        elif subcommand == "detach":
+            if len(context.args) < 2:
+                await update.message.reply_text(
+                    "Usage: `/skill detach <name>`", parse_mode="Markdown"
+                )
+                return
+
+            from cclaw.skill import detach_skill_from_bot
+
+            skill_name = context.args[1]
+            if skill_name not in attached_skills:
+                await update.message.reply_text(f"Skill '{skill_name}' is not attached.")
+                return
+
+            detach_skill_from_bot(bot_name, skill_name)
+            attached_skills = bot_config.get("skills", [])
+            await update.message.reply_text(f"\U0001f9e9 Skill '{skill_name}' detached.")
+
+        else:
+            await update.message.reply_text(
+                "Unknown subcommand. Use: list, attach, detach",
+            )
+
     handlers = [
         CommandHandler("start", start_handler),
         CommandHandler("help", help_handler),
@@ -413,6 +499,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         CommandHandler("model", model_handler),
         CommandHandler("version", version_handler),
         CommandHandler("cancel", cancel_handler),
+        CommandHandler("skill", skill_handler),
         MessageHandler(filters.PHOTO | filters.Document.ALL, file_handler),
         MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler),
     ]
@@ -428,6 +515,7 @@ BOT_COMMANDS = [
     BotCommand("send", "\U0001f4e4 Send workspace file"),
     BotCommand("status", "\U0001f4ca Session status"),
     BotCommand("model", "\U0001f9e0 Show or change model"),
+    BotCommand("skill", "\U0001f9e9 Manage skills"),
     BotCommand("cancel", "\u26d4 Stop running process"),
     BotCommand("version", "\U00002139 Show version"),
     BotCommand("help", "\U00002753 Show commands"),

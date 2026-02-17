@@ -39,7 +39,7 @@ def bot_config():
 def test_make_handlers_returns_handlers(bot_path, bot_config):
     """make_handlers returns a list of handlers."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    assert len(handlers) == 12
+    assert len(handlers) == 13
 
 
 def test_is_user_allowed_empty_list():
@@ -142,7 +142,7 @@ async def test_reset_handler(bot_path, bot_config, mock_update):
 async def test_message_handler_calls_claude(bot_path, bot_config, mock_update):
     """Message handler forwards to Claude and replies."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[11]
+    message_handler = handlers[12]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Claude response"
@@ -294,7 +294,7 @@ async def test_message_handler_passes_model(bot_path, bot_config, mock_update):
     """Message handler passes model to run_claude."""
     bot_config["model"] = "opus"
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[11]
+    message_handler = handlers[12]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -314,3 +314,117 @@ async def test_files_handler_empty(bot_path, bot_config, mock_update):
 
     call_text = mock_update.message.reply_text.call_args[0][0]
     assert "No files" in call_text
+
+
+@pytest.mark.asyncio
+async def test_skill_handler_no_args(bot_path, bot_config, mock_update):
+    """Skill handler shows usage when no args."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    skill_handler = handlers[10]
+
+    mock_context = MagicMock()
+    mock_context.args = []
+    await skill_handler.callback(mock_update, mock_context)
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "Skill Commands" in call_text
+
+
+@pytest.mark.asyncio
+async def test_skill_handler_list_empty(bot_path, bot_config, mock_update):
+    """Skill handler list shows empty when no skills attached."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    skill_handler = handlers[10]
+
+    mock_context = MagicMock()
+    mock_context.args = ["list"]
+    await skill_handler.callback(mock_update, mock_context)
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "No skills attached" in call_text
+
+
+@pytest.mark.asyncio
+async def test_skill_handler_attach(bot_path, bot_config, mock_update):
+    """Skill handler attach adds a skill."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    skill_handler = handlers[10]
+
+    mock_context = MagicMock()
+    mock_context.args = ["attach", "test-skill"]
+
+    with (
+        patch("cclaw.skill.is_skill", return_value=True),
+        patch("cclaw.skill.skill_status", return_value="active"),
+        patch("cclaw.skill.attach_skill_to_bot") as mock_attach,
+    ):
+        bot_config["skills"] = ["test-skill"]
+        await skill_handler.callback(mock_update, mock_context)
+        mock_attach.assert_called_once_with("test-bot", "test-skill")
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "attached" in call_text
+
+
+@pytest.mark.asyncio
+async def test_skill_handler_attach_not_found(bot_path, bot_config, mock_update):
+    """Skill handler attach rejects nonexistent skill."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    skill_handler = handlers[10]
+
+    mock_context = MagicMock()
+    mock_context.args = ["attach", "nonexistent"]
+
+    with patch("cclaw.skill.is_skill", return_value=False):
+        await skill_handler.callback(mock_update, mock_context)
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "not found" in call_text
+
+
+@pytest.mark.asyncio
+async def test_skill_handler_detach(bot_path, bot_config, mock_update):
+    """Skill handler detach removes a skill."""
+    bot_config["skills"] = ["test-skill"]
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    skill_handler = handlers[10]
+
+    mock_context = MagicMock()
+    mock_context.args = ["detach", "test-skill"]
+
+    with patch("cclaw.skill.detach_skill_from_bot") as mock_detach:
+        bot_config["skills"] = []
+        await skill_handler.callback(mock_update, mock_context)
+        mock_detach.assert_called_once_with("test-bot", "test-skill")
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "detached" in call_text
+
+
+@pytest.mark.asyncio
+async def test_message_handler_passes_skill_names(bot_path, bot_config, mock_update):
+    """Message handler passes skill_names to run_claude when skills are attached."""
+    bot_config["skills"] = ["my-skill"]
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    message_handler = handlers[12]
+
+    with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
+        mock_claude.return_value = "response"
+        await message_handler.callback(mock_update, MagicMock())
+
+    call_kwargs = mock_claude.call_args[1]
+    assert call_kwargs["skill_names"] == ["my-skill"]
+
+
+@pytest.mark.asyncio
+async def test_message_handler_no_skill_names(bot_path, bot_config, mock_update):
+    """Message handler passes None for skill_names when no skills attached."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    message_handler = handlers[12]
+
+    with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
+        mock_claude.return_value = "response"
+        await message_handler.callback(mock_update, MagicMock())
+
+    call_kwargs = mock_claude.call_args[1]
+    assert call_kwargs["skill_names"] is None
