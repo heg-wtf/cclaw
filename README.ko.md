@@ -83,6 +83,8 @@ cclaw bot remove <name>        # 봇 삭제
 cclaw bot edit <name>          # bot.yaml 편집
 cclaw bot model <name>         # 현재 모델 확인
 cclaw bot model <name> opus    # 모델 변경
+cclaw bot streaming <name>     # 스트리밍 상태 확인
+cclaw bot streaming <name> off # 스트리밍 on/off 전환
 
 # 스킬 관리
 cclaw skills                   # 전체 스킬 목록 (미연결 포함)
@@ -130,6 +132,8 @@ cclaw logs -f                  # tail -f 모드
 | `/status` | 세션 상태 |
 | `/model` | 현재 모델 표시 |
 | `/model <name>` | 모델 변경 (sonnet/opus/haiku) |
+| `/streaming` | 스트리밍 상태 표시 |
+| `/streaming on/off` | 스트리밍 모드 전환 |
 | `/skills` | 전체 스킬 목록 (미연결 포함) |
 | `/skill attach <name>` | 스킬 연결 |
 | `/skill detach <name>` | 스킬 해제 |

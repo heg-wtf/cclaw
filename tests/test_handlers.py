@@ -39,7 +39,7 @@ def bot_config():
 def test_make_handlers_returns_handlers(bot_path, bot_config):
     """make_handlers returns a list of handlers."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    assert len(handlers) == 16
+    assert len(handlers) == 17
 
 
 def test_is_user_allowed_empty_list():
@@ -142,7 +142,7 @@ async def test_reset_handler(bot_path, bot_config, mock_update):
 async def test_message_handler_calls_claude(bot_path, bot_config, mock_update):
     """Message handler forwards to Claude with streaming and replies."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[15]
+    message_handler = handlers[16]
 
     with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Claude response"
@@ -297,7 +297,7 @@ async def test_message_handler_passes_model(bot_path, bot_config, mock_update):
     """Message handler passes model to run_claude_streaming."""
     bot_config["model"] = "opus"
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[15]
+    message_handler = handlers[16]
 
     with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -326,7 +326,7 @@ async def test_files_handler_empty(bot_path, bot_config, mock_update):
 async def test_skills_handler_empty(bot_path, bot_config, mock_update):
     """Skills handler shows empty message when no skills exist."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    skills_handler = handlers[10]
+    skills_handler = handlers[11]
 
     with patch("cclaw.skill.list_skills", return_value=[]):
         await skills_handler.callback(mock_update, MagicMock())
@@ -339,7 +339,7 @@ async def test_skills_handler_empty(bot_path, bot_config, mock_update):
 async def test_skills_handler_lists_all(bot_path, bot_config, mock_update):
     """Skills handler lists all skills including unattached ones."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    skills_handler = handlers[10]
+    skills_handler = handlers[11]
 
     mock_skills = [
         {"name": "attached-skill", "type": "cli", "status": "active", "description": "A tool"},
@@ -362,7 +362,7 @@ async def test_skills_handler_lists_all(bot_path, bot_config, mock_update):
 async def test_skill_handler_no_args(bot_path, bot_config, mock_update):
     """Skill handler shows usage when no args."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    skill_handler = handlers[11]
+    skill_handler = handlers[12]
 
     mock_context = MagicMock()
     mock_context.args = []
@@ -376,7 +376,7 @@ async def test_skill_handler_no_args(bot_path, bot_config, mock_update):
 async def test_skill_handler_list_empty(bot_path, bot_config, mock_update):
     """Skill handler list shows empty when no skills attached."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    skill_handler = handlers[11]
+    skill_handler = handlers[12]
 
     mock_context = MagicMock()
     mock_context.args = ["list"]
@@ -390,7 +390,7 @@ async def test_skill_handler_list_empty(bot_path, bot_config, mock_update):
 async def test_skill_handler_attach(bot_path, bot_config, mock_update):
     """Skill handler attach adds a skill."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    skill_handler = handlers[11]
+    skill_handler = handlers[12]
 
     mock_context = MagicMock()
     mock_context.args = ["attach", "test-skill"]
@@ -412,7 +412,7 @@ async def test_skill_handler_attach(bot_path, bot_config, mock_update):
 async def test_skill_handler_attach_not_found(bot_path, bot_config, mock_update):
     """Skill handler attach rejects nonexistent skill."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    skill_handler = handlers[11]
+    skill_handler = handlers[12]
 
     mock_context = MagicMock()
     mock_context.args = ["attach", "nonexistent"]
@@ -429,7 +429,7 @@ async def test_skill_handler_detach(bot_path, bot_config, mock_update):
     """Skill handler detach removes a skill."""
     bot_config["skills"] = ["test-skill"]
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    skill_handler = handlers[11]
+    skill_handler = handlers[12]
 
     mock_context = MagicMock()
     mock_context.args = ["detach", "test-skill"]
@@ -448,7 +448,7 @@ async def test_message_handler_passes_skill_names(bot_path, bot_config, mock_upd
     """Message handler passes skill_names to run_claude_streaming when skills are attached."""
     bot_config["skills"] = ["my-skill"]
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[15]
+    message_handler = handlers[16]
 
     with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -465,7 +465,7 @@ async def test_message_handler_passes_skill_names(bot_path, bot_config, mock_upd
 async def test_message_handler_no_skill_names(bot_path, bot_config, mock_update):
     """Message handler passes None for skill_names when no skills attached."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[15]
+    message_handler = handlers[16]
 
     with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -482,7 +482,7 @@ async def test_message_handler_no_skill_names(bot_path, bot_config, mock_update)
 async def test_heartbeat_handler_no_args(bot_path, bot_config, mock_update):
     """Heartbeat handler shows status when no args."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    heartbeat_handler = handlers[13]
+    heartbeat_handler = handlers[14]
 
     mock_context = MagicMock()
     mock_context.args = []
@@ -506,7 +506,7 @@ async def test_heartbeat_handler_no_args(bot_path, bot_config, mock_update):
 async def test_heartbeat_handler_on(bot_path, bot_config, mock_update):
     """Heartbeat handler enables heartbeat."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    heartbeat_handler = handlers[13]
+    heartbeat_handler = handlers[14]
 
     mock_context = MagicMock()
     mock_context.args = ["on"]
@@ -522,7 +522,7 @@ async def test_heartbeat_handler_on(bot_path, bot_config, mock_update):
 async def test_heartbeat_handler_off(bot_path, bot_config, mock_update):
     """Heartbeat handler disables heartbeat."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    heartbeat_handler = handlers[13]
+    heartbeat_handler = handlers[14]
 
     mock_context = MagicMock()
     mock_context.args = ["off"]
@@ -532,3 +532,76 @@ async def test_heartbeat_handler_off(bot_path, bot_config, mock_update):
 
     call_text = mock_update.message.reply_text.call_args[0][0]
     assert "disabled" in call_text
+
+
+@pytest.mark.asyncio
+async def test_streaming_handler_show_status(bot_path, bot_config, mock_update):
+    """Streaming handler shows current status when no args."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    streaming_handler = handlers[10]
+
+    mock_context = MagicMock()
+    mock_context.args = []
+    await streaming_handler.callback(mock_update, mock_context)
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "Streaming" in call_text
+    assert "on" in call_text
+
+
+@pytest.mark.asyncio
+async def test_streaming_handler_on(bot_path, bot_config, mock_update):
+    """Streaming handler enables streaming."""
+    bot_config["streaming"] = False
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    streaming_handler = handlers[10]
+
+    mock_context = MagicMock()
+    mock_context.args = ["on"]
+
+    with patch("cclaw.handlers.save_bot_config") as mock_save:
+        await streaming_handler.callback(mock_update, mock_context)
+        mock_save.assert_called_once()
+        saved_config = mock_save.call_args[0][1]
+        assert saved_config["streaming"] is True
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "enabled" in call_text
+
+
+@pytest.mark.asyncio
+async def test_streaming_handler_off(bot_path, bot_config, mock_update):
+    """Streaming handler disables streaming."""
+    bot_config["streaming"] = True
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    streaming_handler = handlers[10]
+
+    mock_context = MagicMock()
+    mock_context.args = ["off"]
+
+    with patch("cclaw.handlers.save_bot_config") as mock_save:
+        await streaming_handler.callback(mock_update, mock_context)
+        mock_save.assert_called_once()
+        saved_config = mock_save.call_args[0][1]
+        assert saved_config["streaming"] is False
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "disabled" in call_text
+
+
+@pytest.mark.asyncio
+async def test_message_handler_non_streaming(bot_path, bot_config, mock_update):
+    """Message handler uses run_claude (non-streaming) when streaming is off."""
+    bot_config["streaming"] = False
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    message_handler = handlers[16]
+
+    with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
+        mock_claude.return_value = "Non-streaming response"
+        mock_context = MagicMock()
+        await message_handler.callback(mock_update, mock_context)
+
+    mock_claude.assert_called_once()
+    mock_update.message.reply_text.assert_called()
+    reply_text = mock_update.message.reply_text.call_args[0][0]
+    assert "Non-streaming response" in reply_text

@@ -105,17 +105,21 @@ DB 없이 디렉토리 구조로 세션을 관리한다.
 
 ### 10. 스트리밍 응답
 
-Claude Code의 출력을 실시간으로 Telegram에 전달한다.
+Claude Code의 출력을 실시간으로 Telegram에 전달한다. 사용자가 on/off 토글 가능.
 
-- `run_claude_streaming()`: `--output-format stream-json --verbose --include-partial-messages`로 실행
-- stream-json의 `content_block_delta` 이벤트에서 `text_delta`를 추출하여 토큰 단위 스트리밍
-- `on_text_chunk` 콜백으로 핸들러에 텍스트 조각 전달
-- 핸들러의 `_send_streaming_response()`에서 Telegram 메시지를 실시간 편집
-- 커서 마커(`▌`)로 응답 진행 중임을 시각적으로 표시
-- 스로틀링(0.5초)으로 Telegram API rate limit 회피
-- 응답 완료 시 Markdown→HTML 변환된 최종 텍스트로 교체
-- 기존 typing 액션 방식을 대체하여 사용자 체감 응답 속도 개선
-- 폴백: `result` 이벤트가 없으면 누적된 스트리밍 텍스트 또는 `assistant` 턴 텍스트 사용
+- `bot.yaml`의 `streaming` 필드로 on/off 제어 (기본값: `DEFAULT_STREAMING = True`)
+- Telegram `/streaming on|off` 커맨드 또는 CLI `cclaw bot streaming <name> on|off`로 런타임 토글
+- **스트리밍 모드** (`_send_streaming_response`):
+  - `run_claude_streaming()`: `--output-format stream-json --verbose --include-partial-messages`로 실행
+  - stream-json의 `content_block_delta` 이벤트에서 `text_delta`를 추출하여 토큰 단위 스트리밍
+  - `on_text_chunk` 콜백으로 핸들러에 텍스트 조각 전달
+  - Telegram 메시지를 실시간 편집. 커서 마커(`▌`)로 진행 중 표시
+  - 스로틀링(0.5초)으로 Telegram API rate limit 회피
+  - 응답 완료 시 Markdown→HTML 변환된 최종 텍스트로 교체
+  - 폴백: `result` 이벤트가 없으면 누적된 스트리밍 텍스트 또는 `assistant` 턴 텍스트 사용
+- **비스트리밍 모드** (`_send_non_streaming_response`):
+  - `run_claude()`: typing 액션 4초 주기 전송 → 완료 후 Markdown→HTML 변환 → 일괄 전송
+  - cron, heartbeat와 동일한 기존 Phase 3 방식
 
 ## 모듈 의존성
 
@@ -154,7 +158,9 @@ cli.py
 
 ### 텍스트 메시지
 ```
-수신 → 권한 체크 → 세션 Lock (큐잉) → ensure_session → run_claude_streaming → 토큰별 메시지 편집 (스트리밍) → 완료 시 Markdown→HTML 변환 → 최종 메시지 교체/분할 전송
+수신 → 권한 체크 → 세션 Lock (큐잉) → ensure_session → streaming_enabled 분기
+  → (스트리밍 on) run_claude_streaming → 토큰별 메시지 편집 → Markdown→HTML 변환 → 최종 메시지 교체/분할 전송
+  → (스트리밍 off) typing 액션 4초 주기 → run_claude → Markdown→HTML 변환 → 일괄 전송
 ```
 
 ### 파일 (사진/문서)
@@ -200,6 +206,14 @@ cli.py
   → HEARTBEAT.md 로드 → run_claude → 응답에 HEARTBEAT_OK 포함 여부 확인
   → HEARTBEAT_OK 있으면 로그만 기록
   → HEARTBEAT_OK 없으면 allowed_users에게 텔레그램 전송
+```
+
+### /streaming 명령
+```
+수신 → 권한 체크 → 인자 분기
+  → (없음): streaming_enabled 현재 상태 표시
+  → on: streaming_enabled = True, bot.yaml 저장
+  → off: streaming_enabled = False, bot.yaml 저장
 ```
 
 ### /heartbeat 명령

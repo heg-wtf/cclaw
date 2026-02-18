@@ -185,6 +185,7 @@ def create_bot(token: str, bot_info: dict, profile: dict) -> None:
         "personality": profile["personality"],
         "allowed_users": [],
         "claude_args": [],
+        "streaming": True,
         "heartbeat": {
             "enabled": False,
             "interval_minutes": 30,

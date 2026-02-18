@@ -80,9 +80,19 @@
 - [x] 긴 응답 처리 (4096자 초과 시 미리보기 중단 → 분할 전송)
 - [x] 테스트 (`test_claude_runner.py`, `test_handlers.py` 업데이트)
 
+### Phase 9: 스트리밍 on/off 토글
+- [x] `config.py`에 `DEFAULT_STREAMING = True` 상수 추가
+- [x] `handlers.py`에 `/streaming` 핸들러 추가 (상태 표시, on/off 토글, bot.yaml 저장)
+- [x] `handlers.py`에 `_send_non_streaming_response()` 추가 (typing 액션 + run_claude + HTML 변환)
+- [x] `message_handler`/`file_handler`에서 `streaming_enabled` 분기 처리
+- [x] CLI `cclaw bot streaming <name> [on|off]` 커맨드 추가
+- [x] `onboarding.py`에서 봇 생성 시 `streaming: true` 기본값 추가
+- [x] BOT_COMMANDS 및 /help 업데이트
+- [x] 테스트 (`test_handlers.py`: 4개 테스트 추가)
+
 ## 미구현 (향후 고려)
 
-### Phase 9: 고급 기능
+### Phase 10: 고급 기능
 - [ ] 세션 내보내기/가져오기
 - [ ] 봇 간 세션 공유
 - [ ] 웹훅 모드 (Long Polling 대안)

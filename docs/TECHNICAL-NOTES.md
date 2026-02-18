@@ -93,6 +93,16 @@ Claude의 Markdown 응답을 Telegram HTML로 변환하여 전송한다 (`utils.
 - `## heading` → `<b>heading</b>` (Telegram에 heading이 없으므로 bold 처리)
 - HTML 전송 실패 시 plain text 폴백
 
+## 스트리밍 on/off 토글
+
+- `bot.yaml`의 `streaming` 필드: `true`(기본값) 또는 `false`
+- 기본값 상수: `config.py`의 `DEFAULT_STREAMING = True`
+- 핸들러 클로저 내에서 `nonlocal streaming_enabled`로 런타임 변경을 반영한다.
+- Telegram `/streaming on|off` 커맨드로 런타임 토글, `save_bot_config()`로 즉시 저장.
+- CLI에서도 `cclaw bot streaming <name> [on|off]`로 조회/변경 가능.
+- `message_handler`와 `file_handler`에서 `streaming_enabled` 여부에 따라 `_send_streaming_response()` 또는 `_send_non_streaming_response()`를 호출한다.
+- 비스트리밍 모드: typing 액션 4초 주기 전송 + `run_claude()` + Markdown→HTML 변환 + 분할 전송 (Phase 3 패턴 복원).
+
 ## 스트리밍 응답
 
 ### 실행 모드
@@ -118,9 +128,9 @@ stdout을 줄 단위로 읽으며 JSON 이벤트를 파싱한다.
 - 4096자 초과 시 스트리밍 미리보기 중단 (`stream_stopped = True`)
 - 응답 완료 시: 단일 청크면 HTML 포맷으로 메시지 편집, 복수 청크면 미리보기 삭제 후 분할 전송
 
-### typing 액션 (레거시)
+### typing 액션
 
-스트리밍 미지원 경로(cron, heartbeat)에서는 기존 typing 액션 방식을 유지한다.
+스트리밍 미지원 경로(cron, heartbeat) 및 스트리밍 off 상태의 대화 메시지에서는 typing 액션 방식을 사용한다.
 4초 간격으로 `send_action("typing")` 전송, `asyncio.create_task`로 백그라운드 실행.
 
 ## 파일 수신
