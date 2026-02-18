@@ -21,9 +21,16 @@ from cclaw.claude_runner import (
     STREAMING_CURSOR,
     cancel_process,
     is_process_running,
+    run_claude,
     run_claude_streaming,
 )
-from cclaw.config import DEFAULT_MODEL, VALID_MODELS, is_valid_model, save_bot_config
+from cclaw.config import (
+    DEFAULT_MODEL,
+    DEFAULT_STREAMING,
+    VALID_MODELS,
+    is_valid_model,
+    save_bot_config,
+)
 from cclaw.session import (
     ensure_session,
     list_workspace_files,
@@ -68,6 +75,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
     claude_arguments = bot_config.get("claude_args", [])
     command_timeout = bot_config.get("command_timeout", 300)
     current_model = bot_config.get("model", DEFAULT_MODEL)
+    streaming_enabled = bot_config.get("streaming", DEFAULT_STREAMING)
     attached_skills = bot_config.get("skills", [])
 
     async def check_authorization(update: Update) -> bool:
@@ -105,6 +113,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             "\U0001f4e4 /send - Send workspace file\n"
             "\U0001f4ca /status - Session status\n"
             "\U0001f9e0 /model - Show or change model\n"
+            "\U0001f4e1 /streaming - Toggle streaming mode\n"
             "\U0001f9e9 /skills - List all skills\n"
             "\U0001f9e9 /skill - Manage skills (attach/detach)\n"
             "\u23f0 /cron - Cron job management\n"
@@ -264,6 +273,84 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         else:
             await update.message.reply_text("No running process to cancel.")
 
+    async def streaming_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle /streaming command - toggle streaming mode on/off."""
+        nonlocal streaming_enabled
+        if not await check_authorization(update):
+            return
+
+        if not context.args:
+            status_text = "on" if streaming_enabled else "off"
+            text = (
+                f"\U0001f4e1 Streaming: *{status_text}*\n\n"
+                "Usage: `/streaming on` or `/streaming off`"
+            )
+            await update.message.reply_text(text, parse_mode="Markdown")
+            return
+
+        value = context.args[0].lower()
+        if value == "on":
+            streaming_enabled = True
+            bot_config["streaming"] = True
+            save_bot_config(bot_name, bot_config)
+            await update.message.reply_text("\U0001f4e1 Streaming enabled.", parse_mode="Markdown")
+        elif value == "off":
+            streaming_enabled = False
+            bot_config["streaming"] = False
+            save_bot_config(bot_name, bot_config)
+            await update.message.reply_text("\U0001f4e1 Streaming disabled.", parse_mode="Markdown")
+        else:
+            await update.message.reply_text(
+                "Usage: `/streaming on` or `/streaming off`",
+                parse_mode="Markdown",
+            )
+
+    async def _send_non_streaming_response(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+        working_directory: str,
+        prompt: str,
+        lock_key: str,
+    ) -> str:
+        """Run Claude without streaming and send the response.
+
+        Uses typing action + run_claude() + HTML conversion (Phase 3 style).
+        Returns the final response text.
+        """
+
+        async def send_typing_periodically() -> None:
+            try:
+                while True:
+                    await update.message.chat.send_action("typing")
+                    await asyncio.sleep(4)
+            except asyncio.CancelledError:
+                pass
+
+        typing_task = asyncio.create_task(send_typing_periodically())
+
+        try:
+            response = await run_claude(
+                working_directory=working_directory,
+                message=prompt,
+                extra_arguments=claude_arguments if claude_arguments else None,
+                timeout=command_timeout,
+                session_key=lock_key,
+                model=current_model,
+                skill_names=attached_skills if attached_skills else None,
+            )
+        finally:
+            typing_task.cancel()
+
+        html_response = markdown_to_telegram_html(response)
+        chunks = split_message(html_response)
+        for chunk in chunks:
+            try:
+                await update.message.reply_text(chunk, parse_mode="HTML")
+            except Exception:
+                await update.message.reply_text(chunk)
+
+        return response
+
     async def _send_streaming_response(
         update: Update,
         context: ContextTypes.DEFAULT_TYPE,
@@ -387,7 +474,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         return response
 
     async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle regular text messages - forward to Claude Code with streaming."""
+        """Handle regular text messages - forward to Claude Code."""
         if not await check_authorization(update):
             return
 
@@ -405,8 +492,12 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             session_directory = ensure_session(bot_path, chat_id)
             log_conversation(session_directory, "user", user_message)
 
+            send_response = (
+                _send_streaming_response if streaming_enabled else _send_non_streaming_response
+            )
+
             try:
-                response = await _send_streaming_response(
+                response = await send_response(
                     update=update,
                     context=context,
                     working_directory=str(session_directory),
@@ -479,8 +570,12 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
 
             log_conversation(session_dir, "user", f"[file: {filename}] {caption}")
 
+            send_response = (
+                _send_streaming_response if streaming_enabled else _send_non_streaming_response
+            )
+
             try:
-                response = await _send_streaming_response(
+                response = await send_response(
                     update=update,
                     context=context,
                     working_directory=str(session_dir),
@@ -777,6 +872,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         CommandHandler("model", model_handler),
         CommandHandler("version", version_handler),
         CommandHandler("cancel", cancel_handler),
+        CommandHandler("streaming", streaming_handler),
         CommandHandler("skills", skills_handler),
         CommandHandler("skill", skill_handler),
         CommandHandler("cron", cron_handler),
@@ -800,6 +896,7 @@ BOT_COMMANDS = [
     BotCommand("skill", "\U0001f9e9 Manage skills"),
     BotCommand("cron", "\u23f0 Cron job management"),
     BotCommand("heartbeat", "\U0001f493 Heartbeat management"),
+    BotCommand("streaming", "\U0001f4e1 Toggle streaming mode"),
     BotCommand("cancel", "\u26d4 Stop running process"),
     BotCommand("version", "\U00002139 Show version"),
     BotCommand("help", "\U00002753 Show commands"),

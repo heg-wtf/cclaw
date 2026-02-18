@@ -83,6 +83,8 @@ cclaw bot remove <name>        # Remove a bot
 cclaw bot edit <name>          # Edit bot.yaml
 cclaw bot model <name>         # Show current model
 cclaw bot model <name> opus    # Change model
+cclaw bot streaming <name>     # Show streaming status
+cclaw bot streaming <name> off # Toggle streaming on/off
 
 # Skill management
 cclaw skills                   # List all skills (including unattached)
@@ -130,6 +132,8 @@ cclaw logs -f                  # Tail mode
 | `/status` | Session status |
 | `/model` | Show current model |
 | `/model <name>` | Change model (sonnet/opus/haiku) |
+| `/streaming` | Show streaming status |
+| `/streaming on/off` | Toggle streaming mode |
 | `/skills` | List all skills (including unattached) |
 | `/skill attach <name>` | Attach a skill |
 | `/skill detach <name>` | Detach a skill |

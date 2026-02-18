@@ -242,6 +242,41 @@ def bot_model(
     console.print(f"[green]{name} model changed to {model}[/green]")
 
 
+@bot_app.command("streaming")
+def bot_streaming(
+    name: str = typer.Argument(help="Bot name"),
+    value: str = typer.Argument(None, help="on or off"),
+) -> None:
+    """Show or toggle streaming mode for a bot."""
+    from rich.console import Console
+
+    from cclaw.config import DEFAULT_STREAMING, load_bot_config, save_bot_config
+
+    console = Console()
+    bot_config = load_bot_config(name)
+    if not bot_config:
+        console.print(f"[red]Bot '{name}' not found.[/red]")
+        raise typer.Exit(1)
+
+    if value is None:
+        current = bot_config.get("streaming", DEFAULT_STREAMING)
+        status_text = "on" if current else "off"
+        console.print(f"[cyan]{name}[/cyan] streaming: [magenta]{status_text}[/magenta]")
+        return
+
+    if value.lower() == "on":
+        bot_config["streaming"] = True
+        save_bot_config(name, bot_config)
+        console.print(f"[green]{name} streaming enabled[/green]")
+    elif value.lower() == "off":
+        bot_config["streaming"] = False
+        save_bot_config(name, bot_config)
+        console.print(f"[green]{name} streaming disabled[/green]")
+    else:
+        console.print("[red]Invalid value. Use 'on' or 'off'.[/red]")
+        raise typer.Exit(1)
+
+
 @bot_app.command("edit")
 def bot_edit(name: str) -> None:
     """Edit bot configuration."""

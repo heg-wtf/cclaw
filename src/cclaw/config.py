@@ -157,6 +157,7 @@ def cron_session_directory(bot_name: str, job_name: str) -> Path:
 
 VALID_MODELS = ["sonnet", "opus", "haiku"]
 DEFAULT_MODEL = "sonnet"
+DEFAULT_STREAMING = True
 
 
 def is_valid_model(model: str) -> bool:
