@@ -6,11 +6,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from cclaw.claude_runner import (
+    _extract_assistant_text,
+    _extract_result_text,
+    _extract_text_delta,
     _running_processes,
     cancel_process,
     is_process_running,
     register_process,
     run_claude,
+    run_claude_streaming,
     unregister_process,
 )
 
@@ -311,3 +315,276 @@ async def test_run_claude_without_skill_names():
 
     call_kwargs = mock_exec.call_args[1]
     assert call_kwargs["env"] is None
+
+
+# --- Streaming helper tests ---
+
+
+def test_extract_text_delta_valid():
+    """_extract_text_delta extracts text from stream_event content_block_delta."""
+    data = {
+        "type": "stream_event",
+        "event": {
+            "type": "content_block_delta",
+            "index": 0,
+            "delta": {"type": "text_delta", "text": "Hello"},
+        },
+    }
+    assert _extract_text_delta(data) == "Hello"
+
+
+def test_extract_text_delta_wrong_type():
+    """_extract_text_delta returns None for non-stream_event."""
+    assert _extract_text_delta({"type": "result"}) is None
+
+
+def test_extract_text_delta_wrong_delta_type():
+    """_extract_text_delta returns None for non-text_delta."""
+    data = {
+        "type": "stream_event",
+        "event": {
+            "type": "content_block_delta",
+            "delta": {"type": "input_json_delta", "partial_json": "{}"},
+        },
+    }
+    assert _extract_text_delta(data) is None
+
+
+def test_extract_result_text_valid():
+    """_extract_result_text extracts text from result event."""
+    data = {"type": "result", "subtype": "success", "result": "Final answer"}
+    assert _extract_result_text(data) == "Final answer"
+
+
+def test_extract_result_text_wrong_type():
+    """_extract_result_text returns None for non-result event."""
+    assert _extract_result_text({"type": "assistant"}) is None
+
+
+def test_extract_assistant_text_valid():
+    """_extract_assistant_text extracts text from assistant turn event."""
+    data = {
+        "type": "assistant",
+        "message": {
+            "content": [
+                {"type": "text", "text": "Hello "},
+                {"type": "text", "text": "world"},
+            ]
+        },
+    }
+    assert _extract_assistant_text(data) == "Hello world"
+
+
+def test_extract_assistant_text_no_text_blocks():
+    """_extract_assistant_text returns None when no text blocks."""
+    data = {
+        "type": "assistant",
+        "message": {"content": [{"type": "tool_use", "name": "bash"}]},
+    }
+    assert _extract_assistant_text(data) is None
+
+
+def test_extract_assistant_text_wrong_type():
+    """_extract_assistant_text returns None for non-assistant event."""
+    assert _extract_assistant_text({"type": "result"}) is None
+
+
+# --- run_claude_streaming tests ---
+
+
+@pytest.mark.asyncio
+async def test_run_claude_streaming_with_result_event():
+    """run_claude_streaming returns result event text when available."""
+    delta_hello = (
+        b'{"type":"stream_event","event":{"type":"content_block_delta",'
+        b'"index":0,"delta":{"type":"text_delta","text":"Hello"}}}\n'
+    )
+    delta_world = (
+        b'{"type":"stream_event","event":{"type":"content_block_delta",'
+        b'"index":0,"delta":{"type":"text_delta","text":" world"}}}\n'
+    )
+    result_line = b'{"type":"result","subtype":"success","result":"Hello world"}\n'
+    stream_lines = [delta_hello, delta_world, result_line]
+
+    mock_stdout = AsyncMock()
+    line_index = 0
+
+    async def mock_readline():
+        nonlocal line_index
+        if line_index < len(stream_lines):
+            line = stream_lines[line_index]
+            line_index += 1
+            return line
+        return b""
+
+    mock_stdout.readline = mock_readline
+
+    mock_stderr = AsyncMock()
+    mock_stderr.read = AsyncMock(return_value=b"")
+
+    mock_process = MagicMock()
+    mock_process.stdout = mock_stdout
+    mock_process.stderr = mock_stderr
+    mock_process.returncode = 0
+    mock_process.wait = AsyncMock()
+
+    chunks = []
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        result = await run_claude_streaming(
+            "/tmp/test", "Hello", on_text_chunk=lambda c: chunks.append(c)
+        )
+
+    assert result == "Hello world"
+    assert chunks == ["Hello", " world"]
+
+
+@pytest.mark.asyncio
+async def test_run_claude_streaming_fallback_to_accumulated():
+    """run_claude_streaming falls back to accumulated text when no result event."""
+    delta_fallback = (
+        b'{"type":"stream_event","event":{"type":"content_block_delta",'
+        b'"index":0,"delta":{"type":"text_delta","text":"Fallback"}}}\n'
+    )
+    delta_text = (
+        b'{"type":"stream_event","event":{"type":"content_block_delta",'
+        b'"index":0,"delta":{"type":"text_delta","text":" text"}}}\n'
+    )
+    stream_lines = [delta_fallback, delta_text]
+
+    mock_stdout = AsyncMock()
+    line_index = 0
+
+    async def mock_readline():
+        nonlocal line_index
+        if line_index < len(stream_lines):
+            line = stream_lines[line_index]
+            line_index += 1
+            return line
+        return b""
+
+    mock_stdout.readline = mock_readline
+
+    mock_stderr = AsyncMock()
+    mock_stderr.read = AsyncMock(return_value=b"")
+
+    mock_process = MagicMock()
+    mock_process.stdout = mock_stdout
+    mock_process.stderr = mock_stderr
+    mock_process.returncode = 0
+    mock_process.wait = AsyncMock()
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        result = await run_claude_streaming("/tmp/test", "Hello")
+
+    assert result == "Fallback text"
+
+
+@pytest.mark.asyncio
+async def test_run_claude_streaming_command_flags():
+    """run_claude_streaming uses stream-json, --verbose, --include-partial-messages."""
+    mock_stdout = AsyncMock()
+    mock_stdout.readline = AsyncMock(return_value=b"")
+
+    mock_stderr = AsyncMock()
+    mock_stderr.read = AsyncMock(return_value=b"")
+
+    mock_process = MagicMock()
+    mock_process.stdout = mock_stdout
+    mock_process.stderr = mock_stderr
+    mock_process.returncode = 0
+    mock_process.wait = AsyncMock()
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        await run_claude_streaming("/tmp/test", "Hello")
+
+    call_args = mock_exec.call_args[0]
+    assert "stream-json" in call_args
+    assert "--verbose" in call_args
+    assert "--include-partial-messages" in call_args
+
+
+@pytest.mark.asyncio
+async def test_run_claude_streaming_cancelled():
+    """run_claude_streaming raises CancelledError when killed."""
+    mock_stdout = AsyncMock()
+    mock_stdout.readline = AsyncMock(return_value=b"")
+
+    mock_stderr = AsyncMock()
+    mock_stderr.read = AsyncMock(return_value=b"")
+
+    mock_process = MagicMock()
+    mock_process.stdout = mock_stdout
+    mock_process.stderr = mock_stderr
+    mock_process.returncode = -9
+    mock_process.wait = AsyncMock()
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        with pytest.raises(asyncio.CancelledError, match="cancelled"):
+            await run_claude_streaming("/tmp/test", "Hello", session_key="bot:123")
+
+
+@pytest.mark.asyncio
+async def test_run_claude_streaming_with_model():
+    """run_claude_streaming passes --model flag."""
+    mock_stdout = AsyncMock()
+    mock_stdout.readline = AsyncMock(return_value=b"")
+
+    mock_stderr = AsyncMock()
+    mock_stderr.read = AsyncMock(return_value=b"")
+
+    mock_process = MagicMock()
+    mock_process.stdout = mock_stdout
+    mock_process.stderr = mock_stderr
+    mock_process.returncode = 0
+    mock_process.wait = AsyncMock()
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        await run_claude_streaming("/tmp/test", "Hello", model="haiku")
+
+    call_args = mock_exec.call_args[0]
+    assert "--model" in call_args
+    assert "haiku" in call_args
+
+
+@pytest.mark.asyncio
+async def test_run_claude_streaming_assistant_fallback():
+    """run_claude_streaming falls back to assistant turn text."""
+    assistant_line = (
+        b'{"type":"assistant","message":{"content":'
+        b'[{"type":"text","text":"Assistant response"}]}}\n'
+    )
+    stream_lines = [assistant_line]
+
+    mock_stdout = AsyncMock()
+    line_index = 0
+
+    async def mock_readline():
+        nonlocal line_index
+        if line_index < len(stream_lines):
+            line = stream_lines[line_index]
+            line_index += 1
+            return line
+        return b""
+
+    mock_stdout.readline = mock_readline
+
+    mock_stderr = AsyncMock()
+    mock_stderr.read = AsyncMock(return_value=b"")
+
+    mock_process = MagicMock()
+    mock_process.stdout = mock_stdout
+    mock_process.stderr = mock_stderr
+    mock_process.returncode = 0
+    mock_process.wait = AsyncMock()
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        result = await run_claude_streaming("/tmp/test", "Hello")
+
+    assert result == "Assistant response"

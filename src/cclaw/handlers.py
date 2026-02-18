@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +17,12 @@ from telegram.ext import (
     filters,
 )
 
-from cclaw.claude_runner import cancel_process, is_process_running, run_claude
+from cclaw.claude_runner import (
+    STREAMING_CURSOR,
+    cancel_process,
+    is_process_running,
+    run_claude_streaming,
+)
 from cclaw.config import DEFAULT_MODEL, VALID_MODELS, is_valid_model, save_bot_config
 from cclaw.session import (
     ensure_session,
@@ -31,6 +37,10 @@ logger = logging.getLogger(__name__)
 
 SESSION_LOCKS: dict[str, asyncio.Lock] = {}
 MAX_QUEUE_SIZE = 5
+
+STREAM_THROTTLE_SECONDS = 0.5
+STREAM_MIN_CHARS_BEFORE_SEND = 10
+TELEGRAM_MESSAGE_LIMIT = 4096
 
 
 def _get_session_lock(key: str) -> asyncio.Lock:
@@ -254,8 +264,130 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         else:
             await update.message.reply_text("No running process to cancel.")
 
+    async def _send_streaming_response(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+        working_directory: str,
+        prompt: str,
+        lock_key: str,
+    ) -> str:
+        """Run Claude with streaming and send real-time updates to Telegram.
+
+        Returns the final response text.
+        """
+        chat_id = update.effective_chat.id
+        stream_message_id: int | None = None
+        accumulated_text = ""
+        last_edit_time = 0.0
+        stream_stopped = False
+
+        async def on_text_chunk(chunk: str) -> None:
+            nonlocal accumulated_text, stream_message_id, last_edit_time
+            nonlocal stream_stopped
+
+            if stream_stopped:
+                return
+
+            accumulated_text += chunk
+            now = time.monotonic()
+
+            # Send first message once enough text accumulated
+            if stream_message_id is None:
+                if len(accumulated_text) >= STREAM_MIN_CHARS_BEFORE_SEND:
+                    try:
+                        display = accumulated_text[: TELEGRAM_MESSAGE_LIMIT - 2]
+                        sent = await update.message.reply_text(display + STREAMING_CURSOR)
+                        stream_message_id = sent.message_id
+                        last_edit_time = now
+                    except Exception as send_error:
+                        logger.debug("Stream first send failed: %s", send_error)
+                        stream_stopped = True
+                return
+
+            # Throttle edits
+            if now - last_edit_time < STREAM_THROTTLE_SECONDS:
+                return
+
+            # Stop streaming preview if exceeding Telegram limit
+            if len(accumulated_text) > TELEGRAM_MESSAGE_LIMIT - 100:
+                stream_stopped = True
+                return
+
+            # Edit existing message
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=stream_message_id,
+                    text=accumulated_text + STREAMING_CURSOR,
+                )
+                last_edit_time = now
+            except Exception as edit_error:
+                logger.debug("Stream edit failed: %s", edit_error)
+                stream_stopped = True
+
+        response = await run_claude_streaming(
+            working_directory=working_directory,
+            message=prompt,
+            on_text_chunk=on_text_chunk,
+            extra_arguments=claude_arguments if claude_arguments else None,
+            timeout=command_timeout,
+            session_key=lock_key,
+            model=current_model,
+            skill_names=attached_skills if attached_skills else None,
+        )
+
+        # Finalize: remove cursor and send complete response
+        if stream_message_id is not None:
+            # We had a streaming preview message
+            html_response = markdown_to_telegram_html(response)
+            chunks = split_message(html_response)
+
+            if len(chunks) == 1 and len(chunks[0]) <= TELEGRAM_MESSAGE_LIMIT:
+                # Single chunk: edit the preview message with final formatted text
+                try:
+                    await context.bot.edit_message_text(
+                        chat_id=chat_id,
+                        message_id=stream_message_id,
+                        text=chunks[0],
+                        parse_mode="HTML",
+                    )
+                except Exception:
+                    try:
+                        await context.bot.edit_message_text(
+                            chat_id=chat_id,
+                            message_id=stream_message_id,
+                            text=response,
+                        )
+                    except Exception:
+                        pass
+            else:
+                # Multiple chunks: delete preview and send all chunks
+                try:
+                    await context.bot.delete_message(
+                        chat_id=chat_id,
+                        message_id=stream_message_id,
+                    )
+                except Exception:
+                    pass
+                for chunk in chunks:
+                    try:
+                        await update.message.reply_text(chunk, parse_mode="HTML")
+                    except Exception:
+                        await update.message.reply_text(chunk)
+        else:
+            # No streaming preview was sent (short response or streaming failed)
+            html_response = markdown_to_telegram_html(response)
+            chunks = split_message(html_response)
+            for chunk in chunks:
+                try:
+                    await update.message.reply_text(chunk, parse_mode="HTML")
+                except Exception:
+                    await update.message.reply_text(chunk)
+
+        return response
+
     async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle regular text messages - forward to Claude Code."""
+        """Handle regular text messages - forward to Claude Code with streaming."""
         if not await check_authorization(update):
             return
 
@@ -273,48 +405,28 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             session_directory = ensure_session(bot_path, chat_id)
             log_conversation(session_directory, "user", user_message)
 
-            async def send_typing_periodically() -> None:
-                """Send typing action every 4 seconds until cancelled."""
-                try:
-                    while True:
-                        await update.message.chat.send_action("typing")
-                        await asyncio.sleep(4)
-                except asyncio.CancelledError:
-                    pass
-
-            typing_task = asyncio.create_task(send_typing_periodically())
-
             try:
-                response = await run_claude(
+                response = await _send_streaming_response(
+                    update=update,
+                    context=context,
                     working_directory=str(session_directory),
-                    message=user_message,
-                    extra_arguments=claude_arguments if claude_arguments else None,
-                    timeout=command_timeout,
-                    session_key=lock_key,
-                    model=current_model,
-                    skill_names=attached_skills if attached_skills else None,
+                    prompt=user_message,
+                    lock_key=lock_key,
                 )
             except asyncio.CancelledError:
                 response = "\u26d4 Execution was cancelled."
                 logger.info("Claude cancelled for chat %d", chat_id)
+                await update.message.reply_text(response)
             except TimeoutError:
                 response = "Request timed out. Please try a shorter request."
                 logger.error("Claude timed out for chat %d", chat_id)
+                await update.message.reply_text(response)
             except RuntimeError as error:
                 response = f"Error: {error}"
                 logger.error("Claude error for chat %d: %s", chat_id, error)
-            finally:
-                typing_task.cancel()
+                await update.message.reply_text(response)
 
             log_conversation(session_directory, "assistant", response)
-
-            html_response = markdown_to_telegram_html(response)
-            chunks = split_message(html_response)
-            for chunk in chunks:
-                try:
-                    await update.message.reply_text(chunk, parse_mode="HTML")
-                except Exception:
-                    await update.message.reply_text(chunk)
 
     async def version_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /version command."""
@@ -367,47 +479,28 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
 
             log_conversation(session_dir, "user", f"[file: {filename}] {caption}")
 
-            async def send_typing_periodically() -> None:
-                try:
-                    while True:
-                        await update.message.chat.send_action("typing")
-                        await asyncio.sleep(4)
-                except asyncio.CancelledError:
-                    pass
-
-            typing_task = asyncio.create_task(send_typing_periodically())
-
             try:
-                response = await run_claude(
+                response = await _send_streaming_response(
+                    update=update,
+                    context=context,
                     working_directory=str(session_dir),
-                    message=prompt,
-                    extra_arguments=claude_arguments if claude_arguments else None,
-                    timeout=command_timeout,
-                    session_key=lock_key,
-                    model=current_model,
-                    skill_names=attached_skills if attached_skills else None,
+                    prompt=prompt,
+                    lock_key=lock_key,
                 )
             except asyncio.CancelledError:
                 response = "\u26d4 Execution was cancelled."
                 logger.info("Claude cancelled for chat %d", chat_id)
+                await update.message.reply_text(response)
             except TimeoutError:
                 response = "Request timed out. Please try a shorter request."
                 logger.error("Claude timed out for chat %d", chat_id)
+                await update.message.reply_text(response)
             except RuntimeError as error:
                 response = f"Error: {error}"
                 logger.error("Claude error for chat %d: %s", chat_id, error)
-            finally:
-                typing_task.cancel()
+                await update.message.reply_text(response)
 
             log_conversation(session_dir, "assistant", response)
-
-            html_response = markdown_to_telegram_html(response)
-            chunks = split_message(html_response)
-            for chunk in chunks:
-                try:
-                    await update.message.reply_text(chunk, parse_mode="HTML")
-                except Exception:
-                    await update.message.reply_text(chunk)
 
     async def skills_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /skills command - list all available skills."""

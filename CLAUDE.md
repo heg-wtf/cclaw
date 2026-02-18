@@ -55,9 +55,9 @@ pytest
 - `src/cclaw/cli.py` - Typer 앱 엔트리포인트, 모든 커맨드 정의 (skills, bot, skill, cron, heartbeat 서브커맨드 포함)
 - `src/cclaw/config.py` - `~/.cclaw/` 설정 관리 (YAML)
 - `src/cclaw/onboarding.py` - 환경 점검, 토큰 검증, 봇 생성 마법사
-- `src/cclaw/claude_runner.py` - `claude -p` subprocess 실행 (async, `shutil.which`로 경로 해석, 프로세스 추적, 모델 선택, 스킬 MCP/env 주입)
+- `src/cclaw/claude_runner.py` - `claude -p` subprocess 실행 (async, `shutil.which`로 경로 해석, 프로세스 추적, 모델 선택, 스킬 MCP/env 주입, streaming 출력 지원)
 - `src/cclaw/session.py` - 세션 디렉토리/대화 로그/workspace 관리
-- `src/cclaw/handlers.py` - Telegram 핸들러 팩토리 (슬래시 커맨드 + 메시지 + 파일 수신/전송 + 모델 변경 + 프로세스 취소 + /skills 전체 목록 + /skill 관리 + /cron 관리 + /heartbeat 관리)
+- `src/cclaw/handlers.py` - Telegram 핸들러 팩토리 (슬래시 커맨드 + 메시지 + 파일 수신/전송 + 모델 변경 + 프로세스 취소 + /skills 전체 목록 + /skill 관리 + /cron 관리 + /heartbeat 관리 + 스트리밍 응답)
 - `src/cclaw/bot_manager.py` - 멀티봇 polling, launchd 데몬, 개별 봇 오류 격리, cron/heartbeat 스케줄러 통합
 - `src/cclaw/heartbeat.py` - Heartbeat 주기적 상황 인지 (설정 CRUD, active hours 체크, HEARTBEAT.md 관리, HEARTBEAT_OK 감지, 스케줄러 루프)
 - `src/cclaw/cron.py` - Cron 스케줄 자동화 (cron.yaml CRUD, croniter 기반 스케줄 매칭, one-shot 지원, 스케줄러 루프)
@@ -85,6 +85,16 @@ pytest
 - 변환 대상: `**bold**`, `*italic*`, `` `code` ``, ` ```code blocks``` `, `## headings`, `[link](url)`
 - HTML 전송 실패 시 plain text 폴백
 - 4096자 초과 시 `split_message()`로 자동 분할
+
+## 스트리밍 응답
+
+- `run_claude_streaming()`으로 `--output-format stream-json --verbose --include-partial-messages` 실행
+- `on_text_chunk` 콜백으로 토큰 단위 텍스트 수신
+- Telegram 메시지를 실시간 편집하여 스트리밍 효과 구현 (커서: `▌`)
+- 스로틀링: 0.5초 간격으로 메시지 편집 (`STREAM_THROTTLE_SECONDS`)
+- 최소 10자 이상 누적 후 첫 메시지 전송 (`STREAM_MIN_CHARS_BEFORE_SEND`)
+- 4096자 초과 시 스트리밍 미리보기 중단, 최종 응답을 분할 전송
+- typing 액션 대신 실시간 메시지 편집으로 대체
 
 ## 런타임 데이터 구조
 

@@ -16,7 +16,12 @@ Telegram 메시지는 최대 4096자. `utils.split_message()`로 긴 응답을 �
 
 ## Claude Code 실행
 
-`claude -p "<message>" --output-format text`로 실행한다. 작업 디렉토리는 subprocess의 `cwd` 파라미터로 세션 디렉토리를 지정한다.
+두 가지 실행 모드를 지원한다:
+
+- **일반 모드**: `claude -p "<message>" --output-format text` (cron, heartbeat 등)
+- **스트리밍 모드**: `claude -p "<message>" --output-format stream-json --verbose --include-partial-messages` (Telegram 대화)
+
+작업 디렉토리는 subprocess의 `cwd` 파라미터로 세션 디렉토리를 지정한다.
 
 - `shutil.which("claude")`로 Claude CLI 전체 경로를 해석한다. `uv run`, `pip install`, `pipx install` 등 설치 방법에 관계없이 PATH에서 claude를 찾는다. 경로를 찾지 못하면 설치 안내와 함께 `RuntimeError`를 발생시킨다.
 - `--output-format text`: JSON이 아닌 텍스트 출력
@@ -88,10 +93,35 @@ Claude의 Markdown 응답을 Telegram HTML로 변환하여 전송한다 (`utils.
 - `## heading` → `<b>heading</b>` (Telegram에 heading이 없으므로 bold 처리)
 - HTML 전송 실패 시 plain text 폴백
 
-## typing 액션
+## 스트리밍 응답
 
-Claude Code 실행 중 4초 간격으로 `send_action("typing")`을 전송한다.
-`asyncio.create_task`로 백그라운드 실행하고, Claude 응답 완료 시 `task.cancel()`로 중단한다.
+### 실행 모드
+
+`run_claude_streaming()`은 `--output-format stream-json --verbose --include-partial-messages` 플래그로 Claude Code를 실행한다.
+stdout을 줄 단위로 읽으며 JSON 이벤트를 파싱한다.
+
+### stream-json 이벤트 파싱
+
+세 가지 이벤트 유형을 처리한다:
+
+- `stream_event` + `content_block_delta` + `text_delta`: 토큰 단위 텍스트 (--verbose 모드)
+- `assistant` 메시지의 `content` 블록: 턴 레벨 텍스트 (폴백)
+- `result`: 최종 완성 텍스트
+
+`result` 이벤트의 텍스트를 우선 사용하고, 없으면 누적된 스트리밍 텍스트를 사용한다.
+
+### Telegram 메시지 편집 전략
+
+- 최소 10자(`STREAM_MIN_CHARS_BEFORE_SEND`) 누적 후 첫 `reply_text()` 전송
+- 이후 0.5초(`STREAM_THROTTLE_SECONDS`) 간격으로 `edit_message_text()` 호출
+- 커서 마커 `▌`(`STREAMING_CURSOR`)를 텍스트 끝에 추가하여 진행 중 표시
+- 4096자 초과 시 스트리밍 미리보기 중단 (`stream_stopped = True`)
+- 응답 완료 시: 단일 청크면 HTML 포맷으로 메시지 편집, 복수 청크면 미리보기 삭제 후 분할 전송
+
+### typing 액션 (레거시)
+
+스트리밍 미지원 경로(cron, heartbeat)에서는 기존 typing 액션 방식을 유지한다.
+4초 간격으로 `send_action("typing")` 전송, `asyncio.create_task`로 백그라운드 실행.
 
 ## 파일 수신
 

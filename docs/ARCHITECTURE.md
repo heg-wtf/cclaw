@@ -103,6 +103,20 @@ DB 없이 디렉토리 구조로 세션을 관리한다.
 - 스케줄러 루프에서 매 주기마다 `bot.yaml`을 재읽기하여 런타임 설정 변경 반영
 - 격리된 작업 디렉토리: `heartbeat_sessions/`에서 Claude Code 실행
 
+### 10. 스트리밍 응답
+
+Claude Code의 출력을 실시간으로 Telegram에 전달한다.
+
+- `run_claude_streaming()`: `--output-format stream-json --verbose --include-partial-messages`로 실행
+- stream-json의 `content_block_delta` 이벤트에서 `text_delta`를 추출하여 토큰 단위 스트리밍
+- `on_text_chunk` 콜백으로 핸들러에 텍스트 조각 전달
+- 핸들러의 `_send_streaming_response()`에서 Telegram 메시지를 실시간 편집
+- 커서 마커(`▌`)로 응답 진행 중임을 시각적으로 표시
+- 스로틀링(0.5초)으로 Telegram API rate limit 회피
+- 응답 완료 시 Markdown→HTML 변환된 최종 텍스트로 교체
+- 기존 typing 액션 방식을 대체하여 사용자 체감 응답 속도 개선
+- 폴백: `result` 이벤트가 없으면 누적된 스트리밍 텍스트 또는 `assistant` 턴 텍스트 사용
+
 ## 모듈 의존성
 
 ```
@@ -140,7 +154,7 @@ cli.py
 
 ### 텍스트 메시지
 ```
-수신 → 권한 체크 → 세션 Lock (큐잉) → ensure_session → typing 주기 전송(4초) → claude -p --model <model> → Markdown→HTML 변환 → 분할 전송
+수신 → 권한 체크 → 세션 Lock (큐잉) → ensure_session → run_claude_streaming → 토큰별 메시지 편집 (스트리밍) → 완료 시 Markdown→HTML 변환 → 최종 메시지 교체/분할 전송
 ```
 
 ### 파일 (사진/문서)

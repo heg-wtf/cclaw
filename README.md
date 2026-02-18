@@ -21,7 +21,7 @@ A multi-bot, file-based session system that runs locally on Mac (Intel/Apple Sil
 | Telegram | python-telegram-bot v21+ |
 | Configuration | PyYAML |
 | Cron Scheduler | croniter |
-| AI Engine | Claude Code CLI (`claude -p`) |
+| AI Engine | Claude Code CLI (`claude -p`, streaming) |
 | Process Manager | launchd (macOS) |
 
 ## Requirements
@@ -158,7 +158,7 @@ cclaw/
 │   ├── cli.py              # Typer CLI entry point
 │   ├── config.py           # Configuration load/save
 │   ├── onboarding.py       # Setup wizard
-│   ├── claude_runner.py    # Claude Code subprocess runner
+│   ├── claude_runner.py    # Claude Code subprocess runner (batch + streaming)
 │   ├── session.py          # Session directory management
 │   ├── handlers.py         # Telegram handler factory
 │   ├── bot_manager.py      # Multi-bot lifecycle
