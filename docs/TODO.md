@@ -70,9 +70,19 @@
 - [x] BOT_COMMANDS 및 /help 업데이트
 - [x] 테스트 (`test_heartbeat.py`: 26개 테스트, `test_handlers.py` 업데이트)
 
+### Phase 8: 스트리밍 응답
+- [x] `run_claude_streaming()` (stream-json 파싱, on_text_chunk 콜백)
+- [x] `_prepare_skill_environment()` 헬퍼 리팩토링
+- [x] stream-json 이벤트 파서 (`_extract_text_delta`, `_extract_result_text`, `_extract_assistant_text`)
+- [x] `_send_streaming_response()` (Telegram 메시지 실시간 편집, 스로틀링, 커서 마커)
+- [x] 메시지/파일 핸들러에서 `run_claude` → `run_claude_streaming` 전환
+- [x] typing 액션 대체 (스트리밍 미리보기로 진행 상태 표시)
+- [x] 긴 응답 처리 (4096자 초과 시 미리보기 중단 → 분할 전송)
+- [x] 테스트 (`test_claude_runner.py`, `test_handlers.py` 업데이트)
+
 ## 미구현 (향후 고려)
 
-### Phase 8: 고급 기능
+### Phase 9: 고급 기능
 - [ ] 세션 내보내기/가져오기
 - [ ] 봇 간 세션 공유
 - [ ] 웹훅 모드 (Long Polling 대안)

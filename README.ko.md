@@ -21,7 +21,7 @@ Telegram + Claude Code 기반 개인 AI 어시스턴트.
 | Telegram | python-telegram-bot v21+ |
 | 설정 | PyYAML |
 | Cron 스케줄러 | croniter |
-| AI 엔진 | Claude Code CLI (`claude -p`) |
+| AI 엔진 | Claude Code CLI (`claude -p`, 스트리밍) |
 | 프로세스 관리 | launchd (macOS) |
 
 ## 요구사항
@@ -158,7 +158,7 @@ cclaw/
 │   ├── cli.py              # Typer CLI 엔트리포인트
 │   ├── config.py           # 설정 로드/저장
 │   ├── onboarding.py       # 초기 설정 마법사
-│   ├── claude_runner.py    # Claude Code subprocess 실행
+│   ├── claude_runner.py    # Claude Code subprocess 실행 (일반 + 스트리밍)
 │   ├── session.py          # 세션 디렉토리 관리
 │   ├── handlers.py         # Telegram 핸들러 팩토리
 │   ├── bot_manager.py      # 멀티봇 라이프사이클
