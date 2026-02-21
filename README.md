@@ -9,8 +9,6 @@
 
 # cclaw (claude-claw)
 
-> [한국어](README.ko.md)
-
 Personal AI assistant powered by Telegram + Claude Code.
 A multi-bot, file-based session system that runs locally on Mac (Intel/Apple Silicon).
 
@@ -23,6 +21,7 @@ A multi-bot, file-based session system that runs locally on Mac (Intel/Apple Sil
 - [Skills](#skills)
   - [💬 iMessage](#-imessage)
   - [⏰ Apple Reminders](#-apple-reminders)
+  - [🗺 Naver Map](#-naver-map)
 - [Telegram Commands](#telegram-commands)
 - [File Handling](#file-handling)
 - [Tech Stack](#tech-stack)
@@ -129,6 +128,21 @@ Add "Buy groceries" to Shopping list for tomorrow
 ```
 
 See the full guide: [Apple Reminders Skill Guide](docs/skills/REMINDERS.md)
+
+### 🗺 Naver Map
+
+Generate Naver Map web links for place search, route finding, and navigation through your Telegram bot. Clickable links open directly in the Naver Maps app on mobile.
+
+```bash
+cclaw skills install naver-map
+```
+
+Then in Telegram:
+```
+/skills attach naver-map
+How do I get from Gangnam to Seoul Station by subway?
+Search for cafes near Hongdae
+```
 
 ## Telegram Commands
 
@@ -261,7 +275,8 @@ cclaw/
 │   ├── builtin_skills/     # Built-in skill templates (imessage, reminders, ...)
 │   │   ├── __init__.py     # Built-in skill registry
 │   │   ├── imessage/       # iMessage skill (imsg CLI)
-│   │   └── reminders/      # Apple Reminders skill (reminders-cli)
+│   │   ├── reminders/      # Apple Reminders skill (reminders-cli)
+│   │   └── naver-map/      # Naver Map skill (web URL links)
 │   ├── cron.py             # Cron schedule automation
 │   ├── heartbeat.py        # Heartbeat (periodic situation awareness)
 │   └── utils.py            # Utilities
@@ -306,6 +321,7 @@ Configuration and session data are stored in `~/.cclaw/`. Override the path with
 - [Technical Notes](docs/TECHNICAL-NOTES.md)
 - [iMessage Skill Guide](docs/skills/IMESSAGE.md)
 - [Apple Reminders Skill Guide](docs/skills/REMINDERS.md)
+- [Naver Map Skill Guide](docs/skills/NAVER-MAP.md)
 
 ## Testing
 

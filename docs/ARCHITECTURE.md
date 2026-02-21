@@ -1,169 +1,169 @@
-# 아키텍처
+# Architecture
 
-## 전체 구조
+## Overall Structure
 
 ```
-Telegram ←→ python-telegram-bot (Long Polling) ←→ handlers.py ←→ claude_runner.py ←→ Claude Code CLI
-                                                       ↕                 ↕
+Telegram <-> python-telegram-bot (Long Polling) <-> handlers.py <-> claude_runner.py <-> Claude Code CLI
+                                                       |                 |
                                                   session.py         skill.py
-                                                       ↕                 ↕
+                                                       |                 |
                                               ~/.cclaw/bots/      ~/.cclaw/skills/
 ```
 
-## 핵심 설계 결정
+## Core Design Decisions
 
-### 1. Claude Code subprocess 위임
+### 1. Claude Code Subprocess Delegation
 
-LLM API를 직접 호출하지 않고 `claude -p` CLI를 subprocess로 실행한다.
+Instead of calling the LLM API directly, we run the `claude -p` CLI as a subprocess.
 
-- Claude Code의 에이전트 능력(파일 조작, 코드 실행)을 그대로 활용
-- API 키 관리 불필요 (Claude Code가 자체 인증 처리)
-- subprocess의 `cwd` 파라미터로 세션 디렉토리를 작업 디렉토리로 설정
-- `--model` 플래그로 모델 선택 (sonnet/opus/haiku)
+- Leverages Claude Code's agent capabilities (file manipulation, code execution) as-is
+- No API key management needed (Claude Code handles its own authentication)
+- Sets session directory as working directory via subprocess `cwd` parameter
+- Model selection via `--model` flag (sonnet/opus/haiku)
 
-### 2. 파일 기반 세션
+### 2. File-Based Sessions
 
-DB 없이 디렉토리 구조로 세션을 관리한다.
+Sessions are managed via directory structure without a database.
 
-- 각 채팅은 `chat_<id>/` 디렉토리
-- `CLAUDE.md`: Claude Code가 읽는 시스템 프롬프트
-- `conversation.md`: 대화 로그 (마크다운 append)
-- `workspace/`: Claude Code가 생성하는 파일 저장소
+- Each chat is a `chat_<id>/` directory
+- `CLAUDE.md`: System prompt read by Claude Code
+- `conversation.md`: Conversation log (markdown append)
+- `workspace/`: File storage for Claude Code outputs
 
-### 3. 멀티봇 아키텍처
+### 3. Multi-Bot Architecture
 
-하나의 프로세스에서 여러 Telegram 봇을 동시 실행한다.
+Multiple Telegram bots run simultaneously in a single process.
 
-- 봇마다 독립된 `Application` 인스턴스
-- `asyncio` 기반 동시 polling
-- 봇별 독립 설정 (토큰, 성격, 역할, 권한, 모델)
-- 개별 봇 오류가 다른 봇에 영향을 주지 않도록 격리
+- Independent `Application` instance per bot
+- Concurrent polling via `asyncio`
+- Per-bot independent configuration (token, personality, role, permissions, model)
+- Individual bot errors are isolated from other bots
 
-### 4. 세션별 동시성 제어
+### 4. Per-Session Concurrency Control
 
-같은 채팅에서 동시에 여러 메시지가 오면 순차 처리한다.
+Sequential processing when multiple messages arrive in the same chat.
 
-- `{bot_name}:{chat_id}` 키로 `asyncio.Lock` 관리
-- Lock이 잡혀있으면 "Message queued" 알림 후 대기 (메시지 큐잉)
+- `asyncio.Lock` managed by `{bot_name}:{chat_id}` key
+- When lock is held, sends "Message queued" notification then waits (message queuing)
 
-### 5. 프로세스 추적
+### 5. Process Tracking
 
-실행 중인 Claude Code subprocess를 세션별로 추적한다.
+Running Claude Code subprocesses are tracked per session.
 
-- `_running_processes` 딕셔너리에 `{bot_name}:{chat_id}` → `subprocess` 매핑
-- `/cancel` 명령으로 실행 중인 프로세스를 SIGKILL로 중단
-- `returncode == -9`이면 `asyncio.CancelledError` 발생
+- `_running_processes` dictionary maps `{bot_name}:{chat_id}` to subprocess
+- `/cancel` command kills running process with SIGKILL
+- `returncode == -9` raises `asyncio.CancelledError`
 
-### 6. 모델 선택
+### 6. Model Selection
 
-봇별로 Claude 모델을 설정하고 런타임에 변경할 수 있다.
+Per-bot Claude model configuration with runtime changes.
 
-- `bot.yaml`의 `model` 필드에 저장 (기본값: sonnet)
-- Telegram `/model` 커맨드로 런타임 변경 (변경 시 bot.yaml에 즉시 저장)
-- CLI `cclaw bot model <name> <model>`로도 변경 가능
-- 유효 모델: sonnet (4.5), opus (4.6), haiku (3.5) — `/model`에서 버전도 함께 표시
+- Stored in `bot.yaml`'s `model` field (default: sonnet)
+- Runtime change via Telegram `/model` command (immediately saved to bot.yaml)
+- Also changeable via CLI `cclaw bot model <name> <model>`
+- Valid models: sonnet (4.5), opus (4.6), haiku (3.5) — `/model` shows version alongside name
 
-### 7. 스킬 시스템
+### 7. Skill System
 
-봇에 도구/지식을 연결하여 기능을 확장한다.
+Extends bot capabilities by linking tools/knowledge.
 
-- 스킬의 최소 단위: 폴더 + `SKILL.md` 하나
-- **마크다운 전용 스킬**: `SKILL.md`만 있으면 즉시 active. 봇에 지식/지시를 추가
-- **도구 기반 스킬**: `skill.yaml`로 유형(cli/mcp/browser), 필요 명령어, 환경변수 정의. `cclaw skill setup`으로 활성화
-- 스킬 연결 시 `compose_claude_md()`로 봇 프롬프트 + 스킬 내용을 합성하여 CLAUDE.md 재생성
-- MCP 스킬: 세션 디렉토리에 `.mcp.json` 자동 생성
-- CLI 스킬: subprocess 실행 시 환경변수 자동 주입
+- Minimum skill unit: folder + single `SKILL.md`
+- **Markdown-only skills**: Just `SKILL.md` makes it immediately active. Adds knowledge/instructions to bot
+- **Tool-based skills**: `skill.yaml` defines type (cli/mcp/browser), required commands, environment variables. Activated via `cclaw skill setup`
+- On skill attachment, `compose_claude_md()` merges bot prompt + skill content to regenerate CLAUDE.md
+- MCP skills: Auto-generates `.mcp.json` in session directory
+- CLI skills: Environment variables auto-injected during subprocess execution
 
-### 8. Cron 스케줄 자동화
+### 8. Cron Schedule Automation
 
-정해진 시간에 Claude Code를 자동 실행하고 결과를 텔레그램으로 전송한다.
+Automatically runs Claude Code at scheduled times and sends results via Telegram.
 
-- `cron.yaml`에 job 목록 정의 (schedule 또는 at)
-- **반복 job**: 표준 cron 표현식 (`0 9 * * *` = 매일 오전 9시)
-- **일회성 job**: `at` 필드에 ISO datetime 또는 duration(`30m`, `2h`, `1d`)
-- `croniter` 라이브러리로 cron 표현식 유효성 검증 및 매칭
-- 스케줄러 루프: 30초마다 현재 시각과 job schedule 비교
-- 중복 실행 방지: 마지막 실행 시각을 메모리에 기록, 같은 분에 재실행 방지
-- 결과 전송: `bot.yaml`의 `allowed_users` 전원에게 텔레그램 DM 발송
-- 격리된 작업 디렉토리: `cron_sessions/{job_name}/`에서 Claude Code 실행
-- one-shot job: `delete_after_run=true` 시 실행 후 자동 삭제
-- 봇별 스킬/모델 설정 상속, job 레벨에서 오버라이드 가능
+- Job list defined in `cron.yaml` (schedule or at)
+- **Recurring jobs**: Standard cron expressions (`0 9 * * *` = daily at 9 AM)
+- **One-shot jobs**: ISO datetime or duration (`30m`, `2h`, `1d`) in `at` field
+- `croniter` library for cron expression validation and matching
+- Scheduler loop: checks current time against job schedules every 30 seconds
+- Duplicate prevention: records last run time in memory, prevents re-execution within same minute
+- Result delivery: sends Telegram DM to all `allowed_users` in `bot.yaml`
+- Isolated working directory: Claude Code runs in `cron_sessions/{job_name}/`
+- One-shot jobs: auto-deleted after execution when `delete_after_run=true`
+- Inherits bot's skills/model settings, overridable at job level
 
-### 9. Heartbeat (주기적 상황 인지)
+### 9. Heartbeat (Periodic Situation Awareness)
 
-주기적으로 Claude Code를 깨워 HEARTBEAT.md 체크리스트를 실행하고, 알릴 것이 있을 때만 텔레그램에 메시지를 보내는 프로액티브 에이전트 기능.
+Proactive agent feature that periodically wakes Claude Code to run HEARTBEAT.md checklist and only sends Telegram messages when there's something to report.
 
-- `bot.yaml`의 `heartbeat` 섹션에 설정 (봇당 1개)
-- **interval_minutes**: 실행 간격 (기본 30분)
-- **active_hours**: 활성 시간 범위 (HH:MM, 로컬 시간 기준, 자정 넘김 지원)
-- `HEARTBEAT.md`: 사용자가 편집 가능한 체크리스트 템플릿
-- **HEARTBEAT_OK 감지**: 응답에 `HEARTBEAT_OK` 마커 포함 시 알림 없이 로그만 기록
-- HEARTBEAT_OK가 없으면 `allowed_users` 전원에게 텔레그램 DM 발송
-- 봇에 연결된 스킬 전체를 heartbeat에서도 사용 (별도 스킬 목록 없음)
-- 스케줄러 루프에서 매 주기마다 `bot.yaml`을 재읽기하여 런타임 설정 변경 반영
-- 격리된 작업 디렉토리: `heartbeat_sessions/`에서 Claude Code 실행
+- Configured in `bot.yaml`'s `heartbeat` section (one per bot)
+- **interval_minutes**: Execution interval (default 30 minutes)
+- **active_hours**: Active time range (HH:MM, local time, midnight-crossing supported)
+- `HEARTBEAT.md`: User-editable checklist template
+- **HEARTBEAT_OK detection**: When response contains `HEARTBEAT_OK` marker, only logs without notification
+- Sends Telegram DM to all `allowed_users` when HEARTBEAT_OK is absent
+- Uses all skills linked to the bot (no separate skill list for heartbeat)
+- Scheduler loop re-reads `bot.yaml` every cycle for runtime config changes
+- Isolated working directory: Claude Code runs in `heartbeat_sessions/`
 
-### 10. 빌트인 스킬 시스템
+### 10. Built-in Skill System
 
-자주 사용하는 스킬을 패키지 내부에 템플릿으로 포함하여 `cclaw skills install`로 쉽게 설치할 수 있다.
+Frequently used skills are bundled as templates inside the package, installable via `cclaw skills install`.
 
-- `src/cclaw/builtin_skills/` 디렉토리에 스킬 템플릿 저장 (SKILL.md, skill.yaml 등)
-- `builtin_skills/__init__.py`에서 하위 디렉토리를 스캔하여 레지스트리 제공
-- `install_builtin_skill()`로 템플릿 파일을 `~/.cclaw/skills/<name>/`에 복사
-- 설치 후 요구사항 체크 → 통과하면 자동 활성화, 실패하면 inactive 상태로 안내
-- `skill.yaml`의 `install_hints` 필드로 누락 도구의 설치 방법 안내
-- 빌트인 스킬: iMessage (`imsg` CLI), Apple Reminders (`reminders-cli`)
-- `cclaw skills` 명령에서 미설치 빌트인 스킬도 함께 표시
-- Telegram `/skills` 핸들러에서도 미설치 빌트인 스킬 표시
+- Skill templates stored in `src/cclaw/builtin_skills/` directory (SKILL.md, skill.yaml, etc.)
+- `builtin_skills/__init__.py` scans subdirectories to provide a registry
+- `install_builtin_skill()` copies template files to `~/.cclaw/skills/<name>/`
+- After installation: requirement check -> auto-activate on pass, stays inactive with guidance on fail
+- `skill.yaml`'s `install_hints` field provides installation instructions for missing tools
+- Built-in skills: iMessage (`imsg` CLI), Apple Reminders (`reminders-cli`), Naver Map (knowledge type, web URL based)
+- `cclaw skills` command also displays uninstalled built-in skills
+- Telegram `/skills` handler also shows uninstalled built-in skills
 
-### 11. 세션 연속성
+### 11. Session Continuity
 
-매 메시지마다 `claude -p`를 새 프로세스로 실행하지만, 대화 맥락을 유지한다.
+Each message runs `claude -p` as a new process, but maintains conversation context.
 
-- **첫 메시지**: `--session-id <uuid>`로 새 Claude Code 세션 시작
-  - conversation.md에서 최근 20턴을 부트스트랩 프롬프트로 포함
-- **이후 메시지**: `--resume <session_id>`로 동일 세션 이어가기
-- **폴백**: `--resume` 실패(세션 만료) 시 자동으로 부트스트랩으로 재시도
-- **초기화**: `/reset`, `/resetall` 시 세션 ID도 함께 삭제
-- 세션 ID는 `sessions/chat_<id>/.claude_session_id` 파일에 UUID로 저장
-- `_prepare_session_context()`: resume/bootstrap 결정
-- `_call_with_resume_fallback()`: resume 실패 시 폴백 처리
-- cron, heartbeat는 one-shot 실행이므로 세션 연속성 불필요
+- **First message**: Starts new Claude Code session with `--session-id <uuid>`
+  - Includes last 20 turns from conversation.md as bootstrap prompt
+- **Subsequent messages**: Continues session with `--resume <session_id>`
+- **Fallback**: Auto-retries with bootstrap when `--resume` fails (session expired)
+- **Reset**: `/reset`, `/resetall` also delete session ID
+- Session ID stored as UUID in `sessions/chat_<id>/.claude_session_id`
+- `_prepare_session_context()`: Decides resume/bootstrap
+- `_call_with_resume_fallback()`: Handles fallback on resume failure
+- Cron and heartbeat are one-shot executions, no session continuity needed
 
-### 12. 봇 레벨 장기 메모리
+### 12. Bot-Level Long-Term Memory
 
-사용자가 "기억해" 등 요청 시 봇이 `MEMORY.md`에 저장하고, 새 세션 부트스트랩 시 프롬프트에 주입하여 장기 기억을 유지한다.
+When user requests "remember this", the bot saves to `MEMORY.md` and injects it into the prompt on new session bootstrap for persistent memory.
 
-- `MEMORY.md`는 봇 단위 (`~/.cclaw/bots/<name>/MEMORY.md`)로 관리. 모든 채팅 세션이 동일한 메모리를 공유
-- **저장 방식**: `compose_claude_md()`가 CLAUDE.md에 메모리 지시사항 + MEMORY.md 절대 경로를 포함 → Claude Code가 파일 쓰기 도구로 직접 MEMORY.md에 추가
-- **로딩 방식**: `_prepare_session_context()`에서 부트스트랩 시 `load_bot_memory()` → 프롬프트 주입 (메모리 → 대화 기록 → 새 메시지 순)
-- `--resume` 세션에서는 메모리를 별도로 주입하지 않음 (Claude Code 세션 자체가 맥락 유지)
-- 관리: Telegram `/memory` (표시), `/memory clear` (초기화), CLI `cclaw memory show|edit|clear`
-- `session.py`에 CRUD 함수: `memory_file_path()`, `load_bot_memory()`, `save_bot_memory()`, `clear_bot_memory()`
+- `MEMORY.md` managed per bot (`~/.cclaw/bots/<name>/MEMORY.md`). All chat sessions share the same memory
+- **Save mechanism**: `compose_claude_md()` includes memory instructions + MEMORY.md absolute path in CLAUDE.md -> Claude Code writes to MEMORY.md directly via file write tool
+- **Load mechanism**: `_prepare_session_context()` reads `load_bot_memory()` during bootstrap -> prompt injection (memory -> conversation history -> new message order)
+- `--resume` sessions don't inject memory separately (Claude Code session maintains its own context)
+- Management: Telegram `/memory` (show), `/memory clear` (reset), CLI `cclaw memory show|edit|clear`
+- CRUD functions in `session.py`: `memory_file_path()`, `load_bot_memory()`, `save_bot_memory()`, `clear_bot_memory()`
 
-### 13. 스트리밍 응답
+### 13. Streaming Response
 
-Claude Code의 출력을 실시간으로 Telegram에 전달한다. 사용자가 on/off 토글 가능.
+Delivers Claude Code output to Telegram in real-time. User-toggleable on/off.
 
-- `bot.yaml`의 `streaming` 필드로 on/off 제어 (기본값: `DEFAULT_STREAMING = True`)
-- Telegram `/streaming on|off` 커맨드 또는 CLI `cclaw bot streaming <name> on|off`로 런타임 토글
-- **스트리밍 모드** (`_send_streaming_response`):
-  - `run_claude_streaming()`: `--output-format stream-json --verbose --include-partial-messages`로 실행
-  - stream-json의 `content_block_delta` 이벤트에서 `text_delta`를 추출하여 토큰 단위 스트리밍
-  - `on_text_chunk` 콜백으로 핸들러에 텍스트 조각 전달
-  - Telegram 메시지를 실시간 편집. 커서 마커(`▌`)로 진행 중 표시
-  - 스로틀링(0.5초)으로 Telegram API rate limit 회피
-  - 응답 완료 시 Markdown→HTML 변환된 최종 텍스트로 교체
-  - 폴백: `result` 이벤트가 없으면 누적된 스트리밍 텍스트 또는 `assistant` 턴 텍스트 사용
-- **비스트리밍 모드** (`_send_non_streaming_response`):
-  - `run_claude()`: typing 액션 4초 주기 전송 → 완료 후 Markdown→HTML 변환 → 일괄 전송
-  - cron, heartbeat와 동일한 기존 Phase 3 방식
+- Controlled by `streaming` field in `bot.yaml` (default: `DEFAULT_STREAMING = False`)
+- Runtime toggle via Telegram `/streaming on|off` or CLI `cclaw bot streaming <name> on|off`
+- **Streaming mode** (`_send_streaming_response`):
+  - `run_claude_streaming()`: Runs with `--output-format stream-json --verbose --include-partial-messages`
+  - Extracts `text_delta` from stream-json `content_block_delta` events for per-token streaming
+  - `on_text_chunk` callback delivers text fragments to handler
+  - Real-time Telegram message editing. Cursor marker (`▌`) shows progress
+  - Throttling (0.5s) to avoid Telegram API rate limits
+  - On completion, replaces with Markdown-to-HTML converted final text
+  - Fallback: Uses accumulated streaming text or `assistant` turn text if no `result` event
+- **Non-streaming mode** (`_send_non_streaming_response`):
+  - `run_claude()`: Sends typing action every 4 seconds -> Markdown-to-HTML conversion on completion -> batch send
+  - Same pattern as cron and heartbeat (Phase 3 approach)
 
-## 모듈 의존성
+## Module Dependencies
 
 ```
 cli.py
-├── onboarding.py → config.py
+├── onboarding.py -> config.py
 ├── bot_manager.py
 │   ├── config.py
 │   ├── skill.py (regenerate_bot_claude_md)
@@ -180,94 +180,94 @@ cli.py
 │   │   ├── config.py (save_bot_config, VALID_MODELS)
 │   │   └── utils.py
 │   └── utils.py
-├── cron.py → config.py, claude_runner.py, utils.py
-├── heartbeat.py → config.py, claude_runner.py, utils.py
-├── skill.py → config.py, builtin_skills (순환 참조: config.py → skill.py는 lazy import로 해결)
-├── builtin_skills → (패키지 내부 템플릿, 외부 의존성 없음)
+├── cron.py -> config.py, claude_runner.py, utils.py
+├── heartbeat.py -> config.py, claude_runner.py, utils.py
+├── skill.py -> config.py, builtin_skills (circular reference: config.py -> skill.py resolved via lazy import)
+├── builtin_skills -> (internal package templates, no external dependencies)
 └── config.py
 ```
 
-## 프로세스 관리
+## Process Management
 
-- **포그라운드**: `cclaw start` → `asyncio.run()` → Ctrl+C로 종료
-- **데몬**: `cclaw start --daemon` → launchd plist 생성 → `launchctl load`
-- **PID 파일**: `~/.cclaw/cclaw.pid`에 현재 프로세스 ID 기록
-- **Graceful Shutdown**: SIGINT/SIGTERM 시그널 핸들러로 봇 순차 종료
+- **Foreground**: `cclaw start` -> `asyncio.run()` -> Ctrl+C to quit
+- **Daemon**: `cclaw start --daemon` -> Creates launchd plist -> `launchctl load`
+- **PID file**: Records current process ID in `~/.cclaw/cclaw.pid`
+- **Graceful Shutdown**: SIGINT/SIGTERM signal handlers for sequential bot shutdown
 
-## 메시지 처리 흐름
+## Message Processing Flow
 
-### 텍스트 메시지
+### Text Messages
 ```
-수신 → 권한 체크 → 세션 Lock (큐잉) → ensure_session → _prepare_session_context (resume/bootstrap 결정, bootstrap 시 메모리+대화기록 주입)
-  → _call_with_resume_fallback → streaming_enabled 분기
-    → (스트리밍 on) run_claude_streaming (--resume 또는 --session-id) → 토큰별 메시지 편집 → Markdown→HTML 변환 → 최종 메시지 교체/분할 전송
-    → (스트리밍 off) typing 액션 4초 주기 → run_claude (--resume 또는 --session-id) → Markdown→HTML 변환 → 일괄 전송
-  → (resume 실패 시) clear_session_id → bootstrap 재시도
-```
-
-### 파일 (사진/문서)
-```
-수신 → 권한 체크 → 세션 Lock (큐잉) → workspace에 다운로드 → 캡션 + 파일경로를 Claude에 전달 → 응답 전송
+Receive -> Permission check -> Session Lock (queuing) -> ensure_session -> _prepare_session_context (resume/bootstrap decision, inject memory+history on bootstrap)
+  -> _call_with_resume_fallback -> streaming_enabled branch
+    -> (streaming on) run_claude_streaming (--resume or --session-id) -> per-token message edit -> Markdown->HTML conversion -> final message replace/split send
+    -> (streaming off) typing action every 4s -> run_claude (--resume or --session-id) -> Markdown->HTML conversion -> batch send
+  -> (on resume failure) clear_session_id -> retry with bootstrap
 ```
 
-### /cancel 명령
+### Files (Photos/Documents)
 ```
-수신 → 권한 체크 → _running_processes에서 프로세스 조회 → process.kill() → "Execution cancelled" 응답
-```
-
-### /send 명령
-```
-수신 → 권한 체크 → workspace 파일 조회 → reply_document()로 전송
+Receive -> Permission check -> Session Lock (queuing) -> Download to workspace -> Pass caption + file path to Claude -> Send response
 ```
 
-### /skills 명령
+### /cancel Command
 ```
-수신 → 권한 체크 → args 분기
-  → (없음 또는 "list"): list_skills() → bots_using_skill()로 연결 상태 조회 → list_builtin_skills()로 미설치 빌트인 포함 → 전체 스킬 목록 응답
-  → "attach <name>": is_skill() → skill_status() == "active" 확인 → attach_skill_to_bot() → 메모리 bot_config 동기화 → 응답
-  → "detach <name>": detach_skill_from_bot() → 메모리 bot_config 동기화 → 응답
+Receive -> Permission check -> Look up process in _running_processes -> process.kill() -> "Execution cancelled" response
 ```
 
-### Cron 스케줄러
+### /send Command
 ```
-봇 시작 → cron.yaml 로드 → asyncio.create_task(run_cron_scheduler) → 30초 주기 루프
-  → 현재 시각과 schedule 매칭 → execute_cron_job → run_claude → allowed_users에게 결과 전송
-```
-
-### /cron run 명령
-```
-수신 → 권한 체크 → get_cron_job() → execute_cron_job() → 결과 전송
+Receive -> Permission check -> Look up workspace file -> reply_document() to send
 ```
 
-### Heartbeat 스케줄러
+### /skills Command
 ```
-봇 시작 → heartbeat.enabled 확인 → asyncio.create_task(run_heartbeat_scheduler) → interval_minutes 주기 루프
-  → active_hours 범위 확인 → 범위 밖이면 스킵
-  → HEARTBEAT.md 로드 → run_claude → 응답에 HEARTBEAT_OK 포함 여부 확인
-  → HEARTBEAT_OK 있으면 로그만 기록
-  → HEARTBEAT_OK 없으면 allowed_users에게 텔레그램 전송
-```
-
-### /memory 명령
-```
-수신 → 권한 체크 → 인자 분기
-  → (없음): load_bot_memory() → 내용 표시 (없으면 "No memories" 메시지)
-  → clear: clear_bot_memory() → "Memory cleared" 응답
+Receive -> Permission check -> Args branch
+  -> (none or "list"): list_skills() -> bots_using_skill() for link status -> list_builtin_skills() for uninstalled builtins -> full skill list response
+  -> "attach <name>": is_skill() -> skill_status() == "active" check -> attach_skill_to_bot() -> sync in-memory bot_config -> response
+  -> "detach <name>": detach_skill_from_bot() -> sync in-memory bot_config -> response
 ```
 
-### /streaming 명령
+### Cron Scheduler
 ```
-수신 → 권한 체크 → 인자 분기
-  → (없음): streaming_enabled 현재 상태 표시
-  → on: streaming_enabled = True, bot.yaml 저장
-  → off: streaming_enabled = False, bot.yaml 저장
+Bot start -> Load cron.yaml -> asyncio.create_task(run_cron_scheduler) -> 30-second loop
+  -> Match current time against schedule -> execute_cron_job -> run_claude -> Send results to allowed_users
 ```
 
-### /heartbeat 명령
+### /cron run Command
 ```
-수신 → 권한 체크 → subcommand 분기
-  → (없음): get_heartbeat_config() → 상태 표시
-  → on: enable_heartbeat() → 활성화 (HEARTBEAT.md 자동 생성)
-  → off: disable_heartbeat() → 비활성화
-  → run: execute_heartbeat() → 즉시 실행
+Receive -> Permission check -> get_cron_job() -> execute_cron_job() -> Send results
+```
+
+### Heartbeat Scheduler
+```
+Bot start -> Check heartbeat.enabled -> asyncio.create_task(run_heartbeat_scheduler) -> interval_minutes loop
+  -> Check active_hours range -> Skip if outside range
+  -> Load HEARTBEAT.md -> run_claude -> Check for HEARTBEAT_OK in response
+  -> If HEARTBEAT_OK present: log only
+  -> If HEARTBEAT_OK absent: send to allowed_users via Telegram
+```
+
+### /memory Command
+```
+Receive -> Permission check -> Args branch
+  -> (none): load_bot_memory() -> Show contents (or "No memories" message)
+  -> clear: clear_bot_memory() -> "Memory cleared" response
+```
+
+### /streaming Command
+```
+Receive -> Permission check -> Args branch
+  -> (none): Show current streaming_enabled status
+  -> on: streaming_enabled = True, save to bot.yaml
+  -> off: streaming_enabled = False, save to bot.yaml
+```
+
+### /heartbeat Command
+```
+Receive -> Permission check -> Subcommand branch
+  -> (none): get_heartbeat_config() -> Show status
+  -> on: enable_heartbeat() -> Enable (auto-creates HEARTBEAT.md)
+  -> off: disable_heartbeat() -> Disable
+  -> run: execute_heartbeat() -> Run immediately
 ```
