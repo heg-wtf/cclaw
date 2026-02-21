@@ -14,6 +14,7 @@ Telegram + Claude Code 기반 개인 AI 어시스턴트. 로컬 Mac에서 실행
 
 ```bash
 uv sync                      # 의존성 설치
+uv run cclaw                 # ASCII 아트 배너 표시
 uv run cclaw --help          # CLI 도움말
 uv run cclaw doctor          # 환경 점검
 uv run cclaw init            # 온보딩
@@ -54,7 +55,7 @@ pytest
 
 ## 코드 구조
 
-- `src/cclaw/cli.py` - Typer 앱 엔트리포인트, 모든 커맨드 정의 (skills, bot, skill, cron, heartbeat 서브커맨드 포함)
+- `src/cclaw/cli.py` - Typer 앱 엔트리포인트, ASCII 아트 배너, 모든 커맨드 정의 (skills, bot, skill, cron, heartbeat 서브커맨드 포함)
 - `src/cclaw/config.py` - `~/.cclaw/` 설정 관리 (YAML)
 - `src/cclaw/onboarding.py` - 환경 점검, 토큰 검증, 봇 생성 마법사
 - `src/cclaw/claude_runner.py` - `claude -p` subprocess 실행 (async, `shutil.which`로 경로 해석, 프로세스 추적, 모델 선택, 스킬 MCP/env 주입, streaming 출력 지원)

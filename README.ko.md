@@ -72,6 +72,9 @@ cclaw status             # 실행 상태 확인
 ## CLI 명령어
 
 ```bash
+# 배너
+cclaw                          # ASCII 아트 배너 표시
+
 # 온보딩/점검
 cclaw init                     # 최초 설정
 cclaw doctor                   # 환경 점검
@@ -159,7 +162,7 @@ cclaw logs -f                  # tail -f 모드
 cclaw/
 ├── pyproject.toml
 ├── src/cclaw/
-│   ├── cli.py              # Typer CLI 엔트리포인트
+│   ├── cli.py              # Typer CLI 엔트리포인트 (ASCII 아트 배너)
 │   ├── config.py           # 설정 로드/저장
 │   ├── onboarding.py       # 초기 설정 마법사
 │   ├── claude_runner.py    # Claude Code subprocess 실행 (일반 + 스트리밍)
