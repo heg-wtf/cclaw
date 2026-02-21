@@ -157,6 +157,11 @@ def cron_session_directory(bot_name: str, job_name: str) -> Path:
 
 
 VALID_MODELS = ["sonnet", "opus", "haiku"]
+MODEL_VERSIONS: dict[str, str] = {
+    "sonnet": "4.5",
+    "opus": "4.6",
+    "haiku": "3.5",
+}
 DEFAULT_MODEL = "sonnet"
 DEFAULT_STREAMING = True
 
@@ -164,6 +169,12 @@ DEFAULT_STREAMING = True
 def is_valid_model(model: str) -> bool:
     """Check if the model name is valid."""
     return model in VALID_MODELS
+
+
+def model_display_name(model: str) -> str:
+    """Return model name with version (e.g. 'opus 4.6')."""
+    version = MODEL_VERSIONS.get(model, "")
+    return f"{model} {version}" if version else model
 
 
 def bot_exists(name: str) -> bool:
