@@ -303,6 +303,29 @@ iMessage 스킬처럼 멀티턴 흐름이 필요한 경우 맥락 단절이 발�
 `reset_session()`과 `reset_all_session()`에서 `clear_claude_session_id()` 호출을 추가하여
 `/reset` 및 `/resetall` 시 세션 ID도 함께 삭제한다.
 
+## 봇 레벨 장기 메모리
+
+### 저장 위치
+
+`~/.cclaw/bots/<name>/MEMORY.md` — 봇 레벨 파일로 모든 채팅 세션이 공유한다.
+
+### 저장 방식
+
+Claude Code가 직접 파일 쓰기 도구로 MEMORY.md에 추가한다.
+`compose_claude_md()`가 생성하는 CLAUDE.md에 메모리 지시사항과 MEMORY.md 절대 경로가 포함되어 있어,
+Claude Code가 "기억해" 등의 요청을 받으면 해당 경로에 카테고리별로 정리하여 append한다.
+
+### 로딩 방식
+
+`_prepare_session_context()`에서 부트스트랩 프롬프트를 구성할 때 `load_bot_memory()`로 MEMORY.md를 읽어 주입한다.
+주입 순서: **장기 메모리 → 대화 기록 → 새 메시지**. 각 섹션은 `---` 구분자로 분리된다.
+`--resume` 세션에서는 Claude Code 세션 자체가 맥락을 유지하므로 별도 주입하지 않는다.
+
+### CLAUDE.md 내 메모리 지시사항
+
+`compose_claude_md()`에 `bot_path` 파라미터를 전달하면 Rules 섹션 뒤에 Memory 섹션이 추가된다.
+`save_bot_config()`와 `regenerate_bot_claude_md()`에서 자동으로 `bot_path`를 전달한다.
+
 ## macOS 연락처 조회 (osascript)
 
 iMessage 스킬에서 이름으로 연락처를 조회할 때 `osascript`를 사용한다.

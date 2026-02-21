@@ -130,7 +130,18 @@ DB 없이 디렉토리 구조로 세션을 관리한다.
 - `_call_with_resume_fallback()`: resume 실패 시 폴백 처리
 - cron, heartbeat는 one-shot 실행이므로 세션 연속성 불필요
 
-### 12. 스트리밍 응답
+### 12. 봇 레벨 장기 메모리
+
+사용자가 "기억해" 등 요청 시 봇이 `MEMORY.md`에 저장하고, 새 세션 부트스트랩 시 프롬프트에 주입하여 장기 기억을 유지한다.
+
+- `MEMORY.md`는 봇 단위 (`~/.cclaw/bots/<name>/MEMORY.md`)로 관리. 모든 채팅 세션이 동일한 메모리를 공유
+- **저장 방식**: `compose_claude_md()`가 CLAUDE.md에 메모리 지시사항 + MEMORY.md 절대 경로를 포함 → Claude Code가 파일 쓰기 도구로 직접 MEMORY.md에 추가
+- **로딩 방식**: `_prepare_session_context()`에서 부트스트랩 시 `load_bot_memory()` → 프롬프트 주입 (메모리 → 대화 기록 → 새 메시지 순)
+- `--resume` 세션에서는 메모리를 별도로 주입하지 않음 (Claude Code 세션 자체가 맥락 유지)
+- 관리: Telegram `/memory` (표시), `/memory clear` (초기화), CLI `cclaw memory show|edit|clear`
+- `session.py`에 CRUD 함수: `memory_file_path()`, `load_bot_memory()`, `save_bot_memory()`, `clear_bot_memory()`
+
+### 13. 스트리밍 응답
 
 Claude Code의 출력을 실시간으로 Telegram에 전달한다. 사용자가 on/off 토글 가능.
 
@@ -165,7 +176,7 @@ cli.py
 │   │   ├── heartbeat.py (get/enable/disable_heartbeat, execute_heartbeat)
 │   │   ├── skill.py (attach/detach, is_skill, skill_status)
 │   │   ├── builtin_skills (list_builtin_skills)
-│   │   ├── session.py (ensure_session, reset_session, get/save/clear_claude_session_id, load_conversation_history)
+│   │   ├── session.py (ensure_session, reset_session, get/save/clear_claude_session_id, load_conversation_history, load_bot_memory, clear_bot_memory)
 │   │   ├── config.py (save_bot_config, VALID_MODELS)
 │   │   └── utils.py
 │   └── utils.py
@@ -187,7 +198,7 @@ cli.py
 
 ### 텍스트 메시지
 ```
-수신 → 권한 체크 → 세션 Lock (큐잉) → ensure_session → _prepare_session_context (resume/bootstrap 결정)
+수신 → 권한 체크 → 세션 Lock (큐잉) → ensure_session → _prepare_session_context (resume/bootstrap 결정, bootstrap 시 메모리+대화기록 주입)
   → _call_with_resume_fallback → streaming_enabled 분기
     → (스트리밍 on) run_claude_streaming (--resume 또는 --session-id) → 토큰별 메시지 편집 → Markdown→HTML 변환 → 최종 메시지 교체/분할 전송
     → (스트리밍 off) typing 액션 4초 주기 → run_claude (--resume 또는 --session-id) → Markdown→HTML 변환 → 일괄 전송
@@ -235,6 +246,13 @@ cli.py
   → HEARTBEAT.md 로드 → run_claude → 응답에 HEARTBEAT_OK 포함 여부 확인
   → HEARTBEAT_OK 있으면 로그만 기록
   → HEARTBEAT_OK 없으면 allowed_users에게 텔레그램 전송
+```
+
+### /memory 명령
+```
+수신 → 권한 체크 → 인자 분기
+  → (없음): load_bot_memory() → 내용 표시 (없으면 "No memories" 메시지)
+  → clear: clear_bot_memory() → "Memory cleared" 응답
 ```
 
 ### /streaming 명령

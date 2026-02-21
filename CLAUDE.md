@@ -44,8 +44,14 @@ uv run cclaw heartbeat enable <bot>  # heartbeat 활성화
 uv run cclaw heartbeat disable <bot> # heartbeat 비활성화
 uv run cclaw heartbeat run <bot>     # heartbeat 즉시 실행 (테스트용)
 uv run cclaw heartbeat edit <bot>    # HEARTBEAT.md 편집
+uv run cclaw memory show <bot>       # 메모리 내용 출력
+uv run cclaw memory edit <bot>       # MEMORY.md 편집
+uv run cclaw memory clear <bot>      # 메모리 초기화
 uv run cclaw logs            # 오늘 로그 출력
 uv run cclaw logs -f         # tail -f 모드
+uv run cclaw logs clean              # 7일 이전 로그 삭제
+uv run cclaw logs clean -d 30        # 30일 이전 로그 삭제
+uv run cclaw logs clean --dry-run    # 삭제 대상 미리보기
 uv run pytest                # 테스트
 uv run pytest -v             # 테스트 (상세)
 uv run pytest tests/test_config.py  # 개별 테스트
@@ -58,16 +64,16 @@ pytest
 
 ## 코드 구조
 
-- `src/cclaw/cli.py` - Typer 앱 엔트리포인트, ASCII 아트 배너, 모든 커맨드 정의 (skills, bot, cron, heartbeat 서브커맨드 포함)
+- `src/cclaw/cli.py` - Typer 앱 엔트리포인트, ASCII 아트 배너, 모든 커맨드 정의 (skills, bot, cron, heartbeat, memory 서브커맨드 포함)
 - `src/cclaw/config.py` - `~/.cclaw/` 설정 관리 (YAML)
 - `src/cclaw/onboarding.py` - 환경 점검, 토큰 검증, 봇 생성 마법사
 - `src/cclaw/claude_runner.py` - `claude -p` subprocess 실행 (async, `shutil.which`로 경로 해석, 프로세스 추적, 모델 선택, 스킬 MCP/env 주입, streaming 출력 지원, `--resume`/`--session-id` 세션 연속성)
-- `src/cclaw/session.py` - 세션 디렉토리/대화 로그/workspace 관리, Claude 세션 ID 관리 (`get`/`save`/`clear_claude_session_id`), conversation.md 히스토리 로딩
-- `src/cclaw/handlers.py` - Telegram 핸들러 팩토리 (슬래시 커맨드 + 메시지 + 파일 수신/전송 + 모델 변경 + 프로세스 취소 + /skills 통합 관리(목록/attach/detach/빌트인) + /cron 관리 + /heartbeat 관리 + 스트리밍 응답 + /streaming 토글 + 세션 연속성 (`_prepare_session_context`, `_call_with_resume_fallback`))
+- `src/cclaw/session.py` - 세션 디렉토리/대화 로그/workspace 관리, Claude 세션 ID 관리 (`get`/`save`/`clear_claude_session_id`), conversation.md 히스토리 로딩, 봇 레벨 메모리 CRUD (`load_bot_memory`/`save_bot_memory`/`clear_bot_memory`)
+- `src/cclaw/handlers.py` - Telegram 핸들러 팩토리 (슬래시 커맨드 + 메시지 + 파일 수신/전송 + 모델 변경 + 프로세스 취소 + /skills 통합 관리(목록/attach/detach/빌트인) + /cron 관리 + /heartbeat 관리 + /memory 관리 + 스트리밍 응답 + /streaming 토글 + 세션 연속성 (`_prepare_session_context`, `_call_with_resume_fallback`))
 - `src/cclaw/bot_manager.py` - 멀티봇 polling, launchd 데몬, 개별 봇 오류 격리, cron/heartbeat 스케줄러 통합
 - `src/cclaw/heartbeat.py` - Heartbeat 주기적 상황 인지 (설정 CRUD, active hours 체크, HEARTBEAT.md 관리, HEARTBEAT_OK 감지, 스케줄러 루프)
 - `src/cclaw/cron.py` - Cron 스케줄 자동화 (cron.yaml CRUD, croniter 기반 스케줄 매칭, one-shot 지원, 스케줄러 루프)
-- `src/cclaw/skill.py` - 스킬 관리 (인식/로딩/생성/삭제/빌트인 설치, 봇-스킬 연결, CLAUDE.md 조합, MCP/환경변수 병합)
+- `src/cclaw/skill.py` - 스킬 관리 (인식/로딩/생성/삭제/빌트인 설치, 봇-스킬 연결, CLAUDE.md 조합(메모리 지시사항 포함), MCP/환경변수 병합)
 - `src/cclaw/builtin_skills/__init__.py` - 빌트인 스킬 레지스트리 (패키지 내 템플릿 스캔/조회)
 - `src/cclaw/builtin_skills/imessage/` - iMessage 빌트인 스킬 템플릿 (SKILL.md, skill.yaml)
 - `src/cclaw/utils.py` - 메시지 분할, Markdown→HTML 변환, 로깅 설정
@@ -107,13 +113,21 @@ pytest
 ## 세션 연속성
 
 - 매 메시지마다 `claude -p`를 새 프로세스로 실행하지만, `--resume` / `--session-id` 플래그로 대화 맥락을 유지
-- **첫 메시지**: `--session-id <uuid>`로 새 세션 시작. conversation.md에서 최근 20턴을 부트스트랩 프롬프트로 포함
+- **첫 메시지**: `--session-id <uuid>`로 새 세션 시작. MEMORY.md + conversation.md 최근 20턴을 부트스트랩 프롬프트로 포함
 - **이후 메시지**: `--resume <session_id>`로 Claude Code 세션 이어가기
 - **폴백**: `--resume` 실패 시 (세션 만료 등) 자동으로 session_id 삭제 → 부트스트랩으로 재시도
 - **초기화**: `/reset` 또는 `/resetall` 시 `.claude_session_id` 파일도 삭제
 - 세션 ID는 `sessions/chat_<id>/.claude_session_id` 파일에 저장
-- `_prepare_session_context()`: 세션 상태를 확인하여 resume/bootstrap 결정
+- `_prepare_session_context()`: 세션 상태를 확인하여 resume/bootstrap 결정 (bootstrap 시 메모리 → 대화 기록 → 메시지 순으로 프롬프트 구성)
 - `_call_with_resume_fallback()`: resume 실패 시 폴백 처리
+
+## 봇 레벨 장기 메모리
+
+- 사용자가 "기억해", "remember" 등 요청 시 봇이 `MEMORY.md`에 저장
+- `MEMORY.md`는 봇 단위 (`~/.cclaw/bots/<name>/MEMORY.md`)로 관리되어 모든 채팅 세션이 동일한 메모리를 공유
+- **저장**: `compose_claude_md()`가 CLAUDE.md에 메모리 지시사항 + MEMORY.md 절대 경로를 포함 → Claude Code가 파일 쓰기 도구로 직접 MEMORY.md에 append
+- **로딩**: 새 세션 부트스트랩 시 MEMORY.md + conversation.md를 프롬프트에 주입 (메모리 → 대화 기록 → 새 메시지 순)
+- **관리**: Telegram `/memory` 커맨드 (내용 표시, `/memory clear` 초기화) + CLI `cclaw memory show|edit|clear <bot>`
 
 ## 런타임 데이터 구조
 
@@ -123,7 +137,8 @@ pytest
 ├── cclaw.pid             # 실행 중 PID
 ├── bots/<name>/
 │   ├── bot.yaml          # 봇 설정 (토큰, 성격, 역할, allowed_users, model, streaming, skills, heartbeat)
-│   ├── CLAUDE.md         # 봇 시스템 프롬프트 (스킬 내용 포함)
+│   ├── CLAUDE.md         # 봇 시스템 프롬프트 (스킬 + 메모리 지시사항 포함)
+│   ├── MEMORY.md         # 봇 장기 메모리 (Claude Code가 직접 읽기/쓰기, 모든 세션 공유)
 │   ├── cron.yaml         # Cron job 설정 (schedule/at, message, skills, model)
 │   ├── cron_sessions/<job_name>/  # Cron job별 작업 디렉토리
 │   │   └── CLAUDE.md     # 봇 CLAUDE.md 복사본
