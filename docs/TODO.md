@@ -93,6 +93,7 @@
 ### Phase 10: 빌트인 스킬 + 커맨드 통일
 - [x] 빌트인 스킬 레지스트리 (`builtin_skills/__init__.py`: 패키지 내 템플릿 스캔/조회)
 - [x] iMessage 빌트인 스킬 (`builtin_skills/imessage/`: SKILL.md, skill.yaml)
+- [x] Apple Reminders 빌트인 스킬 (`builtin_skills/reminders/`: SKILL.md, skill.yaml)
 - [x] `install_builtin_skill()` 설치 함수 (skill.py)
 - [x] `install_hints` 필드 (skill.yaml → check_skill_requirements)
 - [x] CLI `cclaw skills install` / `cclaw skills builtins` 커맨드

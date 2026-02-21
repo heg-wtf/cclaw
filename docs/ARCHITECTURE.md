@@ -112,7 +112,7 @@ DB 없이 디렉토리 구조로 세션을 관리한다.
 - `install_builtin_skill()`로 템플릿 파일을 `~/.cclaw/skills/<name>/`에 복사
 - 설치 후 요구사항 체크 → 통과하면 자동 활성화, 실패하면 inactive 상태로 안내
 - `skill.yaml`의 `install_hints` 필드로 누락 도구의 설치 방법 안내
-- 첫 번째 빌트인 스킬: iMessage (`imsg` CLI 도구 활용)
+- 빌트인 스킬: iMessage (`imsg` CLI), Apple Reminders (`reminders-cli`)
 - `cclaw skills` 명령에서 미설치 빌트인 스킬도 함께 표시
 - Telegram `/skills` 핸들러에서도 미설치 빌트인 스킬 표시
 

@@ -92,6 +92,25 @@ Send "hello" to John
 
 See the full guide: [iMessage Skill Guide](docs/skills/IMESSAGE.md)
 
+### Apple Reminders
+
+Manage macOS Reminders through your Telegram bot using the [reminders-cli](https://github.com/keith/reminders-cli).
+
+```bash
+brew install keith/formulae/reminders-cli
+cclaw skills install reminders
+cclaw skills setup reminders
+```
+
+Then in Telegram:
+```
+/skills attach reminders
+What do I need to do today?
+Add "Buy groceries" to Shopping list for tomorrow
+```
+
+See the full guide: [Apple Reminders Skill Guide](docs/skills/REMINDERS.md)
+
 ## Telegram Commands
 
 | Command | Description |
@@ -220,9 +239,10 @@ cclaw/
 │   ├── handlers.py         # Telegram handler factory
 │   ├── bot_manager.py      # Multi-bot lifecycle
 │   ├── skill.py            # Skill management (create/attach/install/MCP/CLAUDE.md composition)
-│   ├── builtin_skills/     # Built-in skill templates (imessage, ...)
+│   ├── builtin_skills/     # Built-in skill templates (imessage, reminders, ...)
 │   │   ├── __init__.py     # Built-in skill registry
-│   │   └── imessage/       # iMessage skill (imsg CLI)
+│   │   ├── imessage/       # iMessage skill (imsg CLI)
+│   │   └── reminders/      # Apple Reminders skill (reminders-cli)
 │   ├── cron.py             # Cron schedule automation
 │   ├── heartbeat.py        # Heartbeat (periodic situation awareness)
 │   └── utils.py            # Utilities
@@ -266,6 +286,7 @@ Configuration and session data are stored in `~/.cclaw/`. Override the path with
 - [Architecture](docs/ARCHITECTURE.md)
 - [Technical Notes](docs/TECHNICAL-NOTES.md)
 - [iMessage Skill Guide](docs/skills/IMESSAGE.md)
+- [Apple Reminders Skill Guide](docs/skills/REMINDERS.md)
 
 ## Testing
 

@@ -76,6 +76,7 @@ pytest
 - `src/cclaw/skill.py` - 스킬 관리 (인식/로딩/생성/삭제/빌트인 설치, 봇-스킬 연결, CLAUDE.md 조합(메모리 지시사항 + Telegram 포맷팅 규칙 포함), MCP/환경변수 병합)
 - `src/cclaw/builtin_skills/__init__.py` - 빌트인 스킬 레지스트리 (패키지 내 템플릿 스캔/조회)
 - `src/cclaw/builtin_skills/imessage/` - iMessage 빌트인 스킬 템플릿 (SKILL.md, skill.yaml)
+- `src/cclaw/builtin_skills/reminders/` - Apple Reminders 빌트인 스킬 템플릿 (SKILL.md, skill.yaml)
 - `src/cclaw/utils.py` - 메시지 분할, Markdown→HTML 변환, 로깅 설정
 
 ## 코드 스타일

@@ -354,6 +354,41 @@ osascript -e 'tell application "Contacts" to get {name, value of phones} of ever
 - 동명이인 시 사용자에게 확인 요청
 - skill.yaml의 `allowed_tools`에 `Bash(osascript:*)` 추가 필요
 
+## macOS Reminders 권한 (reminders-cli)
+
+`reminders-cli`(`brew install keith/formulae/reminders-cli`)는 macOS 미리알림 앱에 접근하기 위해 TCC(Transparency, Consent, and Control) 권한이 필요하다.
+
+### 권한 팝업이 자동으로 뜨지 않는 문제
+
+일반적인 앱과 달리 `reminders-cli`는 첫 실행 시 macOS 권한 요청 팝업을 자동으로 트리거하지 않을 수 있다. 시스템 설정의 미리 알림 권한 목록에 Terminal이 표시되지 않고, "+" 버튼도 존재하지 않아 수동 추가가 불가능하다.
+
+### 해결 방법: osascript로 권한 유도
+
+`osascript`를 통한 AppleScript 호출은 macOS가 권한 팝업을 정상적으로 띄워준다.
+
+```bash
+osascript -e 'tell application "Reminders" to get name of every list'
+```
+
+팝업에서 "허용"을 선택하면 Terminal이 미리 알림 권한 목록에 추가되고, 이후 `reminders-cli`도 정상 동작한다.
+
+### TCC 리셋
+
+`osascript`도 팝업을 띄우지 않는 경우 TCC 데이터베이스를 리셋한 후 재시도한다.
+
+```bash
+tccutil reset Reminders
+osascript -e 'tell application "Reminders" to get name of every list'
+```
+
+### 폴백: 전체 디스크 접근 권한
+
+위 방법이 모두 실패하면 **시스템 설정 > 개인정보 보호 및 보안 > 전체 디스크 접근 권한**에 Terminal.app을 추가하는 것으로 우회할 수 있다. 전체 디스크 접근 권한은 미리알림 접근을 포함한다.
+
+### 데몬 모드 주의사항
+
+`cclaw start --daemon`으로 실행 시 `launchd`가 사용하는 셸에도 동일한 권한이 필요하다.
+
 ## Heartbeat (주기적 상황 인지)
 
 ### 설정 위치

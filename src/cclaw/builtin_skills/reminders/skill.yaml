@@ -1,0 +1,10 @@
+name: reminders
+description: "macOS Apple Reminders integration (create, list, complete reminders)"
+type: cli
+status: inactive
+required_commands:
+  - reminders
+install_hints:
+  reminders: "brew install keith/formulae/reminders-cli"
+allowed_tools:
+  - "Bash(reminders:*)"
