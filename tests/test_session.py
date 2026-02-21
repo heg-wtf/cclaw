@@ -3,14 +3,18 @@
 import pytest
 
 from cclaw.session import (
+    clear_bot_memory,
     clear_claude_session_id,
     ensure_session,
     get_claude_session_id,
     list_workspace_files,
+    load_bot_memory,
     load_conversation_history,
     log_conversation,
+    memory_file_path,
     reset_all_session,
     reset_session,
+    save_bot_memory,
     save_claude_session_id,
     session_directory,
 )
@@ -236,3 +240,49 @@ def test_reset_all_session_clears_session_id(bot_path):
     # Directory is gone, so session ID is gone too
     assert not directory.exists()
     assert get_claude_session_id(directory) is None
+
+
+# --- Bot memory tests ---
+
+
+def test_memory_file_path(bot_path):
+    """memory_file_path returns expected path."""
+    result = memory_file_path(bot_path)
+    assert result == bot_path / "MEMORY.md"
+
+
+def test_load_bot_memory_none(bot_path):
+    """load_bot_memory returns None when MEMORY.md doesn't exist."""
+    assert load_bot_memory(bot_path) is None
+
+
+def test_load_bot_memory_empty(bot_path):
+    """load_bot_memory returns None when MEMORY.md is empty."""
+    (bot_path / "MEMORY.md").write_text("")
+    assert load_bot_memory(bot_path) is None
+
+
+def test_load_bot_memory_whitespace_only(bot_path):
+    """load_bot_memory returns None when MEMORY.md is whitespace only."""
+    (bot_path / "MEMORY.md").write_text("   \n\n  ")
+    assert load_bot_memory(bot_path) is None
+
+
+def test_save_and_load_bot_memory(bot_path):
+    """save_bot_memory and load_bot_memory round-trip."""
+    save_bot_memory(bot_path, "# Memory\n\n- User likes Python")
+    content = load_bot_memory(bot_path)
+    assert content == "# Memory\n\n- User likes Python"
+
+
+def test_clear_bot_memory(bot_path):
+    """clear_bot_memory removes the MEMORY.md file."""
+    save_bot_memory(bot_path, "some memory")
+    clear_bot_memory(bot_path)
+    assert load_bot_memory(bot_path) is None
+    assert not (bot_path / "MEMORY.md").exists()
+
+
+def test_clear_bot_memory_missing(bot_path):
+    """clear_bot_memory doesn't error when file is missing."""
+    clear_bot_memory(bot_path)  # should not raise

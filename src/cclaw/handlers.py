@@ -34,10 +34,12 @@ from cclaw.config import (
     save_bot_config,
 )
 from cclaw.session import (
+    clear_bot_memory,
     clear_claude_session_id,
     ensure_session,
     get_claude_session_id,
     list_workspace_files,
+    load_bot_memory,
     load_conversation_history,
     log_conversation,
     reset_all_session,
@@ -121,6 +123,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             "\U0001f4ca /status - Session status\n"
             "\U0001f9e0 /model - Show or change model\n"
             "\U0001f4e1 /streaming - Toggle streaming mode\n"
+            "\U0001f9e0 /memory - Show or clear memory\n"
             "\U0001f9e9 /skills - Skill management\n"
             "\u23f0 /cron - Cron job management\n"
             "\U0001f493 /heartbeat - Heartbeat management\n"
@@ -483,7 +486,9 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
 
         return response
 
-    def _prepare_session_context(session_dir: Path, user_message: str) -> tuple[str, str, bool]:
+    def _prepare_session_context(
+        session_dir: Path, bot_path: Path, user_message: str
+    ) -> tuple[str, str, bool]:
         """Prepare prompt with session continuity context.
 
         Returns (prompt, claude_session_id, resume_session).
@@ -494,17 +499,24 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             # Resume existing Claude Code session
             return user_message, claude_session_id, True
 
-        # New session: bootstrap from conversation.md
+        # New session: bootstrap from memory + conversation.md
         claude_session_id = str(uuid.uuid4())
+
+        context_parts: list[str] = []
+
+        memory = load_bot_memory(bot_path)
+        if memory:
+            context_parts.append("아래는 장기 메모리입니다. 참고하세요:\n\n" + memory)
+
         history = load_conversation_history(session_dir)
         if history:
-            prompt = (
-                "아래는 이전 대화 기록입니다. 맥락으로 활용하세요:\n\n"
-                f"{history}\n\n---\n\n"
-                f"새 메시지: {user_message}"
-            )
+            context_parts.append("아래는 이전 대화 기록입니다. 맥락으로 활용하세요:\n\n" + history)
+
+        if context_parts:
+            prompt = "\n\n---\n\n".join(context_parts) + f"\n\n---\n\n새 메시지: {user_message}"
         else:
             prompt = user_message
+
         save_claude_session_id(session_dir, claude_session_id)
         return prompt, claude_session_id, False
 
@@ -581,7 +593,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             log_conversation(session_dir, "user", user_message)
 
             prompt, claude_session_id, resume_session = _prepare_session_context(
-                session_dir, user_message
+                session_dir, bot_path, user_message
             )
 
             send_response = (
@@ -667,7 +679,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             log_conversation(session_dir, "user", f"[file: {filename}] {caption}")
 
             prompt, claude_session_id, resume_session = _prepare_session_context(
-                session_dir, user_prompt
+                session_dir, bot_path, user_prompt
             )
 
             send_response = (
@@ -700,6 +712,36 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                 await update.message.reply_text(response)
 
             log_conversation(session_dir, "assistant", response)
+
+    async def memory_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle /memory command - show or clear bot memory."""
+        if not await check_authorization(update):
+            return
+
+        if not context.args:
+            memory_content = load_bot_memory(bot_path)
+            if not memory_content:
+                await update.message.reply_text("\U0001f9e0 No memories saved yet.")
+                return
+            html = markdown_to_telegram_html(memory_content)
+            chunks = split_message(html)
+            for chunk in chunks:
+                try:
+                    await update.message.reply_text(chunk, parse_mode="HTML")
+                except Exception:
+                    await update.message.reply_text(chunk)
+            return
+
+        subcommand = context.args[0].lower()
+
+        if subcommand == "clear":
+            clear_bot_memory(bot_path)
+            await update.message.reply_text("\U0001f9e0 Memory cleared.")
+        else:
+            await update.message.reply_text(
+                "Usage: `/memory` (show) or `/memory clear`",
+                parse_mode="Markdown",
+            )
 
     async def skills_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /skills command - list, attach, or detach skills."""
@@ -978,6 +1020,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         CommandHandler("version", version_handler),
         CommandHandler("cancel", cancel_handler),
         CommandHandler("streaming", streaming_handler),
+        CommandHandler("memory", memory_handler),
         CommandHandler("skills", skills_handler),
         CommandHandler("cron", cron_handler),
         CommandHandler("heartbeat", heartbeat_handler),
@@ -996,6 +1039,7 @@ BOT_COMMANDS = [
     BotCommand("send", "\U0001f4e4 Send workspace file"),
     BotCommand("status", "\U0001f4ca Session status"),
     BotCommand("model", "\U0001f9e0 Show or change model"),
+    BotCommand("memory", "\U0001f9e0 Show or clear memory"),
     BotCommand("skills", "\U0001f9e9 Skill management"),
     BotCommand("cron", "\u23f0 Cron job management"),
     BotCommand("heartbeat", "\U0001f493 Heartbeat management"),

@@ -75,6 +75,7 @@ def save_bot_config(name: str, bot_config: dict[str, Any]) -> None:
         personality=bot_config.get("personality", ""),
         description=bot_config.get("description", ""),
         skill_names=bot_config.get("skills", []),
+        bot_path=directory,
     )
     with open(directory / "CLAUDE.md", "w") as file:
         file.write(claude_md_content)

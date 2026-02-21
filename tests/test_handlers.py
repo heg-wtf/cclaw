@@ -39,7 +39,7 @@ def bot_config():
 def test_make_handlers_returns_handlers(bot_path, bot_config):
     """make_handlers returns a list of handlers."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    assert len(handlers) == 16
+    assert len(handlers) == 17
 
 
 def test_is_user_allowed_empty_list():
@@ -142,7 +142,7 @@ async def test_reset_handler(bot_path, bot_config, mock_update):
 async def test_message_handler_calls_claude(bot_path, bot_config, mock_update):
     """Message handler forwards to Claude with streaming and replies."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[15]
+    message_handler = handlers[16]
 
     with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Claude response"
@@ -297,7 +297,7 @@ async def test_message_handler_passes_model(bot_path, bot_config, mock_update):
     """Message handler passes model to run_claude_streaming."""
     bot_config["model"] = "opus"
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[15]
+    message_handler = handlers[16]
 
     with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -326,7 +326,7 @@ async def test_files_handler_empty(bot_path, bot_config, mock_update):
 async def test_skills_handler_empty(bot_path, bot_config, mock_update):
     """Skills handler shows empty message when no skills exist."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    skills_handler = handlers[11]
+    skills_handler = handlers[12]
 
     mock_context = MagicMock()
     mock_context.args = []
@@ -345,7 +345,7 @@ async def test_skills_handler_empty(bot_path, bot_config, mock_update):
 async def test_skills_handler_lists_all(bot_path, bot_config, mock_update):
     """Skills handler lists all skills including unattached ones."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    skills_handler = handlers[11]
+    skills_handler = handlers[12]
 
     mock_skills = [
         {"name": "attached-skill", "type": "cli", "status": "active", "description": "A tool"},
@@ -372,7 +372,7 @@ async def test_skills_handler_lists_all(bot_path, bot_config, mock_update):
 async def test_skills_handler_list_attached_empty(bot_path, bot_config, mock_update):
     """Skills handler list subcommand shows empty when no skills attached."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    skills_handler = handlers[11]
+    skills_handler = handlers[12]
 
     mock_context = MagicMock()
     mock_context.args = ["list"]
@@ -386,7 +386,7 @@ async def test_skills_handler_list_attached_empty(bot_path, bot_config, mock_upd
 async def test_skills_handler_attach(bot_path, bot_config, mock_update):
     """Skills handler attach adds a skill."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    skills_handler = handlers[11]
+    skills_handler = handlers[12]
 
     mock_context = MagicMock()
     mock_context.args = ["attach", "test-skill"]
@@ -408,7 +408,7 @@ async def test_skills_handler_attach(bot_path, bot_config, mock_update):
 async def test_skills_handler_attach_not_found(bot_path, bot_config, mock_update):
     """Skills handler attach rejects nonexistent skill."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    skills_handler = handlers[11]
+    skills_handler = handlers[12]
 
     mock_context = MagicMock()
     mock_context.args = ["attach", "nonexistent"]
@@ -425,7 +425,7 @@ async def test_skills_handler_detach(bot_path, bot_config, mock_update):
     """Skills handler detach removes a skill."""
     bot_config["skills"] = ["test-skill"]
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    skills_handler = handlers[11]
+    skills_handler = handlers[12]
 
     mock_context = MagicMock()
     mock_context.args = ["detach", "test-skill"]
@@ -444,7 +444,7 @@ async def test_message_handler_passes_skill_names(bot_path, bot_config, mock_upd
     """Message handler passes skill_names to run_claude_streaming when skills are attached."""
     bot_config["skills"] = ["my-skill"]
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[15]
+    message_handler = handlers[16]
 
     with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -461,7 +461,7 @@ async def test_message_handler_passes_skill_names(bot_path, bot_config, mock_upd
 async def test_message_handler_no_skill_names(bot_path, bot_config, mock_update):
     """Message handler passes None for skill_names when no skills attached."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[15]
+    message_handler = handlers[16]
 
     with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -478,7 +478,7 @@ async def test_message_handler_no_skill_names(bot_path, bot_config, mock_update)
 async def test_heartbeat_handler_no_args(bot_path, bot_config, mock_update):
     """Heartbeat handler shows status when no args."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    heartbeat_handler = handlers[13]
+    heartbeat_handler = handlers[14]
 
     mock_context = MagicMock()
     mock_context.args = []
@@ -502,7 +502,7 @@ async def test_heartbeat_handler_no_args(bot_path, bot_config, mock_update):
 async def test_heartbeat_handler_on(bot_path, bot_config, mock_update):
     """Heartbeat handler enables heartbeat."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    heartbeat_handler = handlers[13]
+    heartbeat_handler = handlers[14]
 
     mock_context = MagicMock()
     mock_context.args = ["on"]
@@ -518,7 +518,7 @@ async def test_heartbeat_handler_on(bot_path, bot_config, mock_update):
 async def test_heartbeat_handler_off(bot_path, bot_config, mock_update):
     """Heartbeat handler disables heartbeat."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    heartbeat_handler = handlers[13]
+    heartbeat_handler = handlers[14]
 
     mock_context = MagicMock()
     mock_context.args = ["off"]
@@ -590,7 +590,7 @@ async def test_message_handler_non_streaming(bot_path, bot_config, mock_update):
     """Message handler uses run_claude (non-streaming) when streaming is off."""
     bot_config["streaming"] = False
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[15]
+    message_handler = handlers[16]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Non-streaming response"
@@ -610,7 +610,7 @@ async def test_message_handler_non_streaming(bot_path, bot_config, mock_update):
 async def test_message_handler_first_message_bootstraps(bot_path, bot_config, mock_update):
     """First message creates session_id and uses --session-id (not --resume)."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[15]
+    message_handler = handlers[16]
 
     with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -644,7 +644,7 @@ async def test_message_handler_resume_session(bot_path, bot_config, mock_update)
     save_claude_session_id(session_dir, "existing-session-id")
 
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[15]
+    message_handler = handlers[16]
 
     with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -667,7 +667,7 @@ async def test_message_handler_resume_fallback(bot_path, bot_config, mock_update
     save_claude_session_id(session_dir, "expired-session-id")
 
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[15]
+    message_handler = handlers[16]
 
     call_count = 0
 
@@ -716,7 +716,7 @@ async def test_message_handler_first_message_with_history(bot_path, bot_config, 
     log_conversation(session_dir, "assistant", "Previous answer")
 
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[15]
+    message_handler = handlers[16]
 
     with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -731,3 +731,117 @@ async def test_message_handler_first_message_with_history(bot_path, bot_config, 
     assert "Previous question" in prompt
     assert "Previous answer" in prompt
     assert "Hello Claude" in prompt
+
+
+# --- Memory handler tests ---
+
+
+@pytest.mark.asyncio
+async def test_memory_handler_show_empty(bot_path, bot_config, mock_update):
+    """Memory handler shows empty message when no memories saved."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    memory_handler = handlers[11]
+
+    mock_context = MagicMock()
+    mock_context.args = []
+    await memory_handler.callback(mock_update, mock_context)
+
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "No memories" in call_text
+
+
+@pytest.mark.asyncio
+async def test_memory_handler_show_content(bot_path, bot_config, mock_update):
+    """Memory handler displays MEMORY.md content."""
+    from cclaw.session import save_bot_memory
+
+    save_bot_memory(bot_path, "# Memory\n\n- User likes Python")
+
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    memory_handler = handlers[11]
+
+    mock_context = MagicMock()
+    mock_context.args = []
+    await memory_handler.callback(mock_update, mock_context)
+
+    mock_update.message.reply_text.assert_called()
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "Python" in call_text
+
+
+@pytest.mark.asyncio
+async def test_memory_handler_clear(bot_path, bot_config, mock_update):
+    """Memory handler clears memory on /memory clear."""
+    from cclaw.session import load_bot_memory, save_bot_memory
+
+    save_bot_memory(bot_path, "some memory")
+
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    memory_handler = handlers[11]
+
+    mock_context = MagicMock()
+    mock_context.args = ["clear"]
+    await memory_handler.callback(mock_update, mock_context)
+
+    assert load_bot_memory(bot_path) is None
+    call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "cleared" in call_text.lower()
+
+
+@pytest.mark.asyncio
+async def test_message_handler_bootstrap_includes_memory(bot_path, bot_config, mock_update):
+    """First message bootstrap includes bot memory in the prompt."""
+    from cclaw.session import save_bot_memory
+
+    save_bot_memory(bot_path, "# Memory\n\n- User prefers Korean")
+
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    message_handler = handlers[16]
+
+    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
+        mock_claude.return_value = "response"
+        mock_context = MagicMock()
+        mock_context.bot.edit_message_text = AsyncMock()
+        mock_context.bot.delete_message = AsyncMock()
+        await message_handler.callback(mock_update, mock_context)
+
+    call_kwargs = mock_claude.call_args[1]
+    prompt = call_kwargs["message"]
+    assert "장기 메모리" in prompt
+    assert "User prefers Korean" in prompt
+    assert "Hello Claude" in prompt
+
+
+@pytest.mark.asyncio
+async def test_message_handler_bootstrap_memory_and_history(bot_path, bot_config, mock_update):
+    """First message bootstrap includes both memory and conversation history."""
+    from cclaw.session import ensure_session, log_conversation, save_bot_memory
+
+    save_bot_memory(bot_path, "# Memory\n\n- Name is Kim")
+
+    session_dir = ensure_session(bot_path, 67890)
+    log_conversation(session_dir, "user", "Previous question")
+    log_conversation(session_dir, "assistant", "Previous answer")
+
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    message_handler = handlers[16]
+
+    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
+        mock_claude.return_value = "response"
+        mock_context = MagicMock()
+        mock_context.bot.edit_message_text = AsyncMock()
+        mock_context.bot.delete_message = AsyncMock()
+        await message_handler.callback(mock_update, mock_context)
+
+    call_kwargs = mock_claude.call_args[1]
+    prompt = call_kwargs["message"]
+    # Memory should come before history
+    assert "장기 메모리" in prompt
+    assert "Name is Kim" in prompt
+    assert "이전 대화 기록" in prompt
+    assert "Previous question" in prompt
+    assert "Hello Claude" in prompt
+    # Memory section should appear before history section
+    memory_position = prompt.index("장기 메모리")
+    history_position = prompt.index("이전 대화 기록")
+    assert memory_position < history_position
