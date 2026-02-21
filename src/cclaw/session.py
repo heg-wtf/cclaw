@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+
+CLAUDE_SESSION_ID_FILE = ".claude_session_id"
+MAX_CONVERSATION_HISTORY_TURNS = 20
 
 
 def session_directory(bot_path: Path, chat_id: int) -> Path:
@@ -41,6 +45,7 @@ def reset_session(bot_path: Path, chat_id: int) -> None:
     conversation_file = directory / "conversation.md"
     if conversation_file.exists():
         conversation_file.unlink()
+    clear_claude_session_id(directory)
 
 
 def reset_all_session(bot_path: Path, chat_id: int) -> None:
@@ -48,6 +53,56 @@ def reset_all_session(bot_path: Path, chat_id: int) -> None:
     directory = session_directory(bot_path, chat_id)
     if directory.exists():
         shutil.rmtree(directory)
+
+
+def get_claude_session_id(session_directory: Path) -> str | None:
+    """Read stored Claude Code session ID."""
+    path = session_directory / CLAUDE_SESSION_ID_FILE
+    if path.exists():
+        return path.read_text().strip()
+    return None
+
+
+def save_claude_session_id(session_directory: Path, session_id: str) -> None:
+    """Store Claude Code session ID."""
+    (session_directory / CLAUDE_SESSION_ID_FILE).write_text(session_id)
+
+
+def clear_claude_session_id(session_directory: Path) -> None:
+    """Remove stored Claude Code session ID."""
+    (session_directory / CLAUDE_SESSION_ID_FILE).unlink(missing_ok=True)
+
+
+def load_conversation_history(
+    session_directory: Path, max_turns: int = MAX_CONVERSATION_HISTORY_TURNS
+) -> str | None:
+    """Read last N turns from conversation.md.
+
+    conversation.md format: "## role (timestamp)\\n\\ncontent\\n" repeated.
+    Parses sections starting with "## user" or "## assistant" and returns
+    the most recent max_turns entries.
+
+    Returns None if conversation.md doesn't exist or is empty.
+    """
+    conversation_file = session_directory / "conversation.md"
+    if not conversation_file.exists():
+        return None
+
+    content = conversation_file.read_text()
+    if not content.strip():
+        return None
+
+    # Split into sections by "## user" or "## assistant" headers
+    sections = re.split(r"(?=\n## (?:user|assistant) \()", content)
+    # Filter out empty sections
+    sections = [s.strip() for s in sections if s.strip()]
+
+    if not sections:
+        return None
+
+    # Take the last max_turns sections
+    recent_sections = sections[-max_turns:]
+    return "\n\n".join(recent_sections)
 
 
 def log_conversation(session_directory: Path, role: str, content: str) -> None:
