@@ -2,7 +2,31 @@
 
 import typer
 
-app = typer.Typer(help="cclaw - Telegram + Claude Code AI assistant")
+app = typer.Typer(help="cclaw - Telegram + Claude Code AI assistant", invoke_without_command=True)
+
+
+ASCII_ART = r"""
+  ██████╗ ██████╗██╗      █████╗ ██╗    ██╗
+ ██╔════╝██╔════╝██║     ██╔══██╗██║    ██║
+ ██║     ██║     ██║     ███████║██║ █╗ ██║
+ ██║     ██║     ██║     ██╔══██║██║███╗██║
+ ╚██████╗╚██████╗███████╗██║  ██║╚███╔███╔╝
+  ╚═════╝ ╚═════╝╚══════╝╚═╝  ╚═╝ ╚══╝╚══╝
+  Telegram + Claude Code AI Assistant
+"""
+
+
+@app.callback()
+def main(context: typer.Context) -> None:
+    """cclaw - Telegram + Claude Code AI assistant."""
+    if context.invoked_subcommand is None:
+        from rich.console import Console
+
+        console = Console()
+        console.print(f"[cyan]{ASCII_ART}[/cyan]")
+        console.print("Run [green]cclaw --help[/green] for available commands.\n")
+
+
 bot_app = typer.Typer(help="Bot management")
 app.add_typer(bot_app, name="bot")
 skill_app = typer.Typer(help="Skill management")

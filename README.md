@@ -72,6 +72,9 @@ cclaw status             # Show running status
 ## CLI Commands
 
 ```bash
+# Banner
+cclaw                          # Show ASCII art banner
+
 # Onboarding
 cclaw init                     # Initial setup
 cclaw doctor                   # Environment check
@@ -159,7 +162,7 @@ Use the `/send` command to retrieve workspace files back via Telegram.
 cclaw/
 ├── pyproject.toml
 ├── src/cclaw/
-│   ├── cli.py              # Typer CLI entry point
+│   ├── cli.py              # Typer CLI entry point (ASCII art banner)
 │   ├── config.py           # Configuration load/save
 │   ├── onboarding.py       # Setup wizard
 │   ├── claude_runner.py    # Claude Code subprocess runner (batch + streaming)
