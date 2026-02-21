@@ -181,9 +181,14 @@ def check_skill_requirements(name: str) -> list[str]:
     if config is None:
         return errors  # Markdown-only, no requirements
 
+    install_hints = config.get("install_hints", {})
     for command in config.get("required_commands", []):
         if not shutil.which(command):
-            errors.append(f"Required command not found: {command}")
+            hint = install_hints.get(command)
+            if hint:
+                errors.append(f"Required command not found: {command}\n    Install: {hint}")
+            else:
+                errors.append(f"Required command not found: {command}")
 
     for variable in config.get("environment_variables", []):
         # Only check if the variable key is defined, value can be set during setup
@@ -367,6 +372,57 @@ def merge_mcp_configs(skill_names: list[str]) -> dict[str, Any] | None:
         return None
 
     return {"mcpServers": merged_servers}
+
+
+def install_builtin_skill(name: str) -> Path:
+    """Install a built-in skill template to the user's skills directory.
+
+    Copies all template files (SKILL.md, skill.yaml, etc.) from the
+    built-in skill package to ~/.cclaw/skills/<name>/.
+
+    Raises:
+        ValueError: If the name is not a recognized built-in skill.
+        FileExistsError: If the skill is already installed.
+
+    Returns:
+        The path to the installed skill directory.
+    """
+    from cclaw.builtin_skills import get_builtin_skill_path
+
+    template_path = get_builtin_skill_path(name)
+    if template_path is None:
+        raise ValueError(f"Unknown built-in skill: {name}")
+
+    target = skill_directory(name)
+    if target.exists():
+        raise FileExistsError(f"Skill '{name}' is already installed at {target}")
+
+    target.mkdir(parents=True)
+    for source_file in template_path.iterdir():
+        if source_file.is_file():
+            shutil.copy2(source_file, target / source_file.name)
+
+    logger.info("Installed built-in skill '%s' to %s", name, target)
+    return target
+
+
+def collect_skill_allowed_tools(skill_names: list[str]) -> list[str]:
+    """Collect allowed_tools from all specified skills.
+
+    Returns a merged list of tool patterns for --allowedTools flag.
+    """
+    result: list[str] = []
+
+    for skill_name in skill_names:
+        config = load_skill_config(skill_name)
+        if not config:
+            continue
+
+        tools = config.get("allowed_tools", [])
+        if tools:
+            result.extend(tools)
+
+    return result
 
 
 def collect_skill_environment_variables(skill_names: list[str]) -> dict[str, str]:

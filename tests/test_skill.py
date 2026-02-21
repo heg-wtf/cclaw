@@ -13,6 +13,7 @@ from cclaw.skill import (
     attach_skill_to_bot,
     bots_using_skill,
     check_skill_requirements,
+    collect_skill_allowed_tools,
     collect_skill_environment_variables,
     compose_claude_md,
     create_skill_directory,
@@ -532,3 +533,45 @@ def test_collect_skill_environment_variables_with_values(temp_cclaw_home):
     result = collect_skill_environment_variables(["env-skill"])
     assert result["API_KEY"] == "test-key"
     assert result["SECRET"] == "test-secret"
+
+
+# --- Allowed Tools ---
+
+
+def test_collect_skill_allowed_tools_empty():
+    """collect_skill_allowed_tools returns empty list for no skills."""
+    assert collect_skill_allowed_tools([]) == []
+
+
+def test_collect_skill_allowed_tools_no_config(setup_skill):
+    """collect_skill_allowed_tools returns empty for markdown-only skill."""
+    assert collect_skill_allowed_tools(["test-skill"]) == []
+
+
+def test_collect_skill_allowed_tools(temp_cclaw_home):
+    """collect_skill_allowed_tools collects and merges from multiple skills."""
+    for skill_name, tools in [
+        ("skill-a", ["Bash(imsg:*)"]),
+        ("skill-b", ["Bash(curl:*)", "Read(*)"]),
+    ]:
+        directory = temp_cclaw_home / "skills" / skill_name
+        directory.mkdir(parents=True)
+        (directory / "SKILL.md").write_text(f"# {skill_name}")
+        config = {
+            "name": skill_name,
+            "status": "active",
+            "allowed_tools": tools,
+        }
+        with open(directory / "skill.yaml", "w") as file:
+            yaml.dump(config, file)
+
+    result = collect_skill_allowed_tools(["skill-a", "skill-b"])
+    assert "Bash(imsg:*)" in result
+    assert "Bash(curl:*)" in result
+    assert "Read(*)" in result
+    assert len(result) == 3
+
+
+def test_collect_skill_allowed_tools_no_allowed_tools_field(setup_tool_skill):
+    """collect_skill_allowed_tools returns empty for skill without allowed_tools."""
+    assert collect_skill_allowed_tools(["tool-skill"]) == []

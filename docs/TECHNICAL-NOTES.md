@@ -177,9 +177,10 @@ subprocess의 `env` 파라미터에 주입한다.
 
 ### Telegram /skills 핸들러
 
-`/skills` 커맨드는 `list_skills()`로 전체 스킬 목록을 조회하고,
+`/skills` 커맨드는 `list_skills()`로 설치된 스킬 목록을 조회하고,
 `bots_using_skill()`로 각 스킬의 연결 상태를 표시한다.
 봇에 연결되지 않은 스킬도 포함된다.
+추가로 `list_builtin_skills()`로 미설치 빌트인 스킬도 하단에 표시한다.
 
 ## Cron 스케줄 자동화
 
@@ -226,12 +227,21 @@ jobs:
 - ISO 8601 datetime (`2026-02-20T15:00:00`) 또는 duration shorthand (`30m`, `2h`, `1d`) 지원
 - `delete_after_run: true`이면 실행 후 `cron.yaml`에서 자동 삭제
 
-### Telegram /skill 핸들러
+### Telegram /skills 핸들러 (통합)
 
+`/skills` 핸들러가 스킬 목록 표시, attach, detach 기능을 모두 담당한다 (기존 `/skill` 핸들러는 `/skills`로 통합됨).
 핸들러 클로저 내 `attached_skills` 변수로 현재 연결된 스킬을 추적한다.
 attach/detach 후 로컬 `bot_config["skills"]`를 직접 갱신하여 메모리와 디스크 상태를 동기화한다.
 (`attach_skill_to_bot()`은 디스크의 config만 수정하므로, 메모리의 `bot_config`도 별도로 업데이트해야 한다.)
 `run_claude()` 호출 시 `skill_names=attached_skills`를 전달한다.
+미설치 빌트인 스킬도 `list_builtin_skills()`로 조회하여 목록 하단에 표시한다.
+
+### 빌트인 스킬
+
+`src/cclaw/builtin_skills/` 패키지에 스킬 템플릿을 포함한다.
+`install_builtin_skill()`은 `shutil.copy2`로 템플릿 파일을 `~/.cclaw/skills/<name>/`에 복사한다.
+`skill.yaml`의 `install_hints` 필드(dict)로 누락 도구의 설치 방법을 안내한다.
+`check_skill_requirements()`가 `install_hints`를 읽어 에러 메시지에 `Install: <hint>` 형식으로 포함한다.
 
 ## Heartbeat (주기적 상황 인지)
 

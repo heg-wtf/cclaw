@@ -29,8 +29,8 @@ def main(context: typer.Context) -> None:
 
 bot_app = typer.Typer(help="Bot management")
 app.add_typer(bot_app, name="bot")
-skill_app = typer.Typer(help="Skill management")
-app.add_typer(skill_app, name="skill")
+skill_app = typer.Typer(help="Skill management", invoke_without_command=True)
+app.add_typer(skill_app, name="skills")
 cron_app = typer.Typer(help="Cron job management")
 app.add_typer(cron_app, name="cron")
 heartbeat_app = typer.Typer(help="Heartbeat management")
@@ -158,42 +158,63 @@ def bot_remove(name: str) -> None:
     console.print(f"[green]Bot '{name}' removed.[/green]")
 
 
-@app.command()
-def skills() -> None:
-    """List all skills (including unattached)."""
-    from rich.console import Console
-    from rich.table import Table
+@skill_app.callback()
+def skills_callback(context: typer.Context) -> None:
+    """Skill management."""
+    if context.invoked_subcommand is None:
+        from rich.console import Console
+        from rich.table import Table
 
-    from cclaw.skill import bots_using_skill, list_skills
+        from cclaw.builtin_skills import list_builtin_skills
+        from cclaw.skill import bots_using_skill, list_skills
 
-    console = Console()
-    all_skills = list_skills()
+        console = Console()
+        installed_skills = list_skills()
+        installed_names = {skill["name"] for skill in installed_skills}
 
-    if not all_skills:
-        console.print("[yellow]No skills found. Run 'cclaw skill add' to create one.[/yellow]")
-        return
+        builtin_skills = list_builtin_skills()
+        not_installed_builtins = [
+            skill for skill in builtin_skills if skill["name"] not in installed_names
+        ]
 
-    table = Table(title="All Skills")
-    table.add_column("Name", style="cyan")
-    table.add_column("Type", style="magenta")
-    table.add_column("Status", style="green")
-    table.add_column("Bots", style="dim")
-    table.add_column("Description", style="dim")
+        if not installed_skills and not not_installed_builtins:
+            console.print("[yellow]No skills found. Run 'cclaw skills add' to create one.[/yellow]")
+            return
 
-    for skill in all_skills:
-        skill_type_display = skill["type"] or "markdown"
-        status = skill["status"]
-        status_style = "green" if status == "active" else "yellow"
-        connected_bots = ", ".join(bots_using_skill(skill["name"])) or "-"
-        table.add_row(
-            skill["name"],
-            skill_type_display,
-            f"[{status_style}]{status}[/{status_style}]",
-            connected_bots,
-            skill["description"],
-        )
+        table = Table(title="All Skills")
+        table.add_column("Name", style="cyan")
+        table.add_column("Type", style="magenta")
+        table.add_column("Status", style="green")
+        table.add_column("Bots", style="dim")
+        table.add_column("Description", style="dim")
 
-    console.print(table)
+        for skill in installed_skills:
+            skill_type_display = skill["type"] or "markdown"
+            status = skill["status"]
+            status_style = "green" if status == "active" else "yellow"
+            connected_bots = ", ".join(bots_using_skill(skill["name"])) or "-"
+            table.add_row(
+                skill["name"],
+                skill_type_display,
+                f"[{status_style}]{status}[/{status_style}]",
+                connected_bots,
+                skill["description"],
+            )
+
+        for skill in not_installed_builtins:
+            table.add_row(
+                skill["name"],
+                "[dim]builtin[/dim]",
+                "[dim]not installed[/dim]",
+                "-",
+                skill["description"],
+            )
+
+        console.print(table)
+
+        if not_installed_builtins:
+            names = ", ".join(skill["name"] for skill in not_installed_builtins)
+            console.print(f"\nInstall built-in skills: [cyan]cclaw skills install <{names}>[/cyan]")
 
 
 @app.command()
@@ -322,6 +343,97 @@ def bot_edit(name: str) -> None:
     subprocess.run([editor, str(bot_yaml_path)])
 
 
+@skill_app.command("builtins")
+def skill_builtins() -> None:
+    """List available built-in skills."""
+    from rich.console import Console
+    from rich.table import Table
+
+    from cclaw.builtin_skills import list_builtin_skills
+    from cclaw.skill import is_skill
+
+    console = Console()
+    builtin_skills = list_builtin_skills()
+
+    if not builtin_skills:
+        console.print("[yellow]No built-in skills available.[/yellow]")
+        return
+
+    table = Table(title="Built-in Skills")
+    table.add_column("Name", style="cyan")
+    table.add_column("Description", style="dim")
+    table.add_column("Installed", style="green")
+
+    for skill in builtin_skills:
+        installed = is_skill(skill["name"])
+        installed_display = "[green]yes[/green]" if installed else "[dim]no[/dim]"
+        table.add_row(skill["name"], skill["description"], installed_display)
+
+    console.print(table)
+    console.print("\nInstall with: [cyan]cclaw skills install <name>[/cyan]")
+
+
+@skill_app.command("install")
+def skill_install(
+    name: str = typer.Argument(None, help="Built-in skill name to install"),
+) -> None:
+    """Install a built-in skill (or list available ones)."""
+    from rich.console import Console
+    from rich.table import Table
+
+    from cclaw.builtin_skills import list_builtin_skills
+    from cclaw.skill import (
+        activate_skill,
+        check_skill_requirements,
+        install_builtin_skill,
+        is_skill,
+    )
+
+    console = Console()
+
+    if name is None:
+        builtin_skills = list_builtin_skills()
+        if not builtin_skills:
+            console.print("[yellow]No built-in skills available.[/yellow]")
+            return
+
+        table = Table(title="Built-in Skills")
+        table.add_column("Name", style="cyan")
+        table.add_column("Description", style="dim")
+        table.add_column("Installed", style="green")
+
+        for skill in builtin_skills:
+            installed = is_skill(skill["name"])
+            installed_display = "[green]yes[/green]" if installed else "[dim]no[/dim]"
+            table.add_row(skill["name"], skill["description"], installed_display)
+
+        console.print(table)
+        console.print("\nInstall with: [cyan]cclaw skills install <name>[/cyan]")
+        return
+
+    try:
+        directory = install_builtin_skill(name)
+    except ValueError:
+        console.print(f"[red]Unknown built-in skill: '{name}'[/red]")
+        console.print("Run [cyan]cclaw skills install[/cyan] to see available skills.")
+        raise typer.Exit(1)
+    except FileExistsError:
+        console.print(f"[yellow]Skill '{name}' is already installed.[/yellow]")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Skill '{name}' installed to {directory}[/green]")
+
+    errors = check_skill_requirements(name)
+    if errors:
+        console.print("[yellow]Requirements not met (skill remains inactive):[/yellow]")
+        for error in errors:
+            console.print(f"  [yellow]- {error}[/yellow]")
+        console.print(f"Install the missing tools and run: [cyan]cclaw skills setup {name}[/cyan]")
+    else:
+        activate_skill(name)
+        console.print(f"[green]All requirements met. Skill '{name}' activated.[/green]")
+
+
 @skill_app.command("add")
 def skill_add() -> None:
     """Create a new skill interactively."""
@@ -387,7 +499,7 @@ def skill_add() -> None:
         console.print(
             f"[green]Skill '{name}' created (type: {selected_type}, status: inactive).[/green]"
         )
-        console.print("Run [cyan]cclaw skill setup {name}[/cyan] to activate.")
+        console.print("Run [cyan]cclaw skills setup {name}[/cyan] to activate.")
     else:
         activate_skill_directly = True
         if activate_skill_directly:
@@ -395,45 +507,7 @@ def skill_add() -> None:
         # No skill.yaml needed for markdown-only skills
 
     console.print(f"  Directory: {directory}")
-    console.print(f"  Edit: [cyan]cclaw skill edit {name}[/cyan]")
-
-
-@skill_app.command("list")
-def skill_list() -> None:
-    """List all skills."""
-    from rich.console import Console
-    from rich.table import Table
-
-    from cclaw.skill import bots_using_skill, list_skills
-
-    console = Console()
-    skills = list_skills()
-
-    if not skills:
-        console.print("[yellow]No skills found. Run 'cclaw skill add' to create one.[/yellow]")
-        return
-
-    table = Table(title="Skills")
-    table.add_column("Name", style="cyan")
-    table.add_column("Type", style="magenta")
-    table.add_column("Status", style="green")
-    table.add_column("Bots", style="dim")
-    table.add_column("Description", style="dim")
-
-    for skill in skills:
-        skill_type_display = skill["type"] or "markdown"
-        status = skill["status"]
-        status_style = "green" if status == "active" else "yellow"
-        connected_bots = ", ".join(bots_using_skill(skill["name"])) or "-"
-        table.add_row(
-            skill["name"],
-            skill_type_display,
-            f"[{status_style}]{status}[/{status_style}]",
-            connected_bots,
-            skill["description"],
-        )
-
-    console.print(table)
+    console.print(f"  Edit: [cyan]cclaw skills edit {name}[/cyan]")
 
 
 @skill_app.command("remove")
