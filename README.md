@@ -102,7 +102,7 @@ See the full guide: [iMessage Skill Guide](docs/skills/IMESSAGE.md)
 | `/files` | List workspace files |
 | `/send <filename>` | Send workspace file |
 | `/status` | Session status |
-| `/model` | Show current model |
+| `/model` | Show current model (with version) |
 | `/model <name>` | Change model (sonnet/opus/haiku) |
 | `/streaming` | Show streaming status |
 | `/streaming on/off` | Toggle streaming mode |

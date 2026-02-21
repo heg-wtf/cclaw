@@ -32,6 +32,9 @@ Telegram 메시지는 최대 4096자. `utils.split_message()`로 긴 응답을 �
 ## 모델 선택
 
 - 유효 모델: `VALID_MODELS = ["sonnet", "opus", "haiku"]`, 기본값: `DEFAULT_MODEL = "sonnet"`
+- 모델 버전 매핑: `MODEL_VERSIONS = {"sonnet": "4.5", "opus": "4.6", "haiku": "3.5"}`
+- `model_display_name()`: 모델명에 버전을 붙여 표시 (예: `opus 4.6`)
+- `/model` 커맨드에서 현재 모델과 목록을 버전 포함으로 표시
 - `bot.yaml`의 `model` 필드에 저장. Telegram `/model` 커맨드로 런타임 변경 가능.
 - 핸들러 클로저 내에서 `nonlocal current_model`로 런타임 변경을 반영한다.
 - 모델 변경 시 `save_bot_config()`로 bot.yaml에 즉시 저장한다.
@@ -80,6 +83,19 @@ workspace 파일을 텔레그램으로 전송하는 커맨드.
 
 `bot.yaml`의 `allowed_users`가 빈 리스트이면 모든 사용자를 허용한다.
 특정 사용자만 허용하려면 Telegram user ID(정수)를 리스트에 추가한다.
+
+## Telegram 커맨드 메뉴
+
+`BOT_COMMANDS` 리스트를 `set_my_commands()` API로 Telegram에 등록한다.
+`Application.builder().post_init(set_bot_commands)`로 봇 시작 시 자동 호출된다.
+등록 후 사용자가 `/`를 입력하면 커맨드 자동완성 메뉴가 표시된다.
+커맨드를 추가/변경하면 봇 재시작만으로 반영된다.
+
+## Telegram 포맷팅 규칙
+
+`compose_claude_md()`의 Rules 섹션에 "Markdown 표(table) 사용 금지" 규칙을 포함한다.
+Telegram은 Markdown 표를 렌더링하지 않아 `| 항목 | 내용 |` 형태가 그대로 노출된다.
+대신 이모지 + 텍스트 나열 형식을 강제한다 (예: `🌡 최저 -2°C / 최고 7°C`).
 
 ## Markdown → Telegram HTML 변환
 
