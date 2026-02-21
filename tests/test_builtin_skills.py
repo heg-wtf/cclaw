@@ -215,3 +215,55 @@ def test_installed_reminders_skill_starts_inactive(temp_cclaw_home):
     """Installed reminders skill starts with inactive status."""
     install_builtin_skill("reminders")
     assert skill_status("reminders") == "inactive"
+
+
+# --- Naver Map Built-in Skill Tests ---
+
+
+def test_list_builtin_skills_returns_naver_map():
+    """list_builtin_skills includes the naver-map skill."""
+    skills = list_builtin_skills()
+    names = [skill["name"] for skill in skills]
+    assert "naver-map" in names
+
+    naver_map = next(skill for skill in skills if skill["name"] == "naver-map")
+    assert naver_map["description"] != ""
+    assert naver_map["path"].is_dir()
+
+
+def test_get_builtin_skill_path_naver_map():
+    """get_builtin_skill_path returns path for naver-map skill."""
+    path = get_builtin_skill_path("naver-map")
+    assert path is not None
+    assert (path / "SKILL.md").exists()
+    assert (path / "skill.yaml").exists()
+
+
+def test_is_builtin_skill_naver_map():
+    """is_builtin_skill returns True for naver-map."""
+    assert is_builtin_skill("naver-map") is True
+
+
+def test_install_builtin_skill_naver_map(temp_cclaw_home):
+    """install_builtin_skill creates the naver-map skill directory with files."""
+    directory = install_builtin_skill("naver-map")
+    assert directory.exists()
+    assert directory == temp_cclaw_home / "skills" / "naver-map"
+    assert (directory / "SKILL.md").exists()
+    assert (directory / "skill.yaml").exists()
+
+    # Verify SKILL.md content
+    skill_md_content = (directory / "SKILL.md").read_text()
+    assert "map.naver.com" in skill_md_content
+
+    # Verify skill.yaml content
+    with open(directory / "skill.yaml") as file:
+        config = yaml.safe_load(file)
+    assert config["name"] == "naver-map"
+    assert config["type"] == "knowledge"
+
+
+def test_installed_naver_map_skill_starts_inactive(temp_cclaw_home):
+    """Installed naver-map skill starts with inactive status."""
+    install_builtin_skill("naver-map")
+    assert skill_status("naver-map") == "inactive"

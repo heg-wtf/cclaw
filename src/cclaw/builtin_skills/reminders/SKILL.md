@@ -1,58 +1,58 @@
 # Apple Reminders
 
-macOS 미리알림(Reminders) 연동 스킬. `reminders` CLI 도구를 사용하여 미리알림을 조회, 생성, 완료합니다.
+macOS Reminders integration skill. Uses the `reminders` CLI tool to view, create, and complete reminders.
 
-## 사용 가능한 명령어
+## Available Commands
 
-### 리스트 목록 조회
+### List All Reminder Lists
 
 ```bash
 reminders show-lists
 ```
 
-### 특정 리스트의 미리알림 조회
+### View Reminders in a Specific List
 
 ```bash
 reminders show <list_name>
 reminders show <list_name> --include-completed
 ```
 
-### 미리알림 생성
+### Create a Reminder
 
 ```bash
 reminders add <list_name> "<title>"
 reminders add <list_name> "<title>" --due-date "2026-02-22"
 reminders add <list_name> "<title>" --due-date "tomorrow 9am" --priority high
-reminders add <list_name> "<title>" --notes "메모 내용"
+reminders add <list_name> "<title>" --notes "Note content"
 ```
 
-### 미리알림 완료
+### Complete a Reminder
 
 ```bash
 reminders complete <list_name> <index>
 ```
 
-### 미리알림 삭제
+### Delete a Reminder
 
 ```bash
 reminders delete <list_name> <index>
 ```
 
-### 오늘 할 일 조회
+### View Today's Reminders
 
 ```bash
 reminders show-all --due-date today
 ```
 
-### 지난 미리알림 조회
+### View Overdue Reminders
 
 ```bash
 reminders show-all --include-overdue
 ```
 
-## 사용 가이드라인
+## Usage Guidelines
 
-- 미리알림 목록이 여러 개일 수 있으므로, 먼저 show-lists로 목록을 확인하세요.
-- 미리알림 생성 전에 사용자에게 제목, 리스트, 날짜를 확인하세요.
-- 완료/삭제 전에 반드시 사용자에게 확인을 받으세요.
-- 인덱스는 show 명령의 출력에서 확인할 수 있습니다.
+- There may be multiple reminder lists, so check with show-lists first.
+- Before creating a reminder, confirm the title, list, and date with the user.
+- Always confirm with the user before completing or deleting a reminder.
+- Index numbers can be found in the output of the show command.

@@ -1,167 +1,168 @@
-# cclaw 개발 가이드
+# cclaw Development Guide
 
-## 프로젝트 개요
+## Project Overview
 
-Telegram + Claude Code 기반 개인 AI 어시스턴트. 로컬 Mac에서 실행되는 CLI 도구.
+Personal AI assistant powered by Telegram + Claude Code. A CLI tool that runs locally on Mac.
 
-## 기술 스택
+## Tech Stack
 
-- Python >= 3.11, uv 패키지 관리
-- Typer (CLI), Rich (출력), python-telegram-bot v21+ (async), PyYAML (설정), croniter (cron 스케줄)
-- Claude Code CLI를 subprocess로 실행 (`claude -p`)
+- Python >= 3.11, uv package management
+- Typer (CLI), Rich (output), python-telegram-bot v21+ (async), PyYAML (config), croniter (cron scheduling)
+- Runs Claude Code CLI as a subprocess (`claude -p`)
 
-## 주요 명령어
+## Key Commands
 
 ```bash
-uv sync                      # 의존성 설치
-uv run cclaw                 # ASCII 아트 배너 표시
-uv run cclaw --help          # CLI 도움말
-uv run cclaw doctor          # 환경 점검
-uv run cclaw init            # 온보딩
-uv run cclaw start           # 봇 실행
-uv run cclaw bot list        # 봇 목록 (모델 표시)
-uv run cclaw bot model <name>       # 현재 모델 확인
-uv run cclaw bot model <name> opus  # 모델 변경
-uv run cclaw bot streaming <name>        # 스트리밍 상태 확인
-uv run cclaw bot streaming <name> off    # 스트리밍 on/off 전환
-uv run cclaw skills                  # 전체 스킬 목록 (설치된 + 빌트인 미설치)
-uv run cclaw skills add              # 대화형 스킬 생성
-uv run cclaw skills setup <name>     # 스킬 셋업/활성화
-uv run cclaw skills edit <name>      # SKILL.md 편집
-uv run cclaw skills remove <name>    # 스킬 삭제
-uv run cclaw skills test <name>      # 요구사항 테스트
-uv run cclaw skills builtins         # 빌트인 스킬 목록
-uv run cclaw skills install          # 빌트인 스킬 목록 (install과 동일)
-uv run cclaw skills install <name>   # 빌트인 스킬 설치
-uv run cclaw cron list <bot>         # cron job 목록
-uv run cclaw cron add <bot>          # 대화형 cron job 생성
-uv run cclaw cron remove <bot> <job> # cron job 삭제
-uv run cclaw cron enable <bot> <job> # cron job 활성화
-uv run cclaw cron disable <bot> <job> # cron job 비활성화
-uv run cclaw cron run <bot> <job>    # cron job 즉시 실행 (테스트용)
-uv run cclaw heartbeat status        # 봇별 heartbeat 상태 표시
-uv run cclaw heartbeat enable <bot>  # heartbeat 활성화
-uv run cclaw heartbeat disable <bot> # heartbeat 비활성화
-uv run cclaw heartbeat run <bot>     # heartbeat 즉시 실행 (테스트용)
-uv run cclaw heartbeat edit <bot>    # HEARTBEAT.md 편집
-uv run cclaw memory show <bot>       # 메모리 내용 출력
-uv run cclaw memory edit <bot>       # MEMORY.md 편집
-uv run cclaw memory clear <bot>      # 메모리 초기화
-uv run cclaw logs            # 오늘 로그 출력
-uv run cclaw logs -f         # tail -f 모드
-uv run cclaw logs clean              # 7일 이전 로그 삭제
-uv run cclaw logs clean -d 30        # 30일 이전 로그 삭제
-uv run cclaw logs clean --dry-run    # 삭제 대상 미리보기
-uv run pytest                # 테스트
-uv run pytest -v             # 테스트 (상세)
-uv run pytest tests/test_config.py  # 개별 테스트
+uv sync                      # Install dependencies
+uv run cclaw                 # Show ASCII art banner
+uv run cclaw --help          # CLI help
+uv run cclaw doctor          # Environment check
+uv run cclaw init            # Onboarding
+uv run cclaw start           # Run bots
+uv run cclaw bot list        # List bots (with model info)
+uv run cclaw bot model <name>       # Show current model
+uv run cclaw bot model <name> opus  # Change model
+uv run cclaw bot streaming <name>        # Show streaming status
+uv run cclaw bot streaming <name> off    # Toggle streaming on/off
+uv run cclaw skills                  # List all skills (installed + available builtins)
+uv run cclaw skills add              # Create skill interactively
+uv run cclaw skills setup <name>     # Setup/activate skill
+uv run cclaw skills edit <name>      # Edit SKILL.md
+uv run cclaw skills remove <name>    # Remove skill
+uv run cclaw skills test <name>      # Test requirements
+uv run cclaw skills builtins         # List built-in skills
+uv run cclaw skills install          # List built-in skills (same as builtins)
+uv run cclaw skills install <name>   # Install built-in skill
+uv run cclaw cron list <bot>         # List cron jobs
+uv run cclaw cron add <bot>          # Create cron job interactively
+uv run cclaw cron remove <bot> <job> # Remove cron job
+uv run cclaw cron enable <bot> <job> # Enable cron job
+uv run cclaw cron disable <bot> <job> # Disable cron job
+uv run cclaw cron run <bot> <job>    # Run cron job immediately (test)
+uv run cclaw heartbeat status        # Show heartbeat status per bot
+uv run cclaw heartbeat enable <bot>  # Enable heartbeat
+uv run cclaw heartbeat disable <bot> # Disable heartbeat
+uv run cclaw heartbeat run <bot>     # Run heartbeat immediately (test)
+uv run cclaw heartbeat edit <bot>    # Edit HEARTBEAT.md
+uv run cclaw memory show <bot>       # Show memory contents
+uv run cclaw memory edit <bot>       # Edit MEMORY.md
+uv run cclaw memory clear <bot>      # Clear memory
+uv run cclaw logs            # Show today's log
+uv run cclaw logs -f         # Tail mode
+uv run cclaw logs clean              # Delete logs older than 7 days
+uv run cclaw logs clean -d 30        # Delete logs older than 30 days
+uv run cclaw logs clean --dry-run    # Preview deletions
+uv run pytest                # Run tests
+uv run pytest -v             # Run tests (verbose)
+uv run pytest tests/test_config.py  # Run individual test
 
-# pip/pipx 설치 시에는 uv run 없이 직접 실행
+# When installed via pip/pipx, run directly without uv run
 cclaw --help
 cclaw start
 pytest
 ```
 
-## 코드 구조
+## Code Structure
 
-- `src/cclaw/cli.py` - Typer 앱 엔트리포인트, ASCII 아트 배너, 모든 커맨드 정의 (skills, bot, cron, heartbeat, memory 서브커맨드 포함)
-- `src/cclaw/config.py` - `~/.cclaw/` 설정 관리 (YAML), 모델 버전 매핑 (`MODEL_VERSIONS`, `model_display_name()`)
-- `src/cclaw/onboarding.py` - 환경 점검, 토큰 검증, 봇 생성 마법사
-- `src/cclaw/claude_runner.py` - `claude -p` subprocess 실행 (async, `shutil.which`로 경로 해석, 프로세스 추적, 모델 선택, 스킬 MCP/env 주입, streaming 출력 지원, `--resume`/`--session-id` 세션 연속성)
-- `src/cclaw/session.py` - 세션 디렉토리/대화 로그/workspace 관리, Claude 세션 ID 관리 (`get`/`save`/`clear_claude_session_id`), conversation.md 히스토리 로딩, 봇 레벨 메모리 CRUD (`load_bot_memory`/`save_bot_memory`/`clear_bot_memory`)
-- `src/cclaw/handlers.py` - Telegram 핸들러 팩토리 (슬래시 커맨드 + 메시지 + 파일 수신/전송 + 모델 변경(버전 표시) + 프로세스 취소 + /skills 통합 관리(목록/attach/detach/빌트인) + /cron 관리 + /heartbeat 관리 + /memory 관리 + 스트리밍 응답 + /streaming 토글 + 세션 연속성 (`_prepare_session_context`, `_call_with_resume_fallback`) + `set_bot_commands` 커맨드 메뉴 등록)
-- `src/cclaw/bot_manager.py` - 멀티봇 polling, launchd 데몬, 개별 봇 오류 격리, cron/heartbeat 스케줄러 통합
-- `src/cclaw/heartbeat.py` - Heartbeat 주기적 상황 인지 (설정 CRUD, active hours 체크, HEARTBEAT.md 관리, HEARTBEAT_OK 감지, 스케줄러 루프)
-- `src/cclaw/cron.py` - Cron 스케줄 자동화 (cron.yaml CRUD, croniter 기반 스케줄 매칭, one-shot 지원, 스케줄러 루프)
-- `src/cclaw/skill.py` - 스킬 관리 (인식/로딩/생성/삭제/빌트인 설치, 봇-스킬 연결, CLAUDE.md 조합(메모리 지시사항 + Telegram 포맷팅 규칙 포함), MCP/환경변수 병합)
-- `src/cclaw/builtin_skills/__init__.py` - 빌트인 스킬 레지스트리 (패키지 내 템플릿 스캔/조회)
-- `src/cclaw/builtin_skills/imessage/` - iMessage 빌트인 스킬 템플릿 (SKILL.md, skill.yaml)
-- `src/cclaw/builtin_skills/reminders/` - Apple Reminders 빌트인 스킬 템플릿 (SKILL.md, skill.yaml)
-- `src/cclaw/utils.py` - 메시지 분할, Markdown→HTML 변환, 로깅 설정
+- `src/cclaw/cli.py` - Typer app entry point, ASCII art banner, all command definitions (skills, bot, cron, heartbeat, memory subcommands)
+- `src/cclaw/config.py` - `~/.cclaw/` configuration management (YAML), model version mapping (`MODEL_VERSIONS`, `model_display_name()`)
+- `src/cclaw/onboarding.py` - Environment check, token validation, bot creation wizard
+- `src/cclaw/claude_runner.py` - `claude -p` subprocess execution (async, path resolution via `shutil.which`, process tracking, model selection, skill MCP/env injection, streaming output, `--resume`/`--session-id` session continuity)
+- `src/cclaw/session.py` - Session directory/conversation log/workspace management, Claude session ID management (`get`/`save`/`clear_claude_session_id`), conversation.md history loading, bot-level memory CRUD (`load_bot_memory`/`save_bot_memory`/`clear_bot_memory`)
+- `src/cclaw/handlers.py` - Telegram handler factory (slash commands + messages + file receive/send + model change (with version display) + process cancel + /skills unified management (list/attach/detach/builtins) + /cron management + /heartbeat management + /memory management + streaming response + /streaming toggle + session continuity (`_prepare_session_context`, `_call_with_resume_fallback`) + `set_bot_commands` command menu registration)
+- `src/cclaw/bot_manager.py` - Multi-bot polling, launchd daemon, per-bot error isolation, cron/heartbeat scheduler integration
+- `src/cclaw/heartbeat.py` - Heartbeat periodic situation awareness (config CRUD, active hours check, HEARTBEAT.md management, HEARTBEAT_OK detection, scheduler loop)
+- `src/cclaw/cron.py` - Cron schedule automation (cron.yaml CRUD, croniter-based schedule matching, one-shot support, scheduler loop)
+- `src/cclaw/skill.py` - Skill management (discovery/loading/creation/deletion/builtin installation, bot-skill linking, CLAUDE.md composition (memory instructions + Telegram formatting rules), MCP/env variable merging)
+- `src/cclaw/builtin_skills/__init__.py` - Built-in skill registry (scans subdirectories for templates)
+- `src/cclaw/builtin_skills/imessage/` - iMessage built-in skill template (SKILL.md, skill.yaml)
+- `src/cclaw/builtin_skills/reminders/` - Apple Reminders built-in skill template (SKILL.md, skill.yaml)
+- `src/cclaw/builtin_skills/naver-map/` - Naver Map built-in skill template (SKILL.md, skill.yaml, knowledge type, web URL based)
+- `src/cclaw/utils.py` - Message splitting, Markdown to HTML conversion, logging setup
 
-## 코드 스타일
+## Code Style
 
-- 약어 사용 지양. 전체 full text 사용 (예: `session_directory`, `bot_config` 등)
-- 타입 힌트 사용 (`from __future__ import annotations`)
-- async/await 패턴 (Telegram, Claude Runner)
-- `CCLAW_HOME` 환경변수로 테스트 시 경로 오버라이드 가능
-- 모든 경로는 절대경로 사용. `config.py`의 `bot_directory(name)` 등 헬퍼 함수를 통해 접근. `pathlib.Path` 사용 권장
+- Avoid abbreviations. Use full text (e.g., `session_directory`, `bot_config`)
+- Use type hints (`from __future__ import annotations`)
+- async/await patterns (Telegram, Claude Runner)
+- `CCLAW_HOME` environment variable for test path override
+- Use absolute paths everywhere. Access bot directories via helper functions like `config.py`'s `bot_directory(name)`. Prefer `pathlib.Path`
 
-## 테스트 규칙
+## Test Rules
 
-- 모든 모듈에 대응하는 테스트 파일 존재 (`tests/test_*.py`)
-- Telegram API 호출은 mock 처리
-- `tmp_path` + `monkeypatch`로 파일시스템 격리
-- `pytest-asyncio`로 async 테스트
+- Every module has a corresponding test file (`tests/test_*.py`)
+- Mock all Telegram API calls
+- Filesystem isolation via `tmp_path` + `monkeypatch`
+- Async tests with `pytest-asyncio`
 
-## Telegram 메시지 포맷팅
+## Telegram Message Formatting
 
-- Claude 응답의 Markdown은 `utils.markdown_to_telegram_html()`로 HTML 변환 후 전송
-- 변환 대상: `**bold**`, `*italic*`, `` `code` ``, ` ```code blocks``` `, `## headings`, `[link](url)`
-- HTML 전송 실패 시 plain text 폴백
-- 4096자 초과 시 `split_message()`로 자동 분할
-- **Markdown 표(table) 금지**: Telegram에서 표가 렌더링되지 않으므로, `compose_claude_md()`의 Rules에 "이모지 + 텍스트 나열" 포맷 강제 규칙 포함
+- Claude responses in Markdown are converted to HTML via `utils.markdown_to_telegram_html()` before sending
+- Conversion targets: `**bold**`, `*italic*`, `` `code` ``, ` ```code blocks``` `, `## headings`, `[link](url)`
+- Falls back to plain text if HTML send fails
+- Auto-splits via `split_message()` when exceeding 4096 characters
+- **Markdown tables are forbidden**: Telegram does not render tables, so `compose_claude_md()` Rules enforce "emoji + text list" format instead
 
-## Telegram 커맨드 메뉴
+## Telegram Command Menu
 
-- `set_bot_commands()`가 `BOT_COMMANDS` 리스트를 Telegram에 등록 (`post_init`에서 호출)
-- 사용자가 `/`를 입력하면 커맨드 목록이 자동완성 메뉴로 표시됨
-- 봇 시작 시마다 자동 등록되므로 커맨드 추가/변경 시 재시작만 하면 반영
+- `set_bot_commands()` registers the `BOT_COMMANDS` list with Telegram (called in `post_init`)
+- When users type `/`, an autocomplete menu of commands is displayed
+- Automatically registered on every bot start, so adding/changing commands only requires a restart
 
-## 스트리밍 응답
+## Streaming Response
 
-- `bot.yaml`의 `streaming` 필드로 on/off 제어 (기본값: `DEFAULT_STREAMING = False`)
-- Telegram `/streaming on|off` 커맨드 또는 CLI `cclaw bot streaming <name> on|off`로 런타임 토글
-- **스트리밍 모드 (on)**: `run_claude_streaming()` → 토큰 단위 메시지 편집 → 커서 `▌` 표시
-- **비스트리밍 모드 (off)**: `run_claude()` → typing 액션 4초 주기 → 완료 후 일괄 전송
-- 스로틀링: 0.5초 간격으로 메시지 편집 (`STREAM_THROTTLE_SECONDS`)
-- 최소 10자 이상 누적 후 첫 메시지 전송 (`STREAM_MIN_CHARS_BEFORE_SEND`)
-- 4096자 초과 시 스트리밍 미리보기 중단, 최종 응답을 분할 전송
+- Controlled by the `streaming` field in `bot.yaml` (default: `DEFAULT_STREAMING = False`)
+- Runtime toggle via Telegram `/streaming on|off` command or CLI `cclaw bot streaming <name> on|off`
+- **Streaming mode (on)**: `run_claude_streaming()` -> per-token message editing -> cursor marker `▌`
+- **Non-streaming mode (off)**: `run_claude()` -> typing action every 4 seconds -> batch send on completion
+- Throttling: message edits at 0.5 second intervals (`STREAM_THROTTLE_SECONDS`)
+- First message sent after at least 10 characters accumulated (`STREAM_MIN_CHARS_BEFORE_SEND`)
+- Streaming preview stops when exceeding 4096 characters, final response is split-sent
 
-## 세션 연속성
+## Session Continuity
 
-- 매 메시지마다 `claude -p`를 새 프로세스로 실행하지만, `--resume` / `--session-id` 플래그로 대화 맥락을 유지
-- **첫 메시지**: `--session-id <uuid>`로 새 세션 시작. MEMORY.md + conversation.md 최근 20턴을 부트스트랩 프롬프트로 포함
-- **이후 메시지**: `--resume <session_id>`로 Claude Code 세션 이어가기
-- **폴백**: `--resume` 실패 시 (세션 만료 등) 자동으로 session_id 삭제 → 부트스트랩으로 재시도
-- **초기화**: `/reset` 또는 `/resetall` 시 `.claude_session_id` 파일도 삭제
-- 세션 ID는 `sessions/chat_<id>/.claude_session_id` 파일에 저장
-- `_prepare_session_context()`: 세션 상태를 확인하여 resume/bootstrap 결정 (bootstrap 시 메모리 → 대화 기록 → 메시지 순으로 프롬프트 구성)
-- `_call_with_resume_fallback()`: resume 실패 시 폴백 처리
+- Each message runs `claude -p` as a new process, but maintains conversation context via `--resume` / `--session-id` flags
+- **First message**: Starts new session with `--session-id <uuid>`. Includes MEMORY.md + last 20 turns from conversation.md as bootstrap prompt
+- **Subsequent messages**: Continues session with `--resume <session_id>`
+- **Fallback**: If `--resume` fails (session expired, etc.), automatically deletes session_id and retries with bootstrap
+- **Reset**: `/reset` or `/resetall` also deletes the `.claude_session_id` file
+- Session ID stored in `sessions/chat_<id>/.claude_session_id`
+- `_prepare_session_context()`: Determines resume/bootstrap (bootstrap order: memory -> conversation history -> message)
+- `_call_with_resume_fallback()`: Handles fallback on resume failure
 
-## 봇 레벨 장기 메모리
+## Bot-Level Long-Term Memory
 
-- 사용자가 "기억해", "remember" 등 요청 시 봇이 `MEMORY.md`에 저장
-- `MEMORY.md`는 봇 단위 (`~/.cclaw/bots/<name>/MEMORY.md`)로 관리되어 모든 채팅 세션이 동일한 메모리를 공유
-- **저장**: `compose_claude_md()`가 CLAUDE.md에 메모리 지시사항 + MEMORY.md 절대 경로를 포함 → Claude Code가 파일 쓰기 도구로 직접 MEMORY.md에 append
-- **로딩**: 새 세션 부트스트랩 시 MEMORY.md + conversation.md를 프롬프트에 주입 (메모리 → 대화 기록 → 새 메시지 순)
-- **관리**: Telegram `/memory` 커맨드 (내용 표시, `/memory clear` 초기화) + CLI `cclaw memory show|edit|clear <bot>`
+- When user requests "remember this", the bot saves to `MEMORY.md`
+- `MEMORY.md` is managed per bot (`~/.cclaw/bots/<name>/MEMORY.md`), shared across all chat sessions
+- **Saving**: `compose_claude_md()` includes memory instructions + MEMORY.md absolute path in CLAUDE.md -> Claude Code directly appends to MEMORY.md via file write tool
+- **Loading**: On new session bootstrap, MEMORY.md + conversation.md are injected into the prompt (memory -> conversation history -> new message order)
+- **Management**: Telegram `/memory` command (show contents, `/memory clear` to reset) + CLI `cclaw memory show|edit|clear <bot>`
 
-## 런타임 데이터 구조
+## Runtime Data Structure
 
 ```
 ~/.cclaw/
-├── config.yaml           # 전역 설정 (봇 목록, log_level, command_timeout)
-├── cclaw.pid             # 실행 중 PID
+├── config.yaml           # Global config (bot list, log_level, command_timeout)
+├── cclaw.pid             # Running PID
 ├── bots/<name>/
-│   ├── bot.yaml          # 봇 설정 (토큰, 성격, 역할, allowed_users, model, streaming, skills, heartbeat)
-│   ├── CLAUDE.md         # 봇 시스템 프롬프트 (스킬 + 메모리 지시사항 포함)
-│   ├── MEMORY.md         # 봇 장기 메모리 (Claude Code가 직접 읽기/쓰기, 모든 세션 공유)
-│   ├── cron.yaml         # Cron job 설정 (schedule/at, message, skills, model)
-│   ├── cron_sessions/<job_name>/  # Cron job별 작업 디렉토리
-│   │   └── CLAUDE.md     # 봇 CLAUDE.md 복사본
-│   ├── heartbeat_sessions/       # Heartbeat 전용 작업 디렉토리
-│   │   ├── CLAUDE.md     # 봇 CLAUDE.md 복사본
-│   │   ├── HEARTBEAT.md  # 체크리스트 (사용자 편집 가능)
-│   │   └── workspace/    # 파일 저장소
+│   ├── bot.yaml          # Bot config (token, personality, role, allowed_users, model, streaming, skills, heartbeat)
+│   ├── CLAUDE.md         # Bot system prompt (includes skills + memory instructions)
+│   ├── MEMORY.md         # Bot long-term memory (read/written by Claude Code, shared across all sessions)
+│   ├── cron.yaml         # Cron job config (schedule/at, message, skills, model)
+│   ├── cron_sessions/<job_name>/  # Per-cron-job working directory
+│   │   └── CLAUDE.md     # Copy of bot CLAUDE.md
+│   ├── heartbeat_sessions/       # Heartbeat working directory
+│   │   ├── CLAUDE.md     # Copy of bot CLAUDE.md
+│   │   ├── HEARTBEAT.md  # Checklist (user-editable)
+│   │   └── workspace/    # File storage
 │   └── sessions/chat_<id>/
-│       ├── CLAUDE.md           # 세션별 컨텍스트
-│       ├── conversation.md     # 대화 로그
-│       ├── .claude_session_id  # Claude Code 세션 ID (--resume용)
-│       └── workspace/          # 파일 저장소
+│       ├── CLAUDE.md           # Per-session context
+│       ├── conversation.md     # Conversation log
+│       ├── .claude_session_id  # Claude Code session ID (for --resume)
+│       └── workspace/          # File storage
 ├── skills/<name>/
-│   ├── SKILL.md          # 스킬 지시사항 (필수, 봇 CLAUDE.md에 합성됨)
-│   ├── skill.yaml        # 스킬 설정 (도구 기반 스킬만: type, status, required_commands, install_hints, environment_variables)
-│   └── mcp.json          # MCP 서버 설정 (MCP 스킬만: mcpServers)
-└── logs/                 # 일별 로테이션 로그
+│   ├── SKILL.md          # Skill instructions (required, composed into bot CLAUDE.md)
+│   ├── skill.yaml        # Skill config (tool-based only: type, status, required_commands, install_hints, environment_variables)
+│   └── mcp.json          # MCP server config (MCP skills only: mcpServers)
+└── logs/                 # Daily rotating logs
 ```
