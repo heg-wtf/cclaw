@@ -3,11 +3,15 @@
 import pytest
 
 from cclaw.session import (
+    clear_claude_session_id,
     ensure_session,
+    get_claude_session_id,
     list_workspace_files,
+    load_conversation_history,
     log_conversation,
     reset_all_session,
     reset_session,
+    save_claude_session_id,
     session_directory,
 )
 
@@ -131,3 +135,104 @@ def test_list_workspace_files_no_workspace(tmp_path):
     """list_workspace_files returns empty list if workspace doesn't exist."""
     files = list_workspace_files(tmp_path / "nonexistent")
     assert files == []
+
+
+# --- Claude session ID tests ---
+
+
+def test_get_claude_session_id_none(tmp_path):
+    """get_claude_session_id returns None when file doesn't exist."""
+    assert get_claude_session_id(tmp_path) is None
+
+
+def test_save_and_get_claude_session_id(tmp_path):
+    """save_claude_session_id and get_claude_session_id round-trip."""
+    save_claude_session_id(tmp_path, "abc-123-def")
+    assert get_claude_session_id(tmp_path) == "abc-123-def"
+
+
+def test_clear_claude_session_id(tmp_path):
+    """clear_claude_session_id removes the session ID file."""
+    save_claude_session_id(tmp_path, "abc-123")
+    clear_claude_session_id(tmp_path)
+    assert get_claude_session_id(tmp_path) is None
+
+
+def test_clear_claude_session_id_missing(tmp_path):
+    """clear_claude_session_id doesn't error when file is missing."""
+    clear_claude_session_id(tmp_path)  # should not raise
+
+
+# --- Conversation history tests ---
+
+
+def test_load_conversation_history_empty(tmp_path):
+    """load_conversation_history returns None when conversation.md doesn't exist."""
+    assert load_conversation_history(tmp_path) is None
+
+
+def test_load_conversation_history_empty_file(tmp_path):
+    """load_conversation_history returns None when conversation.md is empty."""
+    (tmp_path / "conversation.md").write_text("")
+    assert load_conversation_history(tmp_path) is None
+
+
+def test_load_conversation_history_full(bot_path):
+    """load_conversation_history returns all turns when under max_turns."""
+    directory = ensure_session(bot_path, 12345)
+    log_conversation(directory, "user", "Hello")
+    log_conversation(directory, "assistant", "Hi there!")
+    log_conversation(directory, "user", "How are you?")
+    log_conversation(directory, "assistant", "I'm good!")
+
+    history = load_conversation_history(directory)
+    assert history is not None
+    assert "Hello" in history
+    assert "Hi there!" in history
+    assert "How are you?" in history
+    assert "I'm good!" in history
+
+
+def test_load_conversation_history_truncates(bot_path):
+    """load_conversation_history returns only last max_turns entries."""
+    directory = ensure_session(bot_path, 12345)
+
+    # Write 25 turns (more than default 20)
+    for i in range(25):
+        role = "user" if i % 2 == 0 else "assistant"
+        log_conversation(directory, role, f"Message {i}")
+
+    history = load_conversation_history(directory, max_turns=20)
+    assert history is not None
+    # First 5 messages should be truncated
+    assert "Message 0" not in history
+    assert "Message 4" not in history
+    # Last 20 should be present
+    assert "Message 5" in history
+    assert "Message 24" in history
+
+
+# --- Reset clears session ID tests ---
+
+
+def test_reset_session_clears_session_id(bot_path):
+    """reset_session also clears the stored Claude session ID."""
+    directory = ensure_session(bot_path, 12345)
+    save_claude_session_id(directory, "test-session-id")
+    (directory / "conversation.md").write_text("some conversation")
+
+    reset_session(bot_path, 12345)
+
+    assert get_claude_session_id(directory) is None
+
+
+def test_reset_all_session_clears_session_id(bot_path):
+    """reset_all_session removes the entire directory including session ID."""
+    directory = ensure_session(bot_path, 12345)
+    save_claude_session_id(directory, "test-session-id")
+
+    reset_all_session(bot_path, 12345)
+
+    # Directory is gone, so session ID is gone too
+    assert not directory.exists()
+    assert get_claude_session_id(directory) is None

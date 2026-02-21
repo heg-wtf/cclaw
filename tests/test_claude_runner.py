@@ -303,6 +303,31 @@ async def test_run_claude_with_skill_names_env(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_run_claude_with_allowed_tools(tmp_path):
+    """run_claude passes --allowedTools when skills have allowed_tools."""
+    mock_process = MagicMock()
+    mock_process.communicate = AsyncMock(return_value=(b"output", b""))
+    mock_process.returncode = 0
+
+    with (
+        patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec,
+        patch("cclaw.skill.merge_mcp_configs", return_value=None),
+        patch("cclaw.skill.collect_skill_environment_variables", return_value={}),
+        patch(
+            "cclaw.skill.collect_skill_allowed_tools",
+            return_value=["Bash(imsg:*)", "Read(*)"],
+        ),
+    ):
+        mock_exec.return_value = mock_process
+        await run_claude(str(tmp_path), "Hello", skill_names=["imessage"])
+
+    call_args = mock_exec.call_args[0]
+    assert "--allowedTools" in call_args
+    allowed_index = list(call_args).index("--allowedTools")
+    assert call_args[allowed_index + 1] == "Bash(imsg:*),Read(*)"
+
+
+@pytest.mark.asyncio
 async def test_run_claude_without_skill_names():
     """run_claude does not inject MCP/env when skill_names is None."""
     mock_process = MagicMock()
@@ -588,3 +613,161 @@ async def test_run_claude_streaming_assistant_fallback():
         result = await run_claude_streaming("/tmp/test", "Hello")
 
     assert result == "Assistant response"
+
+
+@pytest.mark.asyncio
+async def test_run_claude_streaming_with_allowed_tools(tmp_path):
+    """run_claude_streaming passes --allowedTools when skills have allowed_tools."""
+    mock_stdout = AsyncMock()
+    mock_stdout.readline = AsyncMock(return_value=b"")
+
+    mock_stderr = AsyncMock()
+    mock_stderr.read = AsyncMock(return_value=b"")
+
+    mock_process = MagicMock()
+    mock_process.stdout = mock_stdout
+    mock_process.stderr = mock_stderr
+    mock_process.returncode = 0
+    mock_process.wait = AsyncMock()
+
+    with (
+        patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec,
+        patch(
+            "cclaw.claude_runner._prepare_skill_environment",
+            return_value=None,
+        ),
+        patch(
+            "cclaw.skill.collect_skill_allowed_tools",
+            return_value=["Bash(imsg:*)"],
+        ),
+    ):
+        mock_exec.return_value = mock_process
+        await run_claude_streaming(str(tmp_path), "Hello", skill_names=["imessage"])
+
+    call_args = mock_exec.call_args[0]
+    assert "--allowedTools" in call_args
+    allowed_index = list(call_args).index("--allowedTools")
+    assert call_args[allowed_index + 1] == "Bash(imsg:*)"
+
+
+# --- Session continuity tests ---
+
+
+@pytest.mark.asyncio
+async def test_run_claude_with_resume_session():
+    """run_claude uses --resume when resume_session=True and session_id is given."""
+    mock_process = MagicMock()
+    mock_process.communicate = AsyncMock(return_value=(b"output", b""))
+    mock_process.returncode = 0
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        await run_claude(
+            "/tmp/test",
+            "Hello",
+            claude_session_id="session-abc-123",
+            resume_session=True,
+        )
+
+    call_args = mock_exec.call_args[0]
+    assert "--resume" in call_args
+    assert "session-abc-123" in call_args
+    assert "--session-id" not in call_args
+
+
+@pytest.mark.asyncio
+async def test_run_claude_with_session_id_no_resume():
+    """run_claude uses --session-id when resume_session=False and session_id is given."""
+    mock_process = MagicMock()
+    mock_process.communicate = AsyncMock(return_value=(b"output", b""))
+    mock_process.returncode = 0
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        await run_claude(
+            "/tmp/test",
+            "Hello",
+            claude_session_id="session-abc-123",
+            resume_session=False,
+        )
+
+    call_args = mock_exec.call_args[0]
+    assert "--session-id" in call_args
+    assert "session-abc-123" in call_args
+    assert "--resume" not in call_args
+
+
+@pytest.mark.asyncio
+async def test_run_claude_no_session_id():
+    """run_claude uses neither --resume nor --session-id when no session_id."""
+    mock_process = MagicMock()
+    mock_process.communicate = AsyncMock(return_value=(b"output", b""))
+    mock_process.returncode = 0
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        await run_claude("/tmp/test", "Hello")
+
+    call_args = mock_exec.call_args[0]
+    assert "--resume" not in call_args
+    assert "--session-id" not in call_args
+
+
+@pytest.mark.asyncio
+async def test_run_claude_streaming_with_resume_session():
+    """run_claude_streaming uses --resume when resume_session=True."""
+    mock_stdout = AsyncMock()
+    mock_stdout.readline = AsyncMock(return_value=b"")
+
+    mock_stderr = AsyncMock()
+    mock_stderr.read = AsyncMock(return_value=b"")
+
+    mock_process = MagicMock()
+    mock_process.stdout = mock_stdout
+    mock_process.stderr = mock_stderr
+    mock_process.returncode = 0
+    mock_process.wait = AsyncMock()
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        await run_claude_streaming(
+            "/tmp/test",
+            "Hello",
+            claude_session_id="stream-session-123",
+            resume_session=True,
+        )
+
+    call_args = mock_exec.call_args[0]
+    assert "--resume" in call_args
+    assert "stream-session-123" in call_args
+    assert "--session-id" not in call_args
+
+
+@pytest.mark.asyncio
+async def test_run_claude_streaming_with_session_id_no_resume():
+    """run_claude_streaming uses --session-id when resume_session=False."""
+    mock_stdout = AsyncMock()
+    mock_stdout.readline = AsyncMock(return_value=b"")
+
+    mock_stderr = AsyncMock()
+    mock_stderr.read = AsyncMock(return_value=b"")
+
+    mock_process = MagicMock()
+    mock_process.stdout = mock_stdout
+    mock_process.stderr = mock_stderr
+    mock_process.returncode = 0
+    mock_process.wait = AsyncMock()
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        await run_claude_streaming(
+            "/tmp/test",
+            "Hello",
+            claude_session_id="stream-session-123",
+            resume_session=False,
+        )
+
+    call_args = mock_exec.call_args[0]
+    assert "--session-id" in call_args
+    assert "stream-session-123" in call_args
+    assert "--resume" not in call_args

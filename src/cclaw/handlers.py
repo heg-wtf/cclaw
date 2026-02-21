@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -32,11 +33,15 @@ from cclaw.config import (
     save_bot_config,
 )
 from cclaw.session import (
+    clear_claude_session_id,
     ensure_session,
+    get_claude_session_id,
     list_workspace_files,
+    load_conversation_history,
     log_conversation,
     reset_all_session,
     reset_session,
+    save_claude_session_id,
 )
 from cclaw.utils import markdown_to_telegram_html, split_message
 
@@ -114,8 +119,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             "\U0001f4ca /status - Session status\n"
             "\U0001f9e0 /model - Show or change model\n"
             "\U0001f4e1 /streaming - Toggle streaming mode\n"
-            "\U0001f9e9 /skills - List all skills\n"
-            "\U0001f9e9 /skill - Manage skills (attach/detach)\n"
+            "\U0001f9e9 /skills - Skill management\n"
             "\u23f0 /cron - Cron job management\n"
             "\U0001f493 /heartbeat - Heartbeat management\n"
             "\u26d4 /cancel - Stop running process\n"
@@ -311,6 +315,8 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         working_directory: str,
         prompt: str,
         lock_key: str,
+        claude_session_id: str | None = None,
+        resume_session: bool = False,
     ) -> str:
         """Run Claude without streaming and send the response.
 
@@ -337,6 +343,8 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                 session_key=lock_key,
                 model=current_model,
                 skill_names=attached_skills if attached_skills else None,
+                claude_session_id=claude_session_id,
+                resume_session=resume_session,
             )
         finally:
             typing_task.cancel()
@@ -357,6 +365,8 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         working_directory: str,
         prompt: str,
         lock_key: str,
+        claude_session_id: str | None = None,
+        resume_session: bool = False,
     ) -> str:
         """Run Claude with streaming and send real-time updates to Telegram.
 
@@ -421,6 +431,8 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             session_key=lock_key,
             model=current_model,
             skill_names=attached_skills if attached_skills else None,
+            claude_session_id=claude_session_id,
+            resume_session=resume_session,
         )
 
         # Finalize: remove cursor and send complete response
@@ -473,6 +485,84 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
 
         return response
 
+    def _prepare_session_context(session_dir: Path, user_message: str) -> tuple[str, str, bool]:
+        """Prepare prompt with session continuity context.
+
+        Returns (prompt, claude_session_id, resume_session).
+        """
+        claude_session_id = get_claude_session_id(session_dir)
+
+        if claude_session_id:
+            # Resume existing Claude Code session
+            return user_message, claude_session_id, True
+
+        # New session: bootstrap from conversation.md
+        claude_session_id = str(uuid.uuid4())
+        history = load_conversation_history(session_dir)
+        if history:
+            prompt = (
+                "아래는 이전 대화 기록입니다. 맥락으로 활용하세요:\n\n"
+                f"{history}\n\n---\n\n"
+                f"새 메시지: {user_message}"
+            )
+        else:
+            prompt = user_message
+        save_claude_session_id(session_dir, claude_session_id)
+        return prompt, claude_session_id, False
+
+    async def _call_with_resume_fallback(
+        send_response_function,
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+        session_dir: Path,
+        working_directory: str,
+        prompt: str,
+        lock_key: str,
+        claude_session_id: str,
+        resume_session: bool,
+    ) -> str:
+        """Call send_response with --resume fallback on failure."""
+        try:
+            return await send_response_function(
+                update=update,
+                context=context,
+                working_directory=working_directory,
+                prompt=prompt,
+                lock_key=lock_key,
+                claude_session_id=claude_session_id,
+                resume_session=resume_session,
+            )
+        except RuntimeError:
+            if not resume_session:
+                raise
+            # Session expired - fallback to bootstrap
+            logger.warning(
+                "Resume failed for session %s, falling back to bootstrap",
+                claude_session_id,
+            )
+            clear_claude_session_id(session_dir)
+            new_session_id = str(uuid.uuid4())
+            history = load_conversation_history(session_dir)
+            if history:
+                # Original prompt was just the raw message for resume
+                fallback_prompt = (
+                    "아래는 이전 대화 기록입니다. 맥락으로 활용하세요:\n\n"
+                    f"{history}\n\n---\n\n"
+                    f"새 메시지: {prompt}"
+                )
+            else:
+                fallback_prompt = prompt
+            save_claude_session_id(session_dir, new_session_id)
+            return await send_response_function(
+                update=update,
+                context=context,
+                working_directory=working_directory,
+                prompt=fallback_prompt,
+                lock_key=lock_key,
+                claude_session_id=new_session_id,
+                resume_session=False,
+            )
+
     async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle regular text messages - forward to Claude Code."""
         if not await check_authorization(update):
@@ -489,20 +579,28 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             )
 
         async with lock:
-            session_directory = ensure_session(bot_path, chat_id)
-            log_conversation(session_directory, "user", user_message)
+            session_dir = ensure_session(bot_path, chat_id)
+            log_conversation(session_dir, "user", user_message)
+
+            prompt, claude_session_id, resume_session = _prepare_session_context(
+                session_dir, user_message
+            )
 
             send_response = (
                 _send_streaming_response if streaming_enabled else _send_non_streaming_response
             )
 
             try:
-                response = await send_response(
+                response = await _call_with_resume_fallback(
+                    send_response_function=send_response,
                     update=update,
                     context=context,
-                    working_directory=str(session_directory),
-                    prompt=user_message,
+                    session_dir=session_dir,
+                    working_directory=str(session_dir),
+                    prompt=prompt,
                     lock_key=lock_key,
+                    claude_session_id=claude_session_id,
+                    resume_session=resume_session,
                 )
             except asyncio.CancelledError:
                 response = "\u26d4 Execution was cancelled."
@@ -517,7 +615,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                 logger.error("Claude error for chat %d: %s", chat_id, error)
                 await update.message.reply_text(response)
 
-            log_conversation(session_directory, "assistant", response)
+            log_conversation(session_dir, "assistant", response)
 
     async def version_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /version command."""
@@ -564,23 +662,31 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
 
             caption = update.message.caption or ""
             if caption:
-                prompt = f"{caption}\n\nFile: {file_path}"
+                user_prompt = f"{caption}\n\nFile: {file_path}"
             else:
-                prompt = f"I sent a file: {file_path}"
+                user_prompt = f"I sent a file: {file_path}"
 
             log_conversation(session_dir, "user", f"[file: {filename}] {caption}")
+
+            prompt, claude_session_id, resume_session = _prepare_session_context(
+                session_dir, user_prompt
+            )
 
             send_response = (
                 _send_streaming_response if streaming_enabled else _send_non_streaming_response
             )
 
             try:
-                response = await send_response(
+                response = await _call_with_resume_fallback(
+                    send_response_function=send_response,
                     update=update,
                     context=context,
+                    session_dir=session_dir,
                     working_directory=str(session_dir),
                     prompt=prompt,
                     lock_key=lock_key,
+                    claude_session_id=claude_session_id,
+                    resume_session=resume_session,
                 )
             except asyncio.CancelledError:
                 response = "\u26d4 Execution was cancelled."
@@ -598,27 +704,115 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             log_conversation(session_dir, "assistant", response)
 
     async def skills_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle /skills command - list all available skills."""
+        """Handle /skills command - list, attach, or detach skills."""
+        nonlocal attached_skills
         if not await check_authorization(update):
             return
 
-        from cclaw.skill import bots_using_skill, list_skills
+        if not context.args:
+            from cclaw.builtin_skills import list_builtin_skills
+            from cclaw.skill import bots_using_skill, list_skills
 
-        all_skills = list_skills()
+            installed_skills = list_skills()
+            installed_names = {skill["name"] for skill in installed_skills}
+            builtin_skills = list_builtin_skills()
+            not_installed_builtins = [
+                skill for skill in builtin_skills if skill["name"] not in installed_names
+            ]
 
-        if not all_skills:
-            await update.message.reply_text("\U0001f9e9 No skills available.")
+            if not installed_skills and not not_installed_builtins:
+                await update.message.reply_text("\U0001f9e9 No skills available.")
+                return
+
+            lines = ["\U0001f9e9 *All Skills:*\n"]
+            for skill in installed_skills:
+                skill_type_display = skill["type"] or "markdown"
+                status_icon = "\u2705" if skill["status"] == "active" else "\U0001f6d1"
+                connected_bots = bots_using_skill(skill["name"])
+                attached_label = f" \u2190 {', '.join(connected_bots)}" if connected_bots else ""
+                lines.append(
+                    f"{status_icon} `{skill['name']}` ({skill_type_display}){attached_label}"
+                )
+
+            for skill in not_installed_builtins:
+                lines.append(f"\U0001f4e6 `{skill['name']}` (builtin, not installed)")
+
+            lines.append("")
+            lines.append("`/skills attach <name>` | `/skills detach <name>`")
+
+            await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
             return
 
-        lines = ["\U0001f9e9 *All Skills:*\n"]
-        for skill in all_skills:
-            skill_type_display = skill["type"] or "markdown"
-            status_icon = "\u2705" if skill["status"] == "active" else "\U0001f6d1"
-            connected_bots = bots_using_skill(skill["name"])
-            attached_label = f" \u2190 {', '.join(connected_bots)}" if connected_bots else ""
-            lines.append(f"{status_icon} `{skill['name']}` ({skill_type_display}){attached_label}")
+        subcommand = context.args[0].lower()
 
-        await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+        if subcommand == "list":
+            if not attached_skills:
+                await update.message.reply_text("\U0001f9e9 No skills attached to this bot.")
+                return
+            skill_list = "\n".join(f"  - {s}" for s in attached_skills)
+            await update.message.reply_text(
+                f"\U0001f9e9 *Attached Skills:*\n```\n{skill_list}\n```",
+                parse_mode="Markdown",
+            )
+
+        elif subcommand == "attach":
+            if len(context.args) < 2:
+                await update.message.reply_text(
+                    "Usage: `/skills attach <name>`", parse_mode="Markdown"
+                )
+                return
+
+            from cclaw.skill import attach_skill_to_bot, is_skill, skill_status
+
+            skill_name = context.args[1]
+            if not is_skill(skill_name):
+                await update.message.reply_text(f"Skill '{skill_name}' not found.")
+                return
+
+            status = skill_status(skill_name)
+            if status == "inactive":
+                await update.message.reply_text(
+                    f"Skill '{skill_name}' is inactive. "
+                    f"Run `cclaw skills setup {skill_name}` first.",
+                    parse_mode="Markdown",
+                )
+                return
+
+            if skill_name in attached_skills:
+                await update.message.reply_text(f"Skill '{skill_name}' is already attached.")
+                return
+
+            attach_skill_to_bot(bot_name, skill_name)
+            bot_config.setdefault("skills", [])
+            if skill_name not in bot_config["skills"]:
+                bot_config["skills"].append(skill_name)
+            attached_skills = bot_config["skills"]
+            await update.message.reply_text(f"\U0001f9e9 Skill '{skill_name}' attached.")
+
+        elif subcommand == "detach":
+            if len(context.args) < 2:
+                await update.message.reply_text(
+                    "Usage: `/skills detach <name>`", parse_mode="Markdown"
+                )
+                return
+
+            from cclaw.skill import detach_skill_from_bot
+
+            skill_name = context.args[1]
+            if skill_name not in attached_skills:
+                await update.message.reply_text(f"Skill '{skill_name}' is not attached.")
+                return
+
+            detach_skill_from_bot(bot_name, skill_name)
+            if skill_name in bot_config.get("skills", []):
+                bot_config["skills"].remove(skill_name)
+            attached_skills = bot_config.get("skills", [])
+            await update.message.reply_text(f"\U0001f9e9 Skill '{skill_name}' detached.")
+
+        else:
+            await update.message.reply_text(
+                "Unknown subcommand. Use: list, attach, detach",
+            )
 
     async def cron_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /cron command - list or run cron jobs."""
@@ -696,93 +890,6 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         else:
             await update.message.reply_text(
                 "Unknown subcommand. Use: list, run",
-            )
-
-    async def skill_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle /skill command - manage skill attachments."""
-        nonlocal attached_skills
-        if not await check_authorization(update):
-            return
-
-        if not context.args:
-            text = (
-                "\U0001f9e9 *Skill Commands:*\n\n"
-                "`/skill list` - Show attached skills\n"
-                "`/skill attach <name>` - Attach a skill\n"
-                "`/skill detach <name>` - Detach a skill"
-            )
-            await update.message.reply_text(text, parse_mode="Markdown")
-            return
-
-        subcommand = context.args[0].lower()
-
-        if subcommand == "list":
-            if not attached_skills:
-                await update.message.reply_text("\U0001f9e9 No skills attached.")
-                return
-            skill_list = "\n".join(f"  - {s}" for s in attached_skills)
-            await update.message.reply_text(
-                f"\U0001f9e9 *Attached Skills:*\n```\n{skill_list}\n```",
-                parse_mode="Markdown",
-            )
-
-        elif subcommand == "attach":
-            if len(context.args) < 2:
-                await update.message.reply_text(
-                    "Usage: `/skill attach <name>`", parse_mode="Markdown"
-                )
-                return
-
-            from cclaw.skill import attach_skill_to_bot, is_skill, skill_status
-
-            skill_name = context.args[1]
-            if not is_skill(skill_name):
-                await update.message.reply_text(f"Skill '{skill_name}' not found.")
-                return
-
-            status = skill_status(skill_name)
-            if status == "inactive":
-                await update.message.reply_text(
-                    f"Skill '{skill_name}' is inactive. "
-                    f"Run `cclaw skill setup {skill_name}` first.",
-                    parse_mode="Markdown",
-                )
-                return
-
-            if skill_name in attached_skills:
-                await update.message.reply_text(f"Skill '{skill_name}' is already attached.")
-                return
-
-            attach_skill_to_bot(bot_name, skill_name)
-            bot_config.setdefault("skills", [])
-            if skill_name not in bot_config["skills"]:
-                bot_config["skills"].append(skill_name)
-            attached_skills = bot_config["skills"]
-            await update.message.reply_text(f"\U0001f9e9 Skill '{skill_name}' attached.")
-
-        elif subcommand == "detach":
-            if len(context.args) < 2:
-                await update.message.reply_text(
-                    "Usage: `/skill detach <name>`", parse_mode="Markdown"
-                )
-                return
-
-            from cclaw.skill import detach_skill_from_bot
-
-            skill_name = context.args[1]
-            if skill_name not in attached_skills:
-                await update.message.reply_text(f"Skill '{skill_name}' is not attached.")
-                return
-
-            detach_skill_from_bot(bot_name, skill_name)
-            if skill_name in bot_config.get("skills", []):
-                bot_config["skills"].remove(skill_name)
-            attached_skills = bot_config.get("skills", [])
-            await update.message.reply_text(f"\U0001f9e9 Skill '{skill_name}' detached.")
-
-        else:
-            await update.message.reply_text(
-                "Unknown subcommand. Use: list, attach, detach",
             )
 
     async def heartbeat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -874,7 +981,6 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         CommandHandler("cancel", cancel_handler),
         CommandHandler("streaming", streaming_handler),
         CommandHandler("skills", skills_handler),
-        CommandHandler("skill", skill_handler),
         CommandHandler("cron", cron_handler),
         CommandHandler("heartbeat", heartbeat_handler),
         MessageHandler(filters.PHOTO | filters.Document.ALL, file_handler),
@@ -892,8 +998,7 @@ BOT_COMMANDS = [
     BotCommand("send", "\U0001f4e4 Send workspace file"),
     BotCommand("status", "\U0001f4ca Session status"),
     BotCommand("model", "\U0001f9e0 Show or change model"),
-    BotCommand("skills", "\U0001f9e9 List all skills"),
-    BotCommand("skill", "\U0001f9e9 Manage skills"),
+    BotCommand("skills", "\U0001f9e9 Skill management"),
     BotCommand("cron", "\u23f0 Cron job management"),
     BotCommand("heartbeat", "\U0001f493 Heartbeat management"),
     BotCommand("streaming", "\U0001f4e1 Toggle streaming mode"),

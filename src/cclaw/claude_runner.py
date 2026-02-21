@@ -56,6 +56,8 @@ async def run_claude(
     session_key: str | None = None,
     model: str | None = None,
     skill_names: list[str] | None = None,
+    claude_session_id: str | None = None,
+    resume_session: bool = False,
 ) -> str:
     """Run Claude Code CLI as a subprocess and return its output.
 
@@ -67,6 +69,8 @@ async def run_claude(
         session_key: Optional key for process tracking (enables /cancel).
         model: Claude model to use (sonnet, opus, haiku).
         skill_names: Optional list of skill names to inject MCP config and env vars.
+        claude_session_id: Optional Claude Code session ID for continuity.
+        resume_session: If True and claude_session_id is set, use --resume instead of --session-id.
 
     Returns:
         The text output from Claude Code.
@@ -90,6 +94,11 @@ async def run_claude(
         "text",
     ]
 
+    if resume_session and claude_session_id:
+        command.extend(["--resume", claude_session_id])
+    elif claude_session_id:
+        command.extend(["--session-id", claude_session_id])
+
     if model:
         command.extend(["--model", model])
 
@@ -99,7 +108,11 @@ async def run_claude(
     # Inject MCP config and environment variables from skills
     environment = None
     if skill_names:
-        from cclaw.skill import collect_skill_environment_variables, merge_mcp_configs
+        from cclaw.skill import (
+            collect_skill_allowed_tools,
+            collect_skill_environment_variables,
+            merge_mcp_configs,
+        )
 
         mcp_config = merge_mcp_configs(skill_names)
         if mcp_config:
@@ -110,6 +123,11 @@ async def run_claude(
         skill_environment_variables = collect_skill_environment_variables(skill_names)
         if skill_environment_variables:
             environment = {**os.environ, **skill_environment_variables}
+
+        allowed_tools = collect_skill_allowed_tools(skill_names)
+        if allowed_tools:
+            command.extend(["--allowedTools", ",".join(allowed_tools)])
+            logger.info("Allowed tools from skills: %s", allowed_tools)
 
     logger.info("Running claude in %s: %s", working_directory, message[:100])
 
@@ -223,6 +241,8 @@ async def run_claude_streaming(
     session_key: str | None = None,
     model: str | None = None,
     skill_names: list[str] | None = None,
+    claude_session_id: str | None = None,
+    resume_session: bool = False,
 ) -> str:
     """Run Claude Code CLI with streaming output.
 
@@ -242,6 +262,8 @@ async def run_claude_streaming(
         session_key: Optional key for process tracking (enables /cancel).
         model: Claude model to use (sonnet, opus, haiku).
         skill_names: Optional list of skill names to inject MCP config and env vars.
+        claude_session_id: Optional Claude Code session ID for continuity.
+        resume_session: If True and claude_session_id is set, use --resume instead of --session-id.
 
     Returns:
         The complete text output from Claude Code.
@@ -267,6 +289,11 @@ async def run_claude_streaming(
         "--include-partial-messages",
     ]
 
+    if resume_session and claude_session_id:
+        command.extend(["--resume", claude_session_id])
+    elif claude_session_id:
+        command.extend(["--session-id", claude_session_id])
+
     if model:
         command.extend(["--model", model])
 
@@ -274,6 +301,14 @@ async def run_claude_streaming(
         command.extend(extra_arguments)
 
     environment = _prepare_skill_environment(working_directory, skill_names)
+
+    if skill_names:
+        from cclaw.skill import collect_skill_allowed_tools
+
+        allowed_tools = collect_skill_allowed_tools(skill_names)
+        if allowed_tools:
+            command.extend(["--allowedTools", ",".join(allowed_tools)])
+            logger.info("Allowed tools from skills: %s", allowed_tools)
 
     logger.info(
         "Running claude (streaming) in %s: %s",
