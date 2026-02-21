@@ -21,8 +21,8 @@ A multi-bot, file-based session system that runs locally on Mac (Intel/Apple Sil
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Skills](#skills)
-  - [iMessage](#imessage)
-  - [Apple Reminders](#apple-reminders)
+  - [💬 iMessage](#-imessage)
+  - [⏰ Apple Reminders](#-apple-reminders)
 - [Telegram Commands](#telegram-commands)
 - [File Handling](#file-handling)
 - [Tech Stack](#tech-stack)
@@ -93,7 +93,7 @@ cclaw has a **skill system** that extends your bot's capabilities with tools and
 - **Tool-based skills**: Include `skill.yaml` with CLI tools, MCP servers, or browser automation.
 - **Built-in skills**: Pre-packaged skill templates installable with `cclaw skills install <name>`.
 
-### iMessage
+### 💬 iMessage
 
 Read and send iMessage/SMS through your Telegram bot using the [imsg](https://github.com/steipete/imsg) CLI.
 
@@ -111,7 +111,7 @@ Send "hello" to John
 
 See the full guide: [iMessage Skill Guide](docs/skills/IMESSAGE.md)
 
-### Apple Reminders
+### ⏰ Apple Reminders
 
 Manage macOS Reminders through your Telegram bot using the [reminders-cli](https://github.com/keith/reminders-cli).
 

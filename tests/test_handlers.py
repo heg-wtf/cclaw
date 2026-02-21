@@ -140,15 +140,13 @@ async def test_reset_handler(bot_path, bot_config, mock_update):
 
 @pytest.mark.asyncio
 async def test_message_handler_calls_claude(bot_path, bot_config, mock_update):
-    """Message handler forwards to Claude with streaming and replies."""
+    """Message handler forwards to Claude and replies."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[16]
 
-    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
+    with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Claude response"
         mock_context = MagicMock()
-        mock_context.bot.edit_message_text = AsyncMock()
-        mock_context.bot.delete_message = AsyncMock()
         await message_handler.callback(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called()
@@ -294,16 +292,14 @@ async def test_model_handler_invalid_model(bot_path, bot_config, mock_update):
 
 @pytest.mark.asyncio
 async def test_message_handler_passes_model(bot_path, bot_config, mock_update):
-    """Message handler passes model to run_claude_streaming."""
+    """Message handler passes model to run_claude."""
     bot_config["model"] = "opus"
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[16]
 
-    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
+    with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
-        mock_context.bot.edit_message_text = AsyncMock()
-        mock_context.bot.delete_message = AsyncMock()
         await message_handler.callback(mock_update, mock_context)
 
     call_kwargs = mock_claude.call_args[1]
@@ -441,16 +437,14 @@ async def test_skills_handler_detach(bot_path, bot_config, mock_update):
 
 @pytest.mark.asyncio
 async def test_message_handler_passes_skill_names(bot_path, bot_config, mock_update):
-    """Message handler passes skill_names to run_claude_streaming when skills are attached."""
+    """Message handler passes skill_names to run_claude when skills are attached."""
     bot_config["skills"] = ["my-skill"]
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[16]
 
-    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
+    with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
-        mock_context.bot.edit_message_text = AsyncMock()
-        mock_context.bot.delete_message = AsyncMock()
         await message_handler.callback(mock_update, mock_context)
 
     call_kwargs = mock_claude.call_args[1]
@@ -463,11 +457,9 @@ async def test_message_handler_no_skill_names(bot_path, bot_config, mock_update)
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[16]
 
-    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
+    with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
-        mock_context.bot.edit_message_text = AsyncMock()
-        mock_context.bot.delete_message = AsyncMock()
         await message_handler.callback(mock_update, mock_context)
 
     call_kwargs = mock_claude.call_args[1]
@@ -612,7 +604,7 @@ async def test_message_handler_first_message_bootstraps(bot_path, bot_config, mo
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[16]
 
-    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
+    with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
         mock_context.bot.edit_message_text = AsyncMock()
@@ -646,7 +638,7 @@ async def test_message_handler_resume_session(bot_path, bot_config, mock_update)
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[16]
 
-    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
+    with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
         mock_context.bot.edit_message_text = AsyncMock()
@@ -680,7 +672,7 @@ async def test_message_handler_resume_fallback(bot_path, bot_config, mock_update
         # Second call (bootstrap) succeeds
         return "fallback response"
 
-    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
+    with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.side_effect = side_effect
         mock_context = MagicMock()
         mock_context.bot.edit_message_text = AsyncMock()
@@ -718,7 +710,7 @@ async def test_message_handler_first_message_with_history(bot_path, bot_config, 
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[16]
 
-    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
+    with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
         mock_context.bot.edit_message_text = AsyncMock()
@@ -798,7 +790,7 @@ async def test_message_handler_bootstrap_includes_memory(bot_path, bot_config, m
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[16]
 
-    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
+    with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
         mock_context.bot.edit_message_text = AsyncMock()
@@ -826,7 +818,7 @@ async def test_message_handler_bootstrap_memory_and_history(bot_path, bot_config
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[16]
 
-    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_claude:
+    with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
         mock_context.bot.edit_message_text = AsyncMock()
