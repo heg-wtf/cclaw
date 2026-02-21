@@ -106,6 +106,8 @@ See the full guide: [iMessage Skill Guide](docs/skills/IMESSAGE.md)
 | `/model <name>` | Change model (sonnet/opus/haiku) |
 | `/streaming` | Show streaming status |
 | `/streaming on/off` | Toggle streaming mode |
+| `/memory` | Show bot memory |
+| `/memory clear` | Clear bot memory |
 | `/skills` | List all skills (installed + available builtins) |
 | `/skills attach <name>` | Attach a skill |
 | `/skills detach <name>` | Detach a skill |
@@ -178,6 +180,11 @@ cclaw cron enable <bot> <job>  # Enable a cron job
 cclaw cron disable <bot> <job> # Disable a cron job
 cclaw cron run <bot> <job>     # Run a cron job immediately (test)
 
+# Memory management
+cclaw memory show <bot>        # Show memory contents
+cclaw memory edit <bot>        # Edit MEMORY.md ($EDITOR)
+cclaw memory clear <bot>       # Clear memory
+
 # Heartbeat management
 cclaw heartbeat status         # Show heartbeat status for all bots
 cclaw heartbeat enable <bot>   # Enable heartbeat
@@ -194,6 +201,9 @@ cclaw status                   # Show status
 # Logs
 cclaw logs                     # Show today's log
 cclaw logs -f                  # Tail mode
+cclaw logs clean               # Delete logs older than 7 days
+cclaw logs clean -d 30         # Keep last 30 days
+cclaw logs clean --dry-run     # Preview without deleting
 ```
 
 ## Project Structure
@@ -230,6 +240,7 @@ Configuration and session data are stored in `~/.cclaw/`. Override the path with
 │   └── <bot-name>/
 │       ├── bot.yaml
 │       ├── CLAUDE.md
+│       ├── MEMORY.md             # Bot long-term memory (shared across all sessions)
 │       ├── cron.yaml             # Cron job config (optional)
 │       ├── cron_sessions/        # Cron job working directories
 │       ├── heartbeat_sessions/   # Heartbeat working directory

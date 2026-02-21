@@ -115,9 +115,25 @@
 - [x] 테스트: session/claude_runner/handlers 세션 연속성 테스트 추가 (21개)
 - [x] docs/skills/IMESSAGE.md 작성
 
+### Phase 12: 봇 레벨 장기 메모리
+- [x] `session.py`: 메모리 CRUD 함수 (`memory_file_path`, `load_bot_memory`, `save_bot_memory`, `clear_bot_memory`)
+- [x] `skill.py`: `compose_claude_md()`에 `bot_path` 파라미터 + Memory 지시사항 섹션 추가
+- [x] `config.py`: `save_bot_config()`에서 `bot_path` 전달
+- [x] `skill.py`: `regenerate_bot_claude_md()`에서 `bot_path` 전달
+- [x] `handlers.py`: `_prepare_session_context()`에 `bot_path` 파라미터 + 메모리 프롬프트 주입 (메모리 → 대화 기록 → 메시지)
+- [x] `handlers.py`: `/memory` 커맨드 핸들러 (표시, clear)
+- [x] `handlers.py`: `/help`, `BOT_COMMANDS` 업데이트
+- [x] `cli.py`: `cclaw memory show|edit|clear` CLI 서브커맨드
+- [x] 테스트 (`test_session.py`: 7개, `test_handlers.py`: 5개 추가)
+
+### Phase 13: 로그 정리
+- [x] `cli.py`: `logs` 커맨드를 Typer 서브커맨드 그룹으로 전환 (`invoke_without_command=True`)
+- [x] `cli.py`: `cclaw logs clean` 커맨드 (--days, --dry-run 옵션)
+- [x] 기존 `cclaw logs` / `cclaw logs -f` 동작 유지
+
 ## 미구현 (향후 고려)
 
-### Phase 12: 고급 기능
+### Phase 14: 고급 기능
 - [ ] 세션 내보내기/가져오기
 - [ ] 봇 간 세션 공유
 - [ ] 웹훅 모드 (Long Polling 대안)
