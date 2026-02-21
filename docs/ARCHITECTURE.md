@@ -116,7 +116,21 @@ DB 없이 디렉토리 구조로 세션을 관리한다.
 - `cclaw skills` 명령에서 미설치 빌트인 스킬도 함께 표시
 - Telegram `/skills` 핸들러에서도 미설치 빌트인 스킬 표시
 
-### 11. 스트리밍 응답
+### 11. 세션 연속성
+
+매 메시지마다 `claude -p`를 새 프로세스로 실행하지만, 대화 맥락을 유지한다.
+
+- **첫 메시지**: `--session-id <uuid>`로 새 Claude Code 세션 시작
+  - conversation.md에서 최근 20턴을 부트스트랩 프롬프트로 포함
+- **이후 메시지**: `--resume <session_id>`로 동일 세션 이어가기
+- **폴백**: `--resume` 실패(세션 만료) 시 자동으로 부트스트랩으로 재시도
+- **초기화**: `/reset`, `/resetall` 시 세션 ID도 함께 삭제
+- 세션 ID는 `sessions/chat_<id>/.claude_session_id` 파일에 UUID로 저장
+- `_prepare_session_context()`: resume/bootstrap 결정
+- `_call_with_resume_fallback()`: resume 실패 시 폴백 처리
+- cron, heartbeat는 one-shot 실행이므로 세션 연속성 불필요
+
+### 12. 스트리밍 응답
 
 Claude Code의 출력을 실시간으로 Telegram에 전달한다. 사용자가 on/off 토글 가능.
 
@@ -151,7 +165,7 @@ cli.py
 │   │   ├── heartbeat.py (get/enable/disable_heartbeat, execute_heartbeat)
 │   │   ├── skill.py (attach/detach, is_skill, skill_status)
 │   │   ├── builtin_skills (list_builtin_skills)
-│   │   ├── session.py
+│   │   ├── session.py (ensure_session, reset_session, get/save/clear_claude_session_id, load_conversation_history)
 │   │   ├── config.py (save_bot_config, VALID_MODELS)
 │   │   └── utils.py
 │   └── utils.py
@@ -173,9 +187,11 @@ cli.py
 
 ### 텍스트 메시지
 ```
-수신 → 권한 체크 → 세션 Lock (큐잉) → ensure_session → streaming_enabled 분기
-  → (스트리밍 on) run_claude_streaming → 토큰별 메시지 편집 → Markdown→HTML 변환 → 최종 메시지 교체/분할 전송
-  → (스트리밍 off) typing 액션 4초 주기 → run_claude → Markdown→HTML 변환 → 일괄 전송
+수신 → 권한 체크 → 세션 Lock (큐잉) → ensure_session → _prepare_session_context (resume/bootstrap 결정)
+  → _call_with_resume_fallback → streaming_enabled 분기
+    → (스트리밍 on) run_claude_streaming (--resume 또는 --session-id) → 토큰별 메시지 편집 → Markdown→HTML 변환 → 최종 메시지 교체/분할 전송
+    → (스트리밍 off) typing 액션 4초 주기 → run_claude (--resume 또는 --session-id) → Markdown→HTML 변환 → 일괄 전송
+  → (resume 실패 시) clear_session_id → bootstrap 재시도
 ```
 
 ### 파일 (사진/문서)

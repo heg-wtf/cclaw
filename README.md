@@ -212,6 +212,7 @@ Configuration and session data are stored in `~/.cclaw/`. Override the path with
 │           └── chat_<id>/
 │               ├── CLAUDE.md
 │               ├── conversation.md
+│               ├── .claude_session_id  # Claude Code session ID (for --resume)
 │               └── workspace/
 ├── skills/
 │   └── <skill-name>/

@@ -243,6 +243,78 @@ attach/detach 후 로컬 `bot_config["skills"]`를 직접 갱신하여 메모리
 `skill.yaml`의 `install_hints` 필드(dict)로 누락 도구의 설치 방법을 안내한다.
 `check_skill_requirements()`가 `install_hints`를 읽어 에러 메시지에 `Install: <hint>` 형식으로 포함한다.
 
+## 세션 연속성 (conversation.md 부트스트랩 + --resume)
+
+### 문제
+
+`claude -p`는 매 호출마다 새 프로세스로 실행되어 이전 대화를 기억하지 못한다.
+iMessage 스킬처럼 멀티턴 흐름이 필요한 경우 맥락 단절이 발생한다.
+(예: "영선 메시지 보여줘" → "이 번호로 뭘 하고 싶으신가요?")
+
+### 해결 방식
+
+두 가지 메커니즘을 조합한다:
+
+1. **conversation.md 부트스트랩**: 첫 메시지 시 conversation.md에서 최근 20턴(`MAX_CONVERSATION_HISTORY_TURNS`)을 프롬프트에 포함
+2. **`--resume <session_id>`**: Claude Code의 세션 이어가기 플래그로 이후 메시지에서 맥락 유지
+
+### 세션 ID 관리
+
+- `.claude_session_id` 파일에 UUID를 저장 (`sessions/chat_<id>/.claude_session_id`)
+- `get_claude_session_id()`: 파일에서 세션 ID 읽기 (없으면 None)
+- `save_claude_session_id()`: 세션 ID를 파일에 저장
+- `clear_claude_session_id()`: 세션 ID 파일 삭제 (`missing_ok=True`)
+
+### conversation.md 히스토리 파싱
+
+`load_conversation_history()`가 conversation.md를 파싱한다.
+
+- 정규식 `re.split(r"(?=\n## (?:user|assistant) \()", content)`로 섹션 분리
+- `## user (timestamp)` 또는 `## assistant (timestamp)` 형식의 섹션을 인식
+- 최근 `max_turns`개 섹션만 반환
+- conversation.md가 없거나 빈 경우 None 반환
+
+### 핸들러 흐름
+
+`_prepare_session_context(session_directory, user_message)`:
+1. `get_claude_session_id()` 호출
+2. 세션 ID 있으면: `resume_session=True`, 원본 메시지 그대로 사용
+3. 세션 ID 없으면: 새 UUID 생성 → `load_conversation_history()` → 부트스트랩 프롬프트 조합 → `save_claude_session_id()`
+
+`_call_with_resume_fallback(send_function, ...)`:
+1. 먼저 설정된 대로 호출 (resume 또는 new session)
+2. `resume_session=True`인데 `RuntimeError` 발생 시:
+   - `clear_claude_session_id()` 호출
+   - 새 UUID 생성 → 부트스트랩 프롬프트로 재구성
+   - `resume_session=False`로 재시도
+
+### Claude Runner 플래그
+
+`run_claude()`와 `run_claude_streaming()`에 추가된 파라미터:
+- `claude_session_id: str | None = None`
+- `resume_session: bool = False`
+
+커맨드 빌드:
+- `resume_session=True` + `claude_session_id` → `--resume <id>`
+- `resume_session=False` + `claude_session_id` → `--session-id <id>`
+
+### 초기화
+
+`reset_session()`과 `reset_all_session()`에서 `clear_claude_session_id()` 호출을 추가하여
+`/reset` 및 `/resetall` 시 세션 ID도 함께 삭제한다.
+
+## macOS 연락처 조회 (osascript)
+
+iMessage 스킬에서 이름으로 연락처를 조회할 때 `osascript`를 사용한다.
+
+```bash
+osascript -e 'tell application "Contacts" to get {name, value of phones} of every person whose name contains "검색어"'
+```
+
+- 부분 매칭 지원: "영선"으로 검색하면 "임영선"도 매칭
+- 동명이인 시 사용자에게 확인 요청
+- skill.yaml의 `allowed_tools`에 `Bash(osascript:*)` 추가 필요
+
 ## Heartbeat (주기적 상황 인지)
 
 ### 설정 위치

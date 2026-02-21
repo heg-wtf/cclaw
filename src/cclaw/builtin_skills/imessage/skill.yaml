@@ -8,3 +8,5 @@ install_hints:
   imsg: "Download from https://github.com/steipete/imsg/releases"
 allowed_tools:
   - "Bash(imsg:*)"
+  - "Bash(watch:*)"
+  - "Bash(osascript:*)"
