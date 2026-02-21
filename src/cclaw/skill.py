@@ -268,10 +268,13 @@ def compose_claude_md(
     personality: str,
     description: str,
     skill_names: list[str] | None = None,
+    bot_path: Path | None = None,
 ) -> str:
     """Compose a full CLAUDE.md combining bot profile and skill content.
 
     When skill_names is empty or None, output is identical to generate_claude_md().
+    When bot_path is provided, a Memory section is appended with instructions
+    for the bot to save and retrieve long-term memories.
     """
     sections = [
         f"# {bot_name}",
@@ -288,6 +291,17 @@ def compose_claude_md(
         "- Always ask for confirmation before executing dangerous commands "
         "(delete, restart, etc.).",
     ]
+
+    if bot_path is not None:
+        memory_path = bot_path / "MEMORY.md"
+        sections.append("")
+        sections.append("## Memory")
+        sections.append(
+            "- 사용자가 무언가를 기억하라고 요청하면(언어 무관), MEMORY.md 파일에 추가하라."
+        )
+        sections.append(f"- MEMORY.md 경로: {memory_path}")
+        sections.append("- 기존 내용을 유지하고, 새 항목을 추가하라.")
+        sections.append("- 카테고리별로 정리하라 (개인정보, 선호사항, 프로젝트, 기타).")
 
     if skill_names:
         active_skills = []
@@ -317,13 +331,15 @@ def regenerate_bot_claude_md(bot_name: str) -> None:
     if not bot_config:
         return
 
+    directory = bot_directory(bot_name)
     content = compose_claude_md(
         bot_name=bot_name,
         personality=bot_config.get("personality", ""),
         description=bot_config.get("description", ""),
         skill_names=bot_config.get("skills", []),
+        bot_path=directory,
     )
-    claude_md_path = bot_directory(bot_name) / "CLAUDE.md"
+    claude_md_path = directory / "CLAUDE.md"
     claude_md_path.write_text(content)
 
 

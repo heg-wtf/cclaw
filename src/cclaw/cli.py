@@ -35,6 +35,8 @@ skill_app = typer.Typer(help="Skill management", invoke_without_command=True)
 app.add_typer(skill_app, name="skills")
 cron_app = typer.Typer(help="Cron job management")
 app.add_typer(cron_app, name="cron")
+memory_app = typer.Typer(help="Bot memory management")
+app.add_typer(memory_app, name="memory")
 heartbeat_app = typer.Typer(help="Heartbeat management")
 app.add_typer(heartbeat_app, name="heartbeat")
 
@@ -219,12 +221,20 @@ def skills_callback(context: typer.Context) -> None:
             console.print(f"\nInstall built-in skills: [cyan]cclaw skills install <{names}>[/cyan]")
 
 
-@app.command()
-def logs(
+logs_app = typer.Typer(help="Log management", invoke_without_command=True)
+app.add_typer(logs_app, name="logs")
+
+
+@logs_app.callback()
+def logs_callback(
+    context: typer.Context,
     lines: int = typer.Option(50, "--lines", "-n", help="Number of lines to show"),
     follow: bool = typer.Option(False, "--follow", "-f", help="Follow log output"),
 ) -> None:
     """Show today's log file."""
+    if context.invoked_subcommand is not None:
+        return
+
     import subprocess
     from datetime import datetime
 
@@ -250,6 +260,61 @@ def logs(
         subprocess.run(command)
     except KeyboardInterrupt:
         pass
+
+
+@logs_app.command("clean")
+def logs_clean(
+    days: int = typer.Option(7, "--days", "-d", help="Keep logs from the last N days"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show files to delete without deleting"),
+) -> None:
+    """Delete old log files, keeping the last N days (default: 7)."""
+    from datetime import datetime, timedelta
+
+    from rich.console import Console
+
+    from cclaw.config import cclaw_home
+
+    console = Console()
+    log_directory = cclaw_home() / "logs"
+
+    if not log_directory.exists():
+        console.print("[yellow]No logs directory found.[/yellow]")
+        return
+
+    log_files = sorted(log_directory.glob("cclaw-*.log"))
+    if not log_files:
+        console.print("[yellow]No log files found.[/yellow]")
+        return
+
+    cutoff_date = datetime.now() - timedelta(days=days)
+    cutoff_string = cutoff_date.strftime("%y%m%d")
+
+    files_to_delete = []
+    for log_file in log_files:
+        # Extract YYMMDD from filename: cclaw-YYMMDD.log
+        date_part = log_file.stem.replace("cclaw-", "")
+        if date_part < cutoff_string:
+            files_to_delete.append(log_file)
+
+    if not files_to_delete:
+        console.print(f"[green]No log files older than {days} days. Nothing to clean.[/green]")
+        console.print(f"  Total log files: {len(log_files)}")
+        return
+
+    if dry_run:
+        console.print(f"[cyan]Dry run: would delete {len(files_to_delete)} file(s):[/cyan]")
+        for log_file in files_to_delete:
+            size = log_file.stat().st_size
+            console.print(f"  {log_file.name} ({size:,} bytes)")
+        return
+
+    for log_file in files_to_delete:
+        log_file.unlink()
+
+    console.print(
+        f"[green]Deleted {len(files_to_delete)} log file(s) older than {days} days.[/green]"
+    )
+    console.print(f"  Remaining: {len(log_files) - len(files_to_delete)} file(s)")
 
 
 @bot_app.command("model")
@@ -850,6 +915,80 @@ def cron_run(
     except Exception as error:
         console.print(f"[red]Error: {error}[/red]")
         raise typer.Exit(1)
+
+
+# --- Memory subcommands ---
+
+
+@memory_app.command("show")
+def memory_show(bot: str = typer.Argument(help="Bot name")) -> None:
+    """Show bot memory contents."""
+    from rich.console import Console
+    from rich.markdown import Markdown
+
+    from cclaw.config import bot_directory, load_bot_config
+    from cclaw.session import load_bot_memory
+
+    console = Console()
+
+    if not load_bot_config(bot):
+        console.print(f"[red]Bot '{bot}' not found.[/red]")
+        raise typer.Exit(1)
+
+    content = load_bot_memory(bot_directory(bot))
+    if not content:
+        console.print(f"[yellow]No memories saved for '{bot}'.[/yellow]")
+        return
+
+    console.print(Markdown(content))
+
+
+@memory_app.command("edit")
+def memory_edit(bot: str = typer.Argument(help="Bot name")) -> None:
+    """Edit bot memory in the default editor."""
+    import os
+    import subprocess
+
+    from rich.console import Console
+
+    from cclaw.config import bot_directory, load_bot_config
+    from cclaw.session import memory_file_path
+
+    console = Console()
+
+    if not load_bot_config(bot):
+        console.print(f"[red]Bot '{bot}' not found.[/red]")
+        raise typer.Exit(1)
+
+    path = memory_file_path(bot_directory(bot))
+    if not path.exists():
+        path.write_text("# Memory\n\n")
+
+    editor = os.environ.get("EDITOR", "vi")
+    subprocess.run([editor, str(path)])
+
+
+@memory_app.command("clear")
+def memory_clear(bot: str = typer.Argument(help="Bot name")) -> None:
+    """Clear bot memory."""
+    from rich.console import Console
+
+    from cclaw.config import bot_directory, load_bot_config
+    from cclaw.session import clear_bot_memory
+
+    console = Console()
+
+    if not load_bot_config(bot):
+        console.print(f"[red]Bot '{bot}' not found.[/red]")
+        raise typer.Exit(1)
+
+    confirmed = typer.confirm(f"Clear all memory for '{bot}'?")
+    if not confirmed:
+        console.print("[yellow]Cancelled.[/yellow]")
+        return
+
+    clear_bot_memory(bot_directory(bot))
+    console.print(f"[green]Memory cleared for '{bot}'.[/green]")
 
 
 # --- Heartbeat subcommands ---

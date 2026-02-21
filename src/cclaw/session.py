@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 CLAUDE_SESSION_ID_FILE = ".claude_session_id"
+MEMORY_FILE_NAME = "MEMORY.md"
 MAX_CONVERSATION_HISTORY_TURNS = 20
 
 
@@ -136,3 +137,35 @@ def list_workspace_files(session_directory: Path) -> list[str]:
         if file_path.is_file():
             files.append(str(file_path.relative_to(workspace)))
     return files
+
+
+# --- Bot-level memory ---
+
+
+def memory_file_path(bot_path: Path) -> Path:
+    """Return the path to the bot's MEMORY.md file."""
+    return bot_path / MEMORY_FILE_NAME
+
+
+def load_bot_memory(bot_path: Path) -> str | None:
+    """Load the bot's MEMORY.md content.
+
+    Returns None if MEMORY.md doesn't exist or is empty.
+    """
+    path = memory_file_path(bot_path)
+    if not path.exists():
+        return None
+    content = path.read_text()
+    if not content.strip():
+        return None
+    return content
+
+
+def save_bot_memory(bot_path: Path, content: str) -> None:
+    """Save content to the bot's MEMORY.md file."""
+    memory_file_path(bot_path).write_text(content)
+
+
+def clear_bot_memory(bot_path: Path) -> None:
+    """Delete the bot's MEMORY.md file."""
+    memory_file_path(bot_path).unlink(missing_ok=True)
