@@ -14,6 +14,25 @@
 Personal AI assistant powered by Telegram + Claude Code.
 A multi-bot, file-based session system that runs locally on Mac (Intel/Apple Silicon).
 
+## Table of Contents
+
+- [Design Principles](#design-principles)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Skills](#skills)
+  - [iMessage](#imessage)
+  - [Apple Reminders](#apple-reminders)
+- [Telegram Commands](#telegram-commands)
+- [File Handling](#file-handling)
+- [Tech Stack](#tech-stack)
+- [CLI Commands](#cli-commands)
+- [Project Structure](#project-structure)
+- [Runtime Data](#runtime-data)
+- [Documentation](#documentation)
+- [Testing](#testing)
+- [License](#license)
+
 ## Design Principles
 
 - **Local First**: No server required. Long Polling. No SSL or public IP needed.
