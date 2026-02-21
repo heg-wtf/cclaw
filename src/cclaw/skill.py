@@ -290,6 +290,13 @@ def compose_claude_md(
         "- Save generated files to the workspace/ directory.",
         "- Always ask for confirmation before executing dangerous commands "
         "(delete, restart, etc.).",
+        "- **절대로 Markdown 표(table)를 사용하지 마라.** "
+        "Telegram에서 표는 깨진다. "
+        "대신 이모지 + 한 줄씩 나열하라. "
+        "예시:\n"
+        "  🌡 최저 -2°C / 최고 7°C\n"
+        "  🌧 오전 한때 비 (5mm 미만)\n"
+        "  ☁️ 오후~밤 차차 맑아짐",
     ]
 
     if bot_path is not None:

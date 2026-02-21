@@ -31,6 +31,7 @@ from cclaw.config import (
     DEFAULT_STREAMING,
     VALID_MODELS,
     is_valid_model,
+    model_display_name,
     save_bot_config,
 )
 from cclaw.session import (
@@ -240,9 +241,12 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             return
 
         if not context.args:
-            model_list = " / ".join(f"*{m}*" if m == current_model else m for m in VALID_MODELS)
+            model_list = " / ".join(
+                f"*{model_display_name(m)}*" if m == current_model else model_display_name(m)
+                for m in VALID_MODELS
+            )
             text = (
-                f"\U0001f9e0 Current model: *{current_model}*\n\n"
+                f"\U0001f9e0 Current model: *{model_display_name(current_model)}*\n\n"
                 f"Available: {model_list}\n"
                 "Usage: `/model sonnet`"
             )
@@ -261,7 +265,8 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         bot_config["model"] = new_model
         save_bot_config(bot_name, bot_config)
         await update.message.reply_text(
-            f"\U0001f9e0 Model changed to *{new_model}*", parse_mode="Markdown"
+            f"\U0001f9e0 Model changed to *{model_display_name(new_model)}*",
+            parse_mode="Markdown",
         )
 
     async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1053,3 +1058,4 @@ BOT_COMMANDS = [
 async def set_bot_commands(application: Application) -> None:
     """Register slash commands with Telegram (called via post_init)."""
     await application.bot.set_my_commands(BOT_COMMANDS)
+    logger.info("Registered %d bot commands with Telegram", len(BOT_COMMANDS))
