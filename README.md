@@ -21,18 +21,6 @@ A multi-bot, file-based session system that runs locally on Mac (Intel/Apple Sil
 - **Claude Code Delegation**: No direct LLM API calls. Runs `claude -p` as a subprocess.
 - **CLI First**: Everything from onboarding to bot management is done in the terminal.
 
-## Tech Stack
-
-| Component | Choice |
-|-----------|--------|
-| Package Manager | uv |
-| CLI | Typer + Rich |
-| Telegram | python-telegram-bot v21+ |
-| Configuration | PyYAML |
-| Cron Scheduler | croniter |
-| AI Engine | Claude Code CLI (`claude -p`, streaming) |
-| Process Manager | launchd (macOS) |
-
 ## Requirements
 
 - Python >= 3.11
@@ -77,6 +65,79 @@ cclaw start --daemon     # Background (launchd)
 cclaw stop               # Stop daemon
 cclaw status             # Show running status
 ```
+
+## Skills
+
+cclaw has a **skill system** that extends your bot's capabilities with tools and knowledge. Skills are modular — attach or detach them per bot as needed.
+
+- **Markdown skills**: Just a `SKILL.md` file. Adds instructions/knowledge to the bot.
+- **Tool-based skills**: Include `skill.yaml` with CLI tools, MCP servers, or browser automation.
+- **Built-in skills**: Pre-packaged skill templates installable with `cclaw skills install <name>`.
+
+### iMessage
+
+Read and send iMessage/SMS through your Telegram bot using the [imsg](https://github.com/steipete/imsg) CLI.
+
+```bash
+cclaw skills install imessage
+cclaw skills setup imessage
+```
+
+Then in Telegram:
+```
+/skills attach imessage
+Show me recent messages
+Send "hello" to John
+```
+
+See the full guide: [iMessage Skill Guide](docs/skills/IMESSAGE.md)
+
+## Telegram Commands
+
+| Command | Description |
+|---------|-------------|
+| `/start` | Bot introduction |
+| `/reset` | Clear conversation (keep workspace) |
+| `/resetall` | Delete entire session |
+| `/files` | List workspace files |
+| `/send <filename>` | Send workspace file |
+| `/status` | Session status |
+| `/model` | Show current model |
+| `/model <name>` | Change model (sonnet/opus/haiku) |
+| `/streaming` | Show streaming status |
+| `/streaming on/off` | Toggle streaming mode |
+| `/skills` | List all skills (installed + available builtins) |
+| `/skills attach <name>` | Attach a skill |
+| `/skills detach <name>` | Detach a skill |
+| `/cron list` | List cron jobs |
+| `/cron run <name>` | Run a cron job now |
+| `/heartbeat` | Heartbeat status |
+| `/heartbeat on` | Enable heartbeat |
+| `/heartbeat off` | Disable heartbeat |
+| `/heartbeat run` | Run heartbeat now |
+| `/cancel` | Stop running process |
+| `/version` | Version info |
+| `/help` | Show commands |
+
+## File Handling
+
+Send photos or documents to the bot and they are automatically saved to the workspace and forwarded to Claude Code.
+If a caption is included, it is used as the prompt.
+Use the `/send` command to retrieve workspace files back via Telegram.
+
+---
+
+## Tech Stack
+
+| Component | Choice |
+|-----------|--------|
+| Package Manager | uv |
+| CLI | Typer + Rich |
+| Telegram | python-telegram-bot v21+ |
+| Configuration | PyYAML |
+| Cron Scheduler | croniter |
+| AI Engine | Claude Code CLI (`claude -p`, streaming) |
+| Process Manager | launchd (macOS) |
 
 ## CLI Commands
 
@@ -134,39 +195,6 @@ cclaw status                   # Show status
 cclaw logs                     # Show today's log
 cclaw logs -f                  # Tail mode
 ```
-
-## Telegram Commands
-
-| Command | Description |
-|---------|-------------|
-| `/start` | Bot introduction |
-| `/reset` | Clear conversation (keep workspace) |
-| `/resetall` | Delete entire session |
-| `/files` | List workspace files |
-| `/send <filename>` | Send workspace file |
-| `/status` | Session status |
-| `/model` | Show current model |
-| `/model <name>` | Change model (sonnet/opus/haiku) |
-| `/streaming` | Show streaming status |
-| `/streaming on/off` | Toggle streaming mode |
-| `/skills` | List all skills (installed + available builtins) |
-| `/skills attach <name>` | Attach a skill |
-| `/skills detach <name>` | Detach a skill |
-| `/cron list` | List cron jobs |
-| `/cron run <name>` | Run a cron job now |
-| `/heartbeat` | Heartbeat status |
-| `/heartbeat on` | Enable heartbeat |
-| `/heartbeat off` | Disable heartbeat |
-| `/heartbeat run` | Run heartbeat now |
-| `/cancel` | Stop running process |
-| `/version` | Version info |
-| `/help` | Show commands |
-
-## File Handling
-
-Send photos or documents to the bot and they are automatically saved to the workspace and forwarded to Claude Code.
-If a caption is included, it is used as the prompt.
-Use the `/send` command to retrieve workspace files back via Telegram.
 
 ## Project Structure
 
@@ -226,7 +254,7 @@ Configuration and session data are stored in `~/.cclaw/`. Override the path with
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Technical Notes](docs/TECHNICAL-NOTES.md)
-- [iMessage Skill Guide](docs/IMESSAGE-SKILL.md)
+- [iMessage Skill Guide](docs/skills/IMESSAGE.md)
 
 ## Testing
 
