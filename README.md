@@ -1,3 +1,12 @@
+```
+  ██████╗ ██████╗██╗      █████╗ ██╗    ██╗
+ ██╔════╝██╔════╝██║     ██╔══██╗██║    ██║
+ ██║     ██║     ██║     ███████║██║ █╗ ██║
+ ██║     ██║     ██║     ██╔══██║██║███╗██║
+ ╚██████╗╚██████╗███████╗██║  ██║╚███╔███╔╝
+  ╚═════╝ ╚═════╝╚══════╝╚═╝  ╚═╝ ╚══╝╚══╝
+```
+
 # cclaw (claude-claw)
 
 > [한국어](README.ko.md)
@@ -90,12 +99,15 @@ cclaw bot streaming <name>     # Show streaming status
 cclaw bot streaming <name> off # Toggle streaming on/off
 
 # Skill management
-cclaw skills                   # List all skills (including unattached)
-cclaw skill add                # Create a skill interactively
-cclaw skill remove <name>      # Remove a skill
-cclaw skill setup <name>       # Setup skill (check requirements, activate)
-cclaw skill test <name>        # Test skill requirements
-cclaw skill edit <name>        # Edit SKILL.md ($EDITOR)
+cclaw skills                   # List all skills (installed + available builtins)
+cclaw skills add               # Create a skill interactively
+cclaw skills remove <name>     # Remove a skill
+cclaw skills setup <name>      # Setup skill (check requirements, activate)
+cclaw skills test <name>       # Test skill requirements
+cclaw skills edit <name>       # Edit SKILL.md ($EDITOR)
+cclaw skills builtins          # List available built-in skills
+cclaw skills install           # List available built-in skills
+cclaw skills install <name>    # Install a built-in skill
 
 # Cron job management
 cclaw cron list <bot>          # List cron jobs
@@ -137,9 +149,9 @@ cclaw logs -f                  # Tail mode
 | `/model <name>` | Change model (sonnet/opus/haiku) |
 | `/streaming` | Show streaming status |
 | `/streaming on/off` | Toggle streaming mode |
-| `/skills` | List all skills (including unattached) |
-| `/skill attach <name>` | Attach a skill |
-| `/skill detach <name>` | Detach a skill |
+| `/skills` | List all skills (installed + available builtins) |
+| `/skills attach <name>` | Attach a skill |
+| `/skills detach <name>` | Detach a skill |
 | `/cron list` | List cron jobs |
 | `/cron run <name>` | Run a cron job now |
 | `/heartbeat` | Heartbeat status |
@@ -169,7 +181,10 @@ cclaw/
 │   ├── session.py          # Session directory management
 │   ├── handlers.py         # Telegram handler factory
 │   ├── bot_manager.py      # Multi-bot lifecycle
-│   ├── skill.py            # Skill management (create/attach/MCP/CLAUDE.md composition)
+│   ├── skill.py            # Skill management (create/attach/install/MCP/CLAUDE.md composition)
+│   ├── builtin_skills/     # Built-in skill templates (imessage, ...)
+│   │   ├── __init__.py     # Built-in skill registry
+│   │   └── imessage/       # iMessage skill (imsg CLI)
 │   ├── cron.py             # Cron schedule automation
 │   ├── heartbeat.py        # Heartbeat (periodic situation awareness)
 │   └── utils.py            # Utilities
@@ -201,10 +216,16 @@ Configuration and session data are stored in `~/.cclaw/`. Override the path with
 ├── skills/
 │   └── <skill-name>/
 │       ├── SKILL.md          # Skill instructions (required)
-│       ├── skill.yaml        # Skill config (tool-based skills only)
+│       ├── skill.yaml        # Skill config (tool-based skills: type, status, required_commands, install_hints)
 │       └── mcp.json          # MCP server config (MCP skills only)
 └── logs/
 ```
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Technical Notes](docs/TECHNICAL-NOTES.md)
+- [iMessage Skill Guide](docs/IMESSAGE-SKILL.md)
 
 ## Testing
 
