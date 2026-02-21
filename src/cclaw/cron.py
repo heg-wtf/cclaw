@@ -16,6 +16,8 @@ from cclaw.config import bot_directory
 
 logger = logging.getLogger(__name__)
 
+CRON_CHECK_INTERVAL_SECONDS = 30
+
 
 # --- Data structures & CRUD ---
 
@@ -261,7 +263,6 @@ async def run_cron_scheduler(
         application: The telegram Application instance.
         stop_event: Event that signals shutdown.
     """
-    check_interval = 30  # seconds
     last_run_times: dict[str, datetime] = {}
 
     logger.info("Cron scheduler started for bot '%s'", bot_name)
@@ -324,7 +325,7 @@ async def run_cron_scheduler(
 
         # Wait for the next check interval or stop
         try:
-            await asyncio.wait_for(stop_event.wait(), timeout=check_interval)
+            await asyncio.wait_for(stop_event.wait(), timeout=CRON_CHECK_INTERVAL_SECONDS)
             break  # stop_event was set
         except asyncio.TimeoutError:
             pass  # Continue loop

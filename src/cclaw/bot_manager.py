@@ -8,6 +8,7 @@ import os
 import signal
 import subprocess
 import sys
+from contextlib import suppress
 from pathlib import Path
 
 from rich.console import Console
@@ -123,10 +124,8 @@ async def _run_bots(bot_names: list[str] | None = None) -> None:
             except Exception as error:
                 console.print(f"[red]Failed to start {name}: {error}[/red]")
                 logger.error("Failed to start bot %s: %s", name, error)
-                try:
+                with suppress(Exception):
                     await application.shutdown()
-                except Exception:
-                    pass
 
         if not started_applications:
             console.print("[red]No bots started successfully.[/red]")
@@ -228,6 +227,7 @@ def _start_daemon() -> None:
     log_directory = cclaw_home() / "logs"
     log_directory.mkdir(parents=True, exist_ok=True)
 
+    newline = "\n"
     plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -236,7 +236,8 @@ def _start_daemon() -> None:
     <string>{LAUNCHD_LABEL}</string>
     <key>ProgramArguments</key>
     <array>
-        {"".join(f"        <string>{arg}</string>{chr(10)}" for arg in cclaw_arguments)}    </array>
+        {newline.join(f"        <string>{arg}</string>" for arg in cclaw_arguments)}
+    </array>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
