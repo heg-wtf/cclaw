@@ -65,15 +65,15 @@ pytest
 ## 코드 구조
 
 - `src/cclaw/cli.py` - Typer 앱 엔트리포인트, ASCII 아트 배너, 모든 커맨드 정의 (skills, bot, cron, heartbeat, memory 서브커맨드 포함)
-- `src/cclaw/config.py` - `~/.cclaw/` 설정 관리 (YAML)
+- `src/cclaw/config.py` - `~/.cclaw/` 설정 관리 (YAML), 모델 버전 매핑 (`MODEL_VERSIONS`, `model_display_name()`)
 - `src/cclaw/onboarding.py` - 환경 점검, 토큰 검증, 봇 생성 마법사
 - `src/cclaw/claude_runner.py` - `claude -p` subprocess 실행 (async, `shutil.which`로 경로 해석, 프로세스 추적, 모델 선택, 스킬 MCP/env 주입, streaming 출력 지원, `--resume`/`--session-id` 세션 연속성)
 - `src/cclaw/session.py` - 세션 디렉토리/대화 로그/workspace 관리, Claude 세션 ID 관리 (`get`/`save`/`clear_claude_session_id`), conversation.md 히스토리 로딩, 봇 레벨 메모리 CRUD (`load_bot_memory`/`save_bot_memory`/`clear_bot_memory`)
-- `src/cclaw/handlers.py` - Telegram 핸들러 팩토리 (슬래시 커맨드 + 메시지 + 파일 수신/전송 + 모델 변경 + 프로세스 취소 + /skills 통합 관리(목록/attach/detach/빌트인) + /cron 관리 + /heartbeat 관리 + /memory 관리 + 스트리밍 응답 + /streaming 토글 + 세션 연속성 (`_prepare_session_context`, `_call_with_resume_fallback`))
+- `src/cclaw/handlers.py` - Telegram 핸들러 팩토리 (슬래시 커맨드 + 메시지 + 파일 수신/전송 + 모델 변경(버전 표시) + 프로세스 취소 + /skills 통합 관리(목록/attach/detach/빌트인) + /cron 관리 + /heartbeat 관리 + /memory 관리 + 스트리밍 응답 + /streaming 토글 + 세션 연속성 (`_prepare_session_context`, `_call_with_resume_fallback`) + `set_bot_commands` 커맨드 메뉴 등록)
 - `src/cclaw/bot_manager.py` - 멀티봇 polling, launchd 데몬, 개별 봇 오류 격리, cron/heartbeat 스케줄러 통합
 - `src/cclaw/heartbeat.py` - Heartbeat 주기적 상황 인지 (설정 CRUD, active hours 체크, HEARTBEAT.md 관리, HEARTBEAT_OK 감지, 스케줄러 루프)
 - `src/cclaw/cron.py` - Cron 스케줄 자동화 (cron.yaml CRUD, croniter 기반 스케줄 매칭, one-shot 지원, 스케줄러 루프)
-- `src/cclaw/skill.py` - 스킬 관리 (인식/로딩/생성/삭제/빌트인 설치, 봇-스킬 연결, CLAUDE.md 조합(메모리 지시사항 포함), MCP/환경변수 병합)
+- `src/cclaw/skill.py` - 스킬 관리 (인식/로딩/생성/삭제/빌트인 설치, 봇-스킬 연결, CLAUDE.md 조합(메모리 지시사항 + Telegram 포맷팅 규칙 포함), MCP/환경변수 병합)
 - `src/cclaw/builtin_skills/__init__.py` - 빌트인 스킬 레지스트리 (패키지 내 템플릿 스캔/조회)
 - `src/cclaw/builtin_skills/imessage/` - iMessage 빌트인 스킬 템플릿 (SKILL.md, skill.yaml)
 - `src/cclaw/utils.py` - 메시지 분할, Markdown→HTML 변환, 로깅 설정
@@ -99,6 +99,13 @@ pytest
 - 변환 대상: `**bold**`, `*italic*`, `` `code` ``, ` ```code blocks``` `, `## headings`, `[link](url)`
 - HTML 전송 실패 시 plain text 폴백
 - 4096자 초과 시 `split_message()`로 자동 분할
+- **Markdown 표(table) 금지**: Telegram에서 표가 렌더링되지 않으므로, `compose_claude_md()`의 Rules에 "이모지 + 텍스트 나열" 포맷 강제 규칙 포함
+
+## Telegram 커맨드 메뉴
+
+- `set_bot_commands()`가 `BOT_COMMANDS` 리스트를 Telegram에 등록 (`post_init`에서 호출)
+- 사용자가 `/`를 입력하면 커맨드 목록이 자동완성 메뉴로 표시됨
+- 봇 시작 시마다 자동 등록되므로 커맨드 추가/변경 시 재시작만 하면 반영
 
 ## 스트리밍 응답
 

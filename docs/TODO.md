@@ -131,9 +131,14 @@
 - [x] `cli.py`: `cclaw logs clean` 커맨드 (--days, --dry-run 옵션)
 - [x] 기존 `cclaw logs` / `cclaw logs -f` 동작 유지
 
+### Phase 14: Telegram UX 개선
+- [x] `/model` 커맨드에 모델 버전 표시 (`config.py`: `MODEL_VERSIONS`, `model_display_name()`)
+- [x] Telegram 포맷팅 규칙 (`compose_claude_md()` Rules에 표 금지 + 이모지 포맷 강제)
+- [x] Telegram 커맨드 메뉴 등록 (`set_bot_commands()` + `post_init` 로깅)
+
 ## 미구현 (향후 고려)
 
-### Phase 14: 고급 기능
+### Phase 15: 고급 기능
 - [ ] 세션 내보내기/가져오기
 - [ ] 봇 간 세션 공유
 - [ ] 웹훅 모드 (Long Polling 대안)

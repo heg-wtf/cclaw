@@ -61,7 +61,7 @@ DB 없이 디렉토리 구조로 세션을 관리한다.
 - `bot.yaml`의 `model` 필드에 저장 (기본값: sonnet)
 - Telegram `/model` 커맨드로 런타임 변경 (변경 시 bot.yaml에 즉시 저장)
 - CLI `cclaw bot model <name> <model>`로도 변경 가능
-- 유효 모델: sonnet, opus, haiku
+- 유효 모델: sonnet (4.5), opus (4.6), haiku (3.5) — `/model`에서 버전도 함께 표시
 
 ### 7. 스킬 시스템
 
