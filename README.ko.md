@@ -21,8 +21,8 @@ Telegram + Claude Code 기반 개인 AI 어시스턴트.
 - [설치](#설치)
 - [사용법](#사용법)
 - [스킬](#스킬)
-  - [iMessage](#imessage)
-  - [Apple Reminders](#apple-reminders)
+  - [💬 iMessage](#-imessage)
+  - [⏰ Apple Reminders](#-apple-reminders)
 - [Telegram 명령어](#telegram-명령어)
 - [파일 처리](#파일-처리)
 - [기술 스택](#기술-스택)
@@ -93,7 +93,7 @@ cclaw는 봇의 기능을 도구와 지식으로 확장하는 **스킬 시스템
 - **도구 기반 스킬**: `skill.yaml`에 CLI 도구, MCP 서버, 브라우저 자동화를 정의합니다.
 - **빌트인 스킬**: 패키지에 포함된 스킬 템플릿을 `cclaw skills install <name>`으로 설치합니다.
 
-### iMessage
+### 💬 iMessage
 
 [imsg](https://github.com/steipete/imsg) CLI를 사용하여 Telegram 봇으로 iMessage/SMS를 읽고 보낼 수 있습니다.
 
@@ -111,7 +111,7 @@ Telegram에서:
 
 자세한 가이드: [iMessage 스킬 가이드](docs/skills/IMESSAGE.md)
 
-### Apple Reminders
+### ⏰ Apple Reminders
 
 [reminders-cli](https://github.com/keith/reminders-cli)를 사용하여 Telegram 봇으로 macOS 미리알림을 관리할 수 있습니다.
 

@@ -110,7 +110,7 @@ pytest
 
 ## 스트리밍 응답
 
-- `bot.yaml`의 `streaming` 필드로 on/off 제어 (기본값: `DEFAULT_STREAMING = True`)
+- `bot.yaml`의 `streaming` 필드로 on/off 제어 (기본값: `DEFAULT_STREAMING = False`)
 - Telegram `/streaming on|off` 커맨드 또는 CLI `cclaw bot streaming <name> on|off`로 런타임 토글
 - **스트리밍 모드 (on)**: `run_claude_streaming()` → 토큰 단위 메시지 편집 → 커서 `▌` 표시
 - **비스트리밍 모드 (off)**: `run_claude()` → typing 액션 4초 주기 → 완료 후 일괄 전송
