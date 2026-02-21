@@ -21,18 +21,6 @@ Telegram + Claude Code 기반 개인 AI 어시스턴트.
 - **Claude Code 위임**: LLM API 직접 호출 없음. `claude -p`를 subprocess로 실행.
 - **CLI 퍼스트**: 온보딩부터 봇 관리까지 터미널에서 완결.
 
-## 기술 스택
-
-| 구분 | 선택 |
-|------|------|
-| 패키지 관리 | uv |
-| CLI | Typer + Rich |
-| Telegram | python-telegram-bot v21+ |
-| 설정 | PyYAML |
-| Cron 스케줄러 | croniter |
-| AI 엔진 | Claude Code CLI (`claude -p`, 스트리밍) |
-| 프로세스 관리 | launchd (macOS) |
-
 ## 요구사항
 
 - Python >= 3.11
@@ -77,6 +65,79 @@ cclaw start --daemon     # 백그라운드 (launchd)
 cclaw stop               # 데몬 중지
 cclaw status             # 실행 상태 확인
 ```
+
+## 스킬
+
+cclaw는 봇의 기능을 도구와 지식으로 확장하는 **스킬 시스템**을 제공합니다. 스킬은 모듈식으로, 봇별로 자유롭게 연결/해제할 수 있습니다.
+
+- **마크다운 스킬**: `SKILL.md` 파일 하나로 봇에 지시/지식을 추가합니다.
+- **도구 기반 스킬**: `skill.yaml`에 CLI 도구, MCP 서버, 브라우저 자동화를 정의합니다.
+- **빌트인 스킬**: 패키지에 포함된 스킬 템플릿을 `cclaw skills install <name>`으로 설치합니다.
+
+### iMessage
+
+[imsg](https://github.com/steipete/imsg) CLI를 사용하여 Telegram 봇으로 iMessage/SMS를 읽고 보낼 수 있습니다.
+
+```bash
+cclaw skills install imessage
+cclaw skills setup imessage
+```
+
+Telegram에서:
+```
+/skills attach imessage
+최근 메시지 목록 보여줘
+임영선한테 "안녕" 보내줘
+```
+
+자세한 가이드: [iMessage 스킬 가이드](docs/skills/IMESSAGE.md)
+
+## Telegram 명령어
+
+| 명령어 | 설명 |
+|--------|------|
+| `/start` | 봇 소개 |
+| `/reset` | 대화 초기화 (workspace 유지) |
+| `/resetall` | 세션 전체 삭제 |
+| `/files` | workspace 파일 목록 |
+| `/send <filename>` | workspace 파일 전송 |
+| `/status` | 세션 상태 |
+| `/model` | 현재 모델 표시 |
+| `/model <name>` | 모델 변경 (sonnet/opus/haiku) |
+| `/streaming` | 스트리밍 상태 표시 |
+| `/streaming on/off` | 스트리밍 모드 전환 |
+| `/skills` | 전체 스킬 목록 (설치된 + 빌트인 미설치) |
+| `/skills attach <name>` | 스킬 연결 |
+| `/skills detach <name>` | 스킬 해제 |
+| `/cron list` | cron job 목록 |
+| `/cron run <name>` | cron job 즉시 실행 |
+| `/heartbeat` | heartbeat 상태 |
+| `/heartbeat on` | heartbeat 활성화 |
+| `/heartbeat off` | heartbeat 비활성화 |
+| `/heartbeat run` | heartbeat 즉시 실행 |
+| `/cancel` | 실행 중인 프로세스 중단 |
+| `/version` | 버전 정보 |
+| `/help` | 명령어 목록 |
+
+## 파일 처리
+
+사진이나 문서를 봇에게 보내면 자동으로 workspace에 저장되고 Claude Code에게 전달됩니다.
+캡션을 함께 보내면 캡션이 프롬프트로 사용됩니다.
+`/send` 명령어로 workspace 파일을 텔레그램으로 다시 받을 수 있습니다.
+
+---
+
+## 기술 스택
+
+| 구분 | 선택 |
+|------|------|
+| 패키지 관리 | uv |
+| CLI | Typer + Rich |
+| Telegram | python-telegram-bot v21+ |
+| 설정 | PyYAML |
+| Cron 스케줄러 | croniter |
+| AI 엔진 | Claude Code CLI (`claude -p`, 스트리밍) |
+| 프로세스 관리 | launchd (macOS) |
 
 ## CLI 명령어
 
@@ -134,39 +195,6 @@ cclaw status                   # 실행 상태
 cclaw logs                     # 오늘 로그 출력
 cclaw logs -f                  # tail -f 모드
 ```
-
-## Telegram 명령어
-
-| 명령어 | 설명 |
-|--------|------|
-| `/start` | 봇 소개 |
-| `/reset` | 대화 초기화 (workspace 유지) |
-| `/resetall` | 세션 전체 삭제 |
-| `/files` | workspace 파일 목록 |
-| `/send <filename>` | workspace 파일 전송 |
-| `/status` | 세션 상태 |
-| `/model` | 현재 모델 표시 |
-| `/model <name>` | 모델 변경 (sonnet/opus/haiku) |
-| `/streaming` | 스트리밍 상태 표시 |
-| `/streaming on/off` | 스트리밍 모드 전환 |
-| `/skills` | 전체 스킬 목록 (설치된 + 빌트인 미설치) |
-| `/skills attach <name>` | 스킬 연결 |
-| `/skills detach <name>` | 스킬 해제 |
-| `/cron list` | cron job 목록 |
-| `/cron run <name>` | cron job 즉시 실행 |
-| `/heartbeat` | heartbeat 상태 |
-| `/heartbeat on` | heartbeat 활성화 |
-| `/heartbeat off` | heartbeat 비활성화 |
-| `/heartbeat run` | heartbeat 즉시 실행 |
-| `/cancel` | 실행 중인 프로세스 중단 |
-| `/version` | 버전 정보 |
-| `/help` | 명령어 목록 |
-
-## 파일 처리
-
-사진이나 문서를 봇에게 보내면 자동으로 workspace에 저장되고 Claude Code에게 전달됩니다.
-캡션을 함께 보내면 캡션이 프롬프트로 사용됩니다.
-`/send` 명령어로 workspace 파일을 텔레그램으로 다시 받을 수 있습니다.
 
 ## 프로젝트 구조
 
@@ -226,7 +254,7 @@ cclaw/
 
 - [아키텍처](docs/ARCHITECTURE.md)
 - [기술 노트](docs/TECHNICAL-NOTES.md)
-- [iMessage 스킬 가이드](docs/IMESSAGE-SKILL.md)
+- [iMessage 스킬 가이드](docs/skills/IMESSAGE.md)
 
 ## 테스트
 

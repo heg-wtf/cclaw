@@ -113,7 +113,7 @@
 - [x] iMessage 스킬: `Bash(osascript:*)` 허용 추가 (macOS 연락처 조회)
 - [x] iMessage SKILL.md: 연락처 조회 가이드 추가 (이름 → 전화번호 조회 → 메시지 발송 흐름)
 - [x] 테스트: session/claude_runner/handlers 세션 연속성 테스트 추가 (21개)
-- [x] docs/IMESSAGE-SKILL.md 작성
+- [x] docs/skills/IMESSAGE.md 작성
 
 ## 미구현 (향후 고려)
 
