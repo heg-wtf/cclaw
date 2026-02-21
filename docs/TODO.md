@@ -90,9 +90,20 @@
 - [x] BOT_COMMANDS 및 /help 업데이트
 - [x] 테스트 (`test_handlers.py`: 4개 테스트 추가)
 
+### Phase 10: 빌트인 스킬 + 커맨드 통일
+- [x] 빌트인 스킬 레지스트리 (`builtin_skills/__init__.py`: 패키지 내 템플릿 스캔/조회)
+- [x] iMessage 빌트인 스킬 (`builtin_skills/imessage/`: SKILL.md, skill.yaml)
+- [x] `install_builtin_skill()` 설치 함수 (skill.py)
+- [x] `install_hints` 필드 (skill.yaml → check_skill_requirements)
+- [x] CLI `cclaw skills install` / `cclaw skills builtins` 커맨드
+- [x] `cclaw skills` 통합 (기존 `cclaw skill` → `cclaw skills`로 일원화)
+- [x] `cclaw skills` 목록에 미설치 빌트인 스킬 표시
+- [x] Telegram `/skill` + `/skills` → `/skills`로 통합 (attach/detach/list/builtins)
+- [x] 테스트 (`test_builtin_skills.py`, `test_handlers.py` 업데이트)
+
 ## 미구현 (향후 고려)
 
-### Phase 10: 고급 기능
+### Phase 11: 고급 기능
 - [ ] 세션 내보내기/가져오기
 - [ ] 봇 간 세션 공유
 - [ ] 웹훅 모드 (Long Polling 대안)

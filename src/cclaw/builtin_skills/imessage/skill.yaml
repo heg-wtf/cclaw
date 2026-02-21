@@ -1,0 +1,10 @@
+name: imessage
+description: "macOS iMessage/SMS integration (read and send messages)"
+type: cli
+status: inactive
+required_commands:
+  - imsg
+install_hints:
+  imsg: "Download from https://github.com/steipete/imsg/releases"
+allowed_tools:
+  - "Bash(imsg:*)"

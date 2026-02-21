@@ -103,7 +103,20 @@ DB 없이 디렉토리 구조로 세션을 관리한다.
 - 스케줄러 루프에서 매 주기마다 `bot.yaml`을 재읽기하여 런타임 설정 변경 반영
 - 격리된 작업 디렉토리: `heartbeat_sessions/`에서 Claude Code 실행
 
-### 10. 스트리밍 응답
+### 10. 빌트인 스킬 시스템
+
+자주 사용하는 스킬을 패키지 내부에 템플릿으로 포함하여 `cclaw skills install`로 쉽게 설치할 수 있다.
+
+- `src/cclaw/builtin_skills/` 디렉토리에 스킬 템플릿 저장 (SKILL.md, skill.yaml 등)
+- `builtin_skills/__init__.py`에서 하위 디렉토리를 스캔하여 레지스트리 제공
+- `install_builtin_skill()`로 템플릿 파일을 `~/.cclaw/skills/<name>/`에 복사
+- 설치 후 요구사항 체크 → 통과하면 자동 활성화, 실패하면 inactive 상태로 안내
+- `skill.yaml`의 `install_hints` 필드로 누락 도구의 설치 방법 안내
+- 첫 번째 빌트인 스킬: iMessage (`imsg` CLI 도구 활용)
+- `cclaw skills` 명령에서 미설치 빌트인 스킬도 함께 표시
+- Telegram `/skills` 핸들러에서도 미설치 빌트인 스킬 표시
+
+### 11. 스트리밍 응답
 
 Claude Code의 출력을 실시간으로 Telegram에 전달한다. 사용자가 on/off 토글 가능.
 
@@ -137,13 +150,15 @@ cli.py
 │   │   ├── cron.py (list_cron_jobs, get_cron_job, execute_cron_job, next_run_time)
 │   │   ├── heartbeat.py (get/enable/disable_heartbeat, execute_heartbeat)
 │   │   ├── skill.py (attach/detach, is_skill, skill_status)
+│   │   ├── builtin_skills (list_builtin_skills)
 │   │   ├── session.py
 │   │   ├── config.py (save_bot_config, VALID_MODELS)
 │   │   └── utils.py
 │   └── utils.py
 ├── cron.py → config.py, claude_runner.py, utils.py
 ├── heartbeat.py → config.py, claude_runner.py, utils.py
-├── skill.py → config.py (순환 참조: config.py → skill.py는 lazy import로 해결)
+├── skill.py → config.py, builtin_skills (순환 참조: config.py → skill.py는 lazy import로 해결)
+├── builtin_skills → (패키지 내부 템플릿, 외부 의존성 없음)
 └── config.py
 ```
 
@@ -180,12 +195,10 @@ cli.py
 
 ### /skills 명령
 ```
-수신 → 권한 체크 → list_skills() → bots_using_skill()로 연결 상태 조회 → 전체 스킬 목록 응답
-```
-
-### /skill attach 명령
-```
-수신 → 권한 체크 → is_skill() → skill_status() == "active" 확인 → attach_skill_to_bot() → 메모리 bot_config 동기화 → 응답
+수신 → 권한 체크 → args 분기
+  → (없음 또는 "list"): list_skills() → bots_using_skill()로 연결 상태 조회 → list_builtin_skills()로 미설치 빌트인 포함 → 전체 스킬 목록 응답
+  → "attach <name>": is_skill() → skill_status() == "active" 확인 → attach_skill_to_bot() → 메모리 bot_config 동기화 → 응답
+  → "detach <name>": detach_skill_from_bot() → 메모리 bot_config 동기화 → 응답
 ```
 
 ### Cron 스케줄러
