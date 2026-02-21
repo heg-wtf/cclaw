@@ -61,9 +61,9 @@ pytest
 - `src/cclaw/cli.py` - Typer 앱 엔트리포인트, ASCII 아트 배너, 모든 커맨드 정의 (skills, bot, cron, heartbeat 서브커맨드 포함)
 - `src/cclaw/config.py` - `~/.cclaw/` 설정 관리 (YAML)
 - `src/cclaw/onboarding.py` - 환경 점검, 토큰 검증, 봇 생성 마법사
-- `src/cclaw/claude_runner.py` - `claude -p` subprocess 실행 (async, `shutil.which`로 경로 해석, 프로세스 추적, 모델 선택, 스킬 MCP/env 주입, streaming 출력 지원)
-- `src/cclaw/session.py` - 세션 디렉토리/대화 로그/workspace 관리
-- `src/cclaw/handlers.py` - Telegram 핸들러 팩토리 (슬래시 커맨드 + 메시지 + 파일 수신/전송 + 모델 변경 + 프로세스 취소 + /skills 통합 관리(목록/attach/detach/빌트인) + /cron 관리 + /heartbeat 관리 + 스트리밍 응답 + /streaming 토글)
+- `src/cclaw/claude_runner.py` - `claude -p` subprocess 실행 (async, `shutil.which`로 경로 해석, 프로세스 추적, 모델 선택, 스킬 MCP/env 주입, streaming 출력 지원, `--resume`/`--session-id` 세션 연속성)
+- `src/cclaw/session.py` - 세션 디렉토리/대화 로그/workspace 관리, Claude 세션 ID 관리 (`get`/`save`/`clear_claude_session_id`), conversation.md 히스토리 로딩
+- `src/cclaw/handlers.py` - Telegram 핸들러 팩토리 (슬래시 커맨드 + 메시지 + 파일 수신/전송 + 모델 변경 + 프로세스 취소 + /skills 통합 관리(목록/attach/detach/빌트인) + /cron 관리 + /heartbeat 관리 + 스트리밍 응답 + /streaming 토글 + 세션 연속성 (`_prepare_session_context`, `_call_with_resume_fallback`))
 - `src/cclaw/bot_manager.py` - 멀티봇 polling, launchd 데몬, 개별 봇 오류 격리, cron/heartbeat 스케줄러 통합
 - `src/cclaw/heartbeat.py` - Heartbeat 주기적 상황 인지 (설정 CRUD, active hours 체크, HEARTBEAT.md 관리, HEARTBEAT_OK 감지, 스케줄러 루프)
 - `src/cclaw/cron.py` - Cron 스케줄 자동화 (cron.yaml CRUD, croniter 기반 스케줄 매칭, one-shot 지원, 스케줄러 루프)
@@ -104,6 +104,17 @@ pytest
 - 최소 10자 이상 누적 후 첫 메시지 전송 (`STREAM_MIN_CHARS_BEFORE_SEND`)
 - 4096자 초과 시 스트리밍 미리보기 중단, 최종 응답을 분할 전송
 
+## 세션 연속성
+
+- 매 메시지마다 `claude -p`를 새 프로세스로 실행하지만, `--resume` / `--session-id` 플래그로 대화 맥락을 유지
+- **첫 메시지**: `--session-id <uuid>`로 새 세션 시작. conversation.md에서 최근 20턴을 부트스트랩 프롬프트로 포함
+- **이후 메시지**: `--resume <session_id>`로 Claude Code 세션 이어가기
+- **폴백**: `--resume` 실패 시 (세션 만료 등) 자동으로 session_id 삭제 → 부트스트랩으로 재시도
+- **초기화**: `/reset` 또는 `/resetall` 시 `.claude_session_id` 파일도 삭제
+- 세션 ID는 `sessions/chat_<id>/.claude_session_id` 파일에 저장
+- `_prepare_session_context()`: 세션 상태를 확인하여 resume/bootstrap 결정
+- `_call_with_resume_fallback()`: resume 실패 시 폴백 처리
+
 ## 런타임 데이터 구조
 
 ```
@@ -121,9 +132,10 @@ pytest
 │   │   ├── HEARTBEAT.md  # 체크리스트 (사용자 편집 가능)
 │   │   └── workspace/    # 파일 저장소
 │   └── sessions/chat_<id>/
-│       ├── CLAUDE.md     # 세션별 컨텍스트
-│       ├── conversation.md  # 대화 로그
-│       └── workspace/    # 파일 저장소
+│       ├── CLAUDE.md           # 세션별 컨텍스트
+│       ├── conversation.md     # 대화 로그
+│       ├── .claude_session_id  # Claude Code 세션 ID (--resume용)
+│       └── workspace/          # 파일 저장소
 ├── skills/<name>/
 │   ├── SKILL.md          # 스킬 지시사항 (필수, 봇 CLAUDE.md에 합성됨)
 │   ├── skill.yaml        # 스킬 설정 (도구 기반 스킬만: type, status, required_commands, install_hints, environment_variables)

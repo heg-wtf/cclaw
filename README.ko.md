@@ -99,12 +99,15 @@ cclaw bot streaming <name>     # 스트리밍 상태 확인
 cclaw bot streaming <name> off # 스트리밍 on/off 전환
 
 # 스킬 관리
-cclaw skills                   # 전체 스킬 목록 (미연결 포함)
-cclaw skill add                # 대화형 스킬 생성
-cclaw skill remove <name>      # 스킬 삭제
-cclaw skill setup <name>       # 스킬 셋업 (요구사항 확인 → 활성화)
-cclaw skill test <name>        # 스킬 요구사항 테스트
-cclaw skill edit <name>        # SKILL.md 편집 ($EDITOR)
+cclaw skills                   # 전체 스킬 목록 (설치된 + 빌트인 미설치)
+cclaw skills add               # 대화형 스킬 생성
+cclaw skills remove <name>     # 스킬 삭제
+cclaw skills setup <name>      # 스킬 셋업 (요구사항 확인 → 활성화)
+cclaw skills test <name>       # 스킬 요구사항 테스트
+cclaw skills edit <name>       # SKILL.md 편집 ($EDITOR)
+cclaw skills builtins          # 빌트인 스킬 목록
+cclaw skills install           # 빌트인 스킬 목록 (builtins와 동일)
+cclaw skills install <name>    # 빌트인 스킬 설치
 
 # Cron job 관리
 cclaw cron list <bot>          # cron job 목록
@@ -146,9 +149,9 @@ cclaw logs -f                  # tail -f 모드
 | `/model <name>` | 모델 변경 (sonnet/opus/haiku) |
 | `/streaming` | 스트리밍 상태 표시 |
 | `/streaming on/off` | 스트리밍 모드 전환 |
-| `/skills` | 전체 스킬 목록 (미연결 포함) |
-| `/skill attach <name>` | 스킬 연결 |
-| `/skill detach <name>` | 스킬 해제 |
+| `/skills` | 전체 스킬 목록 (설치된 + 빌트인 미설치) |
+| `/skills attach <name>` | 스킬 연결 |
+| `/skills detach <name>` | 스킬 해제 |
 | `/cron list` | cron job 목록 |
 | `/cron run <name>` | cron job 즉시 실행 |
 | `/heartbeat` | heartbeat 상태 |
@@ -179,6 +182,9 @@ cclaw/
 │   ├── handlers.py         # Telegram 핸들러 팩토리
 │   ├── bot_manager.py      # 멀티봇 라이프사이클
 │   ├── skill.py            # 스킬 관리 (생성/연결/MCP/CLAUDE.md 조합)
+│   ├── builtin_skills/     # 빌트인 스킬 템플릿 (imessage, ...)
+│   │   ├── __init__.py     # 빌트인 스킬 레지스트리
+│   │   └── imessage/       # iMessage 스킬 (imsg CLI)
 │   ├── cron.py             # Cron 스케줄 자동화
 │   ├── heartbeat.py        # Heartbeat (주기적 상황 인지)
 │   └── utils.py            # 유틸리티
@@ -206,6 +212,7 @@ cclaw/
 │           └── chat_<id>/
 │               ├── CLAUDE.md
 │               ├── conversation.md
+│               ├── .claude_session_id  # Claude Code 세션 ID (--resume용)
 │               └── workspace/
 ├── skills/
 │   └── <skill-name>/

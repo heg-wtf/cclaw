@@ -133,9 +133,33 @@ skill.yaml에 정의된 `allowed_tools` 설정:
 ```yaml
 allowed_tools:
   - "Bash(imsg:*)"
+  - "Bash(watch:*)"
+  - "Bash(osascript:*)"
 ```
 
-이 설정은 Claude Code에 `--allowedTools Bash(imsg:*)` 플래그로 전달되어, `imsg`로 시작하는 Bash 명령을 권한 승인 없이 실행할 수 있게 합니다.
+이 설정은 Claude Code에 `--allowedTools` 플래그로 전달되어, 해당 명령을 권한 승인 없이 실행할 수 있게 합니다:
+
+- `Bash(imsg:*)`: `imsg`로 시작하는 명령 (메시지 조회/발송)
+- `Bash(watch:*)`: `watch`로 시작하는 명령 (실시간 모니터링용 시스템 `watch` 명령)
+- `Bash(osascript:*)`: `osascript`로 시작하는 명령 (macOS 연락처 조회)
+
+### 연락처 조회 (osascript)
+
+이름으로 메시지를 요청하면 봇이 macOS 연락처(Contacts)에서 전화번호를 먼저 조회합니다:
+
+```bash
+osascript -e 'tell application "Contacts" to get {name, value of phones} of every person whose name contains "영선"'
+```
+
+- 부분 매칭 지원: "영선"으로 검색하면 "임영선"도 매칭됩니다
+- 동명이인이 있을 경우 사용자에게 확인을 요청합니다
+- 조회된 전화번호로 `imsg send --to` 명령을 실행합니다
+
+**흐름 예시:**
+1. "임영선한테 안녕 보내줘"
+2. 봇이 `osascript`로 "영선" 또는 "임영선" 검색 → 전화번호 확인
+3. 수신자/내용 확인 요청
+4. 승인 후 `imsg send --to +8210XXXXXXXX --text "안녕"` 실행
 
 ### SKILL.md 지시사항
 

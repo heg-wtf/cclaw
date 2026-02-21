@@ -101,9 +101,23 @@
 - [x] Telegram `/skill` + `/skills` → `/skills`로 통합 (attach/detach/list/builtins)
 - [x] 테스트 (`test_builtin_skills.py`, `test_handlers.py` 업데이트)
 
+### Phase 11: 세션 연속성 + iMessage 스킬 개선
+- [x] 세션 연속성: conversation.md 부트스트랩 + `--resume` 세션 이어가기
+- [x] `session.py`: Claude 세션 ID 관리 (`get`/`save`/`clear_claude_session_id`)
+- [x] `session.py`: conversation.md 히스토리 로딩 (`load_conversation_history`, 최근 20턴)
+- [x] `claude_runner.py`: `--resume` / `--session-id` 플래그 지원 (`run_claude`, `run_claude_streaming`)
+- [x] `handlers.py`: 세션 연속성 로직 (`_prepare_session_context`, `_call_with_resume_fallback`)
+- [x] `handlers.py`: `--resume` 실패 시 부트스트랩 폴백
+- [x] `/reset`, `/resetall` 시 `.claude_session_id` 파일 자동 삭제
+- [x] iMessage 스킬: `Bash(watch:*)` 허용 추가 (실시간 모니터링)
+- [x] iMessage 스킬: `Bash(osascript:*)` 허용 추가 (macOS 연락처 조회)
+- [x] iMessage SKILL.md: 연락처 조회 가이드 추가 (이름 → 전화번호 조회 → 메시지 발송 흐름)
+- [x] 테스트: session/claude_runner/handlers 세션 연속성 테스트 추가 (21개)
+- [x] docs/IMESSAGE-SKILL.md 작성
+
 ## 미구현 (향후 고려)
 
-### Phase 11: 고급 기능
+### Phase 12: 고급 기능
 - [ ] 세션 내보내기/가져오기
 - [ ] 봇 간 세션 공유
 - [ ] 웹훅 모드 (Long Polling 대안)
