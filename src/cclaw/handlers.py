@@ -6,6 +6,7 @@ import asyncio
 import logging
 import time
 import uuid
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +54,7 @@ MAX_QUEUE_SIZE = 5
 STREAM_THROTTLE_SECONDS = 0.5
 STREAM_MIN_CHARS_BEFORE_SEND = 10
 TELEGRAM_MESSAGE_LIMIT = 4096
+STREAM_BUFFER_MARGIN = 100
 
 
 def _get_session_lock(key: str) -> asyncio.Lock:
@@ -406,7 +408,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                 return
 
             # Stop streaming preview if exceeding Telegram limit
-            if len(accumulated_text) > TELEGRAM_MESSAGE_LIMIT - 100:
+            if len(accumulated_text) > TELEGRAM_MESSAGE_LIMIT - STREAM_BUFFER_MARGIN:
                 stream_stopped = True
                 return
 
@@ -451,23 +453,19 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                         parse_mode="HTML",
                     )
                 except Exception:
-                    try:
+                    with suppress(Exception):
                         await context.bot.edit_message_text(
                             chat_id=chat_id,
                             message_id=stream_message_id,
                             text=response,
                         )
-                    except Exception:
-                        pass
             else:
                 # Multiple chunks: delete preview and send all chunks
-                try:
+                with suppress(Exception):
                     await context.bot.delete_message(
                         chat_id=chat_id,
                         message_id=stream_message_id,
                     )
-                except Exception:
-                    pass
                 for chunk in chunks:
                     try:
                         await update.message.reply_text(chunk, parse_mode="HTML")

@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import shutil
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, Callable
 
@@ -368,12 +369,10 @@ async def run_claude_streaming(
             if assistant_text is not None and not accumulated_text:
                 accumulated_text = assistant_text
                 if on_text_chunk:
-                    try:
+                    with suppress(Exception):
                         result = on_text_chunk(assistant_text)
                         if asyncio.iscoroutine(result):
                             await result
-                    except Exception:
-                        pass
 
             # Check for final result
             final = _extract_result_text(data)
@@ -385,10 +384,8 @@ async def run_claude_streaming(
         await process.wait()
     except asyncio.TimeoutError:
         process.kill()
-        try:
+        with suppress(Exception):
             await process.communicate()
-        except Exception:
-            pass
         logger.error("Claude Code (streaming) timed out after %ds", timeout)
         raise TimeoutError(f"Claude Code timed out after {timeout} seconds")
     finally:
@@ -401,10 +398,8 @@ async def run_claude_streaming(
     # Read any remaining stderr
     stderr_data = b""
     if process.stderr:
-        try:
+        with suppress(Exception):
             stderr_data = await process.stderr.read()
-        except Exception:
-            pass
     error_output = stderr_data.decode("utf-8", errors="replace").strip()
 
     if process.returncode != 0:

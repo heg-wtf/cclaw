@@ -1,5 +1,7 @@
 """cclaw CLI - Typer application entry point."""
 
+from __future__ import annotations
+
 import typer
 
 app = typer.Typer(help="cclaw - Telegram + Claude Code AI assistant", invoke_without_command=True)
