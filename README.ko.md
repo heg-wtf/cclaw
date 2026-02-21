@@ -92,6 +92,25 @@ Telegram에서:
 
 자세한 가이드: [iMessage 스킬 가이드](docs/skills/IMESSAGE.md)
 
+### Apple Reminders
+
+[reminders-cli](https://github.com/keith/reminders-cli)를 사용하여 Telegram 봇으로 macOS 미리알림을 관리할 수 있습니다.
+
+```bash
+brew install keith/formulae/reminders-cli
+cclaw skills install reminders
+cclaw skills setup reminders
+```
+
+Telegram에서:
+```
+/skills attach reminders
+오늘 할 일 보여줘
+"장보기" 쇼핑 리스트에 내일까지 추가해줘
+```
+
+자세한 가이드: [Apple Reminders 스킬 가이드](docs/skills/REMINDERS.md)
+
 ## Telegram 명령어
 
 | 명령어 | 설명 |
@@ -210,9 +229,10 @@ cclaw/
 │   ├── handlers.py         # Telegram 핸들러 팩토리
 │   ├── bot_manager.py      # 멀티봇 라이프사이클
 │   ├── skill.py            # 스킬 관리 (생성/연결/MCP/CLAUDE.md 조합)
-│   ├── builtin_skills/     # 빌트인 스킬 템플릿 (imessage, ...)
+│   ├── builtin_skills/     # 빌트인 스킬 템플릿 (imessage, reminders, ...)
 │   │   ├── __init__.py     # 빌트인 스킬 레지스트리
-│   │   └── imessage/       # iMessage 스킬 (imsg CLI)
+│   │   ├── imessage/       # iMessage 스킬 (imsg CLI)
+│   │   └── reminders/      # Apple Reminders 스킬 (reminders-cli)
 │   ├── cron.py             # Cron 스케줄 자동화
 │   ├── heartbeat.py        # Heartbeat (주기적 상황 인지)
 │   └── utils.py            # 유틸리티
@@ -255,6 +275,7 @@ cclaw/
 - [아키텍처](docs/ARCHITECTURE.md)
 - [기술 노트](docs/TECHNICAL-NOTES.md)
 - [iMessage 스킬 가이드](docs/skills/IMESSAGE.md)
+- [Apple Reminders 스킬 가이드](docs/skills/REMINDERS.md)
 
 ## 테스트
 

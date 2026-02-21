@@ -160,3 +160,58 @@ def test_installed_skill_requirements_check_with_missing_command(temp_cclaw_home
     assert "nonexistent_command_xyz" in errors[0]
     assert "Install:" in errors[0]
     assert "https://example.com" in errors[0]
+
+
+# --- Reminders Built-in Skill Tests ---
+
+
+def test_list_builtin_skills_returns_reminders():
+    """list_builtin_skills includes the reminders skill."""
+    skills = list_builtin_skills()
+    names = [skill["name"] for skill in skills]
+    assert "reminders" in names
+
+    reminders = next(skill for skill in skills if skill["name"] == "reminders")
+    assert reminders["description"] != ""
+    assert reminders["path"].is_dir()
+
+
+def test_get_builtin_skill_path_reminders():
+    """get_builtin_skill_path returns path for reminders skill."""
+    path = get_builtin_skill_path("reminders")
+    assert path is not None
+    assert (path / "SKILL.md").exists()
+    assert (path / "skill.yaml").exists()
+
+
+def test_is_builtin_skill_reminders():
+    """is_builtin_skill returns True for reminders."""
+    assert is_builtin_skill("reminders") is True
+
+
+def test_install_builtin_skill_reminders(temp_cclaw_home):
+    """install_builtin_skill creates the reminders skill directory with files."""
+    directory = install_builtin_skill("reminders")
+    assert directory.exists()
+    assert directory == temp_cclaw_home / "skills" / "reminders"
+    assert (directory / "SKILL.md").exists()
+    assert (directory / "skill.yaml").exists()
+
+    # Verify SKILL.md content
+    skill_md_content = (directory / "SKILL.md").read_text()
+    assert "reminders" in skill_md_content
+
+    # Verify skill.yaml content
+    with open(directory / "skill.yaml") as file:
+        config = yaml.safe_load(file)
+    assert config["name"] == "reminders"
+    assert config["type"] == "cli"
+    assert "reminders" in config["required_commands"]
+    assert "allowed_tools" in config
+    assert "Bash(reminders:*)" in config["allowed_tools"]
+
+
+def test_installed_reminders_skill_starts_inactive(temp_cclaw_home):
+    """Installed reminders skill starts with inactive status."""
+    install_builtin_skill("reminders")
+    assert skill_status("reminders") == "inactive"
