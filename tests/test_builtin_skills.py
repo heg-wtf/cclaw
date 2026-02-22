@@ -322,3 +322,57 @@ def test_installed_image_skill_starts_inactive(temp_cclaw_home):
     """Installed image skill starts with inactive status."""
     install_builtin_skill("image")
     assert skill_status("image") == "inactive"
+
+
+# --- Best Price Built-in Skill Tests ---
+
+
+def test_list_builtin_skills_returns_best_price():
+    """list_builtin_skills includes the best-price skill."""
+    skills = list_builtin_skills()
+    names = [skill["name"] for skill in skills]
+    assert "best-price" in names
+
+    best_price = next(skill for skill in skills if skill["name"] == "best-price")
+    assert best_price["description"] != ""
+    assert best_price["path"].is_dir()
+
+
+def test_get_builtin_skill_path_best_price():
+    """get_builtin_skill_path returns path for best-price skill."""
+    path = get_builtin_skill_path("best-price")
+    assert path is not None
+    assert (path / "SKILL.md").exists()
+    assert (path / "skill.yaml").exists()
+
+
+def test_is_builtin_skill_best_price():
+    """is_builtin_skill returns True for best-price."""
+    assert is_builtin_skill("best-price") is True
+
+
+def test_install_builtin_skill_best_price(temp_cclaw_home):
+    """install_builtin_skill creates the best-price skill directory with files."""
+    directory = install_builtin_skill("best-price")
+    assert directory.exists()
+    assert directory == temp_cclaw_home / "skills" / "best-price"
+    assert (directory / "SKILL.md").exists()
+    assert (directory / "skill.yaml").exists()
+
+    # Verify SKILL.md content
+    skill_md_content = (directory / "SKILL.md").read_text()
+    assert "danawa" in skill_md_content.lower()
+    assert "coupang" in skill_md_content.lower()
+    assert "naver" in skill_md_content.lower()
+
+    # Verify skill.yaml content
+    with open(directory / "skill.yaml") as file:
+        config = yaml.safe_load(file)
+    assert config["name"] == "best-price"
+    assert config["type"] == "knowledge"
+
+
+def test_installed_best_price_skill_starts_inactive(temp_cclaw_home):
+    """Installed best-price skill starts with inactive status."""
+    install_builtin_skill("best-price")
+    assert skill_status("best-price") == "inactive"

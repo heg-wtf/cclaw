@@ -96,6 +96,7 @@ cclaw has a **skill system** that extends your bot's capabilities with tools and
 | ⏰ Apple Reminders | Manage macOS Reminders via [reminders-cli](https://github.com/keith/reminders-cli) | [Guide](docs/skills/REMINDERS.md) |
 | 🗺 Naver Map | Generate Naver Map web links for search and navigation | [Guide](docs/skills/NAVER-MAP.md) |
 | 🖼 Image Processing | Convert, optimize, resize, crop images via [slimg](https://github.com/clroot/slimg) CLI | [Guide](docs/skills/IMAGE.md) |
+| 💰 Best Price | Search lowest prices across Danawa, Coupang, Naver Shopping | [Guide](docs/skills/BEST-PRICE.md) |
 
 ```bash
 cclaw skills builtins          # List available built-in skills
@@ -236,7 +237,8 @@ cclaw/
 │   │   ├── imessage/       # iMessage skill (imsg CLI)
 │   │   ├── reminders/      # Apple Reminders skill (reminders-cli)
 │   │   ├── naver-map/      # Naver Map skill (web URL links)
-│   │   └── image/          # Image processing skill (slimg CLI)
+│   │   ├── image/          # Image processing skill (slimg CLI)
+│   │   └── best-price/    # Best price search skill (knowledge)
 │   ├── cron.py             # Cron schedule automation
 │   ├── heartbeat.py        # Heartbeat (periodic situation awareness)
 │   └── utils.py            # Utilities

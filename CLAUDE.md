@@ -79,6 +79,7 @@ pytest
 - `src/cclaw/builtin_skills/reminders/` - Apple Reminders built-in skill template (SKILL.md, skill.yaml)
 - `src/cclaw/builtin_skills/naver-map/` - Naver Map built-in skill template (SKILL.md, skill.yaml, knowledge type, web URL based)
 - `src/cclaw/builtin_skills/image/` - Image processing built-in skill template (SKILL.md, skill.yaml, slimg CLI)
+- `src/cclaw/builtin_skills/best-price/` - Best price search built-in skill template (SKILL.md, skill.yaml, knowledge type, web search based)
 - `src/cclaw/utils.py` - Message splitting, Markdown to HTML conversion, logging setup
 
 ## Code Style
