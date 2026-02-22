@@ -1,0 +1,10 @@
+name: image
+description: "Image processing - convert, optimize, resize, crop, extend (slimg CLI)"
+type: cli
+status: inactive
+required_commands:
+  - slimg
+install_hints:
+  slimg: "brew install clroot/tap/slimg"
+allowed_tools:
+  - "Bash(slimg:*)"

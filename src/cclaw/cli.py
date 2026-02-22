@@ -24,8 +24,11 @@ def main(context: typer.Context) -> None:
     if context.invoked_subcommand is None:
         from rich.console import Console
 
+        from cclaw import __version__
+
         console = Console()
         console.print(f"[cyan]{ASCII_ART}[/cyan]")
+        console.print(f"  [dim]v{__version__}[/dim]\n")
         console.print("Run [green]cclaw --help[/green] for available commands.\n")
 
 

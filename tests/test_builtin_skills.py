@@ -267,3 +267,58 @@ def test_installed_naver_map_skill_starts_inactive(temp_cclaw_home):
     """Installed naver-map skill starts with inactive status."""
     install_builtin_skill("naver-map")
     assert skill_status("naver-map") == "inactive"
+
+
+# --- Image Built-in Skill Tests ---
+
+
+def test_list_builtin_skills_returns_image():
+    """list_builtin_skills includes the image skill."""
+    skills = list_builtin_skills()
+    names = [skill["name"] for skill in skills]
+    assert "image" in names
+
+    image = next(skill for skill in skills if skill["name"] == "image")
+    assert image["description"] != ""
+    assert image["path"].is_dir()
+
+
+def test_get_builtin_skill_path_image():
+    """get_builtin_skill_path returns path for image skill."""
+    path = get_builtin_skill_path("image")
+    assert path is not None
+    assert (path / "SKILL.md").exists()
+    assert (path / "skill.yaml").exists()
+
+
+def test_is_builtin_skill_image():
+    """is_builtin_skill returns True for image."""
+    assert is_builtin_skill("image") is True
+
+
+def test_install_builtin_skill_image(temp_cclaw_home):
+    """install_builtin_skill creates the image skill directory with files."""
+    directory = install_builtin_skill("image")
+    assert directory.exists()
+    assert directory == temp_cclaw_home / "skills" / "image"
+    assert (directory / "SKILL.md").exists()
+    assert (directory / "skill.yaml").exists()
+
+    # Verify SKILL.md content
+    skill_md_content = (directory / "SKILL.md").read_text()
+    assert "slimg" in skill_md_content
+
+    # Verify skill.yaml content
+    with open(directory / "skill.yaml") as file:
+        config = yaml.safe_load(file)
+    assert config["name"] == "image"
+    assert config["type"] == "cli"
+    assert "slimg" in config["required_commands"]
+    assert "allowed_tools" in config
+    assert "Bash(slimg:*)" in config["allowed_tools"]
+
+
+def test_installed_image_skill_starts_inactive(temp_cclaw_home):
+    """Installed image skill starts with inactive status."""
+    install_builtin_skill("image")
+    assert skill_status("image") == "inactive"
