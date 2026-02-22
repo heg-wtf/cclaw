@@ -227,6 +227,9 @@ def _start_daemon() -> None:
     log_directory = cclaw_home() / "logs"
     log_directory.mkdir(parents=True, exist_ok=True)
 
+    # Capture current PATH so the daemon can find claude CLI (npm global bin)
+    current_path = os.environ.get("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
+
     newline = "\n"
     plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -238,6 +241,11 @@ def _start_daemon() -> None:
     <array>
         {newline.join(f"        <string>{arg}</string>" for arg in cclaw_arguments)}
     </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>{current_path}</string>
+    </dict>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
