@@ -25,7 +25,6 @@ A multi-bot, file-based session system that runs locally on Mac (Intel/Apple Sil
 - [CLI Commands](#cli-commands)
 - [Project Structure](#project-structure)
 - [Runtime Data](#runtime-data)
-- [Documentation](#documentation)
 - [Testing](#testing)
 - [License](#license)
 
@@ -275,15 +274,6 @@ Configuration and session data are stored in `~/.cclaw/`. Override the path with
 │       └── mcp.json          # MCP server config (MCP skills only)
 └── logs/
 ```
-
-## Documentation
-
-- [Architecture](docs/ARCHITECTURE.md)
-- [Technical Notes](docs/TECHNICAL-NOTES.md)
-- [iMessage Skill Guide](docs/skills/IMESSAGE.md)
-- [Apple Reminders Skill Guide](docs/skills/REMINDERS.md)
-- [Naver Map Skill Guide](docs/skills/NAVER-MAP.md)
-- [Image Processing Skill Guide](docs/skills/IMAGE.md)
 
 ## Testing
 
