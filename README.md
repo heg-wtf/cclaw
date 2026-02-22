@@ -22,6 +22,7 @@ A multi-bot, file-based session system that runs locally on Mac (Intel/Apple Sil
   - [💬 iMessage](#-imessage)
   - [⏰ Apple Reminders](#-apple-reminders)
   - [🗺 Naver Map](#-naver-map)
+  - [🖼 Image Processing](#-image-processing)
 - [Telegram Commands](#telegram-commands)
 - [File Handling](#file-handling)
 - [Tech Stack](#tech-stack)
@@ -143,6 +144,26 @@ Then in Telegram:
 How do I get from Gangnam to Seoul Station by subway?
 Search for cafes near Hongdae
 ```
+
+### 🖼 Image Processing
+
+Convert, optimize, resize, crop, and extend images through your Telegram bot using [slimg](https://github.com/clroot/slimg).
+
+```bash
+brew install clroot/tap/slimg
+cclaw skills install image
+cclaw skills setup image
+```
+
+Then in Telegram:
+```
+/skills attach image
+Convert this photo to WebP
+Resize the image to 800px width
+Optimize this image for smaller file size
+```
+
+See the full guide: [Image Processing Skill Guide](docs/skills/IMAGE.md)
 
 ## Telegram Commands
 
@@ -276,7 +297,8 @@ cclaw/
 │   │   ├── __init__.py     # Built-in skill registry
 │   │   ├── imessage/       # iMessage skill (imsg CLI)
 │   │   ├── reminders/      # Apple Reminders skill (reminders-cli)
-│   │   └── naver-map/      # Naver Map skill (web URL links)
+│   │   ├── naver-map/      # Naver Map skill (web URL links)
+│   │   └── image/          # Image processing skill (slimg CLI)
 │   ├── cron.py             # Cron schedule automation
 │   ├── heartbeat.py        # Heartbeat (periodic situation awareness)
 │   └── utils.py            # Utilities
@@ -322,6 +344,7 @@ Configuration and session data are stored in `~/.cclaw/`. Override the path with
 - [iMessage Skill Guide](docs/skills/IMESSAGE.md)
 - [Apple Reminders Skill Guide](docs/skills/REMINDERS.md)
 - [Naver Map Skill Guide](docs/skills/NAVER-MAP.md)
+- [Image Processing Skill Guide](docs/skills/IMAGE.md)
 
 ## Testing
 
