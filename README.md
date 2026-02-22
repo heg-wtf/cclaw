@@ -19,10 +19,6 @@ A multi-bot, file-based session system that runs locally on Mac (Intel/Apple Sil
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Skills](#skills)
-  - [💬 iMessage](#-imessage)
-  - [⏰ Apple Reminders](#-apple-reminders)
-  - [🗺 Naver Map](#-naver-map)
-  - [🖼 Image Processing](#-image-processing)
 - [Telegram Commands](#telegram-commands)
 - [File Handling](#file-handling)
 - [Tech Stack](#tech-stack)
@@ -93,77 +89,20 @@ cclaw has a **skill system** that extends your bot's capabilities with tools and
 - **Tool-based skills**: Include `skill.yaml` with CLI tools, MCP servers, or browser automation.
 - **Built-in skills**: Pre-packaged skill templates installable with `cclaw skills install <name>`.
 
-### 💬 iMessage
+### Built-in Skills
 
-Read and send iMessage/SMS through your Telegram bot using the [imsg](https://github.com/steipete/imsg) CLI.
-
-```bash
-cclaw skills install imessage
-cclaw skills setup imessage
-```
-
-Then in Telegram:
-```
-/skills attach imessage
-Show me recent messages
-Send "hello" to John
-```
-
-See the full guide: [iMessage Skill Guide](docs/skills/IMESSAGE.md)
-
-### ⏰ Apple Reminders
-
-Manage macOS Reminders through your Telegram bot using the [reminders-cli](https://github.com/keith/reminders-cli).
+| Skill | Description | Guide |
+|-------|-------------|-------|
+| 💬 iMessage | Read and send iMessage/SMS via [imsg](https://github.com/steipete/imsg) CLI | [Guide](docs/skills/IMESSAGE.md) |
+| ⏰ Apple Reminders | Manage macOS Reminders via [reminders-cli](https://github.com/keith/reminders-cli) | [Guide](docs/skills/REMINDERS.md) |
+| 🗺 Naver Map | Generate Naver Map web links for search and navigation | [Guide](docs/skills/NAVER-MAP.md) |
+| 🖼 Image Processing | Convert, optimize, resize, crop images via [slimg](https://github.com/clroot/slimg) CLI | [Guide](docs/skills/IMAGE.md) |
 
 ```bash
-brew install keith/formulae/reminders-cli
-cclaw skills install reminders
-cclaw skills setup reminders
+cclaw skills builtins          # List available built-in skills
+cclaw skills install <name>    # Install a built-in skill
+cclaw skills setup <name>      # Activate (check requirements)
 ```
-
-Then in Telegram:
-```
-/skills attach reminders
-What do I need to do today?
-Add "Buy groceries" to Shopping list for tomorrow
-```
-
-See the full guide: [Apple Reminders Skill Guide](docs/skills/REMINDERS.md)
-
-### 🗺 Naver Map
-
-Generate Naver Map web links for place search, route finding, and navigation through your Telegram bot. Clickable links open directly in the Naver Maps app on mobile.
-
-```bash
-cclaw skills install naver-map
-```
-
-Then in Telegram:
-```
-/skills attach naver-map
-How do I get from Gangnam to Seoul Station by subway?
-Search for cafes near Hongdae
-```
-
-### 🖼 Image Processing
-
-Convert, optimize, resize, crop, and extend images through your Telegram bot using [slimg](https://github.com/clroot/slimg).
-
-```bash
-brew install clroot/tap/slimg
-cclaw skills install image
-cclaw skills setup image
-```
-
-Then in Telegram:
-```
-/skills attach image
-Convert this photo to WebP
-Resize the image to 800px width
-Optimize this image for smaller file size
-```
-
-See the full guide: [Image Processing Skill Guide](docs/skills/IMAGE.md)
 
 ## Telegram Commands
 
