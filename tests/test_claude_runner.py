@@ -1,6 +1,7 @@
 """Tests for cclaw.claude_runner module."""
 
 import asyncio
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -10,6 +11,7 @@ from cclaw.claude_runner import (
     _extract_result_text,
     _extract_text_delta,
     _running_processes,
+    _write_session_settings,
     cancel_process,
     is_process_running,
     register_process,
@@ -325,6 +327,48 @@ async def test_run_claude_with_allowed_tools(tmp_path):
     assert "--allowedTools" in call_args
     allowed_index = list(call_args).index("--allowedTools")
     assert call_args[allowed_index + 1] == "Bash(imsg:*),Read(*)"
+
+    # Verify .claude/settings.json was created
+    settings_path = tmp_path / ".claude" / "settings.json"
+    assert settings_path.exists()
+    with open(settings_path) as file:
+        settings = json.load(file)
+    assert "Bash(imsg:*)" in settings["permissions"]["allow"]
+    assert "Read(*)" in settings["permissions"]["allow"]
+
+
+def test_write_session_settings_creates_file(tmp_path):
+    """_write_session_settings creates .claude/settings.json with permissions."""
+    _write_session_settings(str(tmp_path), ["Bash(reminders:*)", "Bash(osascript:*)"])
+
+    settings_path = tmp_path / ".claude" / "settings.json"
+    assert settings_path.exists()
+    with open(settings_path) as file:
+        settings = json.load(file)
+    assert "Bash(reminders:*)" in settings["permissions"]["allow"]
+    assert "Bash(osascript:*)" in settings["permissions"]["allow"]
+
+
+def test_write_session_settings_merges_existing(tmp_path):
+    """_write_session_settings merges with existing settings."""
+    claude_directory = tmp_path / ".claude"
+    claude_directory.mkdir()
+    existing = {"permissions": {"allow": ["Read"]}}
+    with open(claude_directory / "settings.json", "w") as file:
+        json.dump(existing, file)
+
+    _write_session_settings(str(tmp_path), ["Bash(reminders:*)"])
+
+    with open(claude_directory / "settings.json") as file:
+        settings = json.load(file)
+    assert "Read" in settings["permissions"]["allow"]
+    assert "Bash(reminders:*)" in settings["permissions"]["allow"]
+
+
+def test_write_session_settings_empty_tools(tmp_path):
+    """_write_session_settings does nothing with empty tools list."""
+    _write_session_settings(str(tmp_path), [])
+    assert not (tmp_path / ".claude" / "settings.json").exists()
 
 
 @pytest.mark.asyncio

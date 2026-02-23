@@ -20,6 +20,32 @@ STREAMING_CURSOR = "\u258c"
 _running_processes: dict[str, asyncio.subprocess.Process] = {}
 
 
+def _write_session_settings(working_directory: str, allowed_tools: list[str]) -> None:
+    """Write .claude/settings.json in the session directory with skill permissions."""
+    if not allowed_tools:
+        return
+
+    claude_directory = Path(working_directory) / ".claude"
+    claude_directory.mkdir(parents=True, exist_ok=True)
+
+    settings_path = claude_directory / "settings.json"
+
+    settings: dict[str, Any] = {}
+    if settings_path.exists():
+        with open(settings_path) as settings_file:
+            settings = json.load(settings_file)
+
+    permissions = settings.get("permissions", {})
+    existing_allow = set(permissions.get("allow", []))
+    existing_allow.update(allowed_tools)
+
+    permissions["allow"] = sorted(existing_allow)
+    settings["permissions"] = permissions
+
+    with open(settings_path, "w") as settings_file:
+        json.dump(settings, settings_file, indent=2)
+
+
 def register_process(session_key: str, process: asyncio.subprocess.Process) -> None:
     """Register a running process for a session."""
     _running_processes[session_key] = process
@@ -128,6 +154,7 @@ async def run_claude(
         allowed_tools = collect_skill_allowed_tools(skill_names)
         if allowed_tools:
             command.extend(["--allowedTools", ",".join(allowed_tools)])
+            _write_session_settings(working_directory, allowed_tools)
             logger.info("Allowed tools from skills: %s", allowed_tools)
 
     logger.info("Running claude in %s: %s", working_directory, message[:100])
@@ -309,6 +336,7 @@ async def run_claude_streaming(
         allowed_tools = collect_skill_allowed_tools(skill_names)
         if allowed_tools:
             command.extend(["--allowedTools", ",".join(allowed_tools)])
+            _write_session_settings(working_directory, allowed_tools)
             logger.info("Allowed tools from skills: %s", allowed_tools)
 
     logger.info(
