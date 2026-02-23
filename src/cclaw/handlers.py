@@ -128,6 +128,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             "\U0001f9e9 /skills - Skill management\n"
             "\u23f0 /cron - Cron job management\n"
             "\U0001f493 /heartbeat - Heartbeat management\n"
+            "\U0001f91d /collab - Multi-bot collaboration\n"
             "\u26d4 /cancel - Stop running process\n"
             "\U00002139 /version - Show version\n"
             "\U00002753 /help - Show this message"
@@ -1013,6 +1014,102 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                 "Unknown subcommand. Use: on, off, run",
             )
 
+    async def collab_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle /collab command - multi-bot collaboration."""
+        if not await check_authorization(update):
+            return
+
+        if not context.args or len(context.args) < 2:
+            text = (
+                "\U0001f91d *Multi-Bot Collaboration*\n\n"
+                "Usage: `/collab bot1,bot2 task description`\n\n"
+                "Example:\n"
+                "`/collab butler,finance find optimal living expenses`"
+            )
+            await update.message.reply_text(text, parse_mode="Markdown")
+            return
+
+        from cclaw.config import load_bot_config as check_bot
+
+        bot_names_string = context.args[0]
+        target_bot_names = [name.strip() for name in bot_names_string.split(",")]
+        task = " ".join(context.args[1:])
+
+        invalid_bots = [name for name in target_bot_names if not check_bot(name)]
+        if invalid_bots:
+            await update.message.reply_text(
+                f"Bot not found: {', '.join(invalid_bots)}"
+            )
+            return
+
+        if len(target_bot_names) < 2:
+            await update.message.reply_text("At least 2 bots are required for collaboration.")
+            return
+
+        await update.message.reply_text(
+            f"\U0001f91d Collaboration: {', '.join(target_bot_names)}\n"
+            f"\U0001f4cb Task: {task}\n\n"
+            "Planning..."
+        )
+
+        from cclaw.orchestrator import (
+            OrchestrationStep,
+            StepResult,
+            run_orchestrated_task,
+        )
+
+        async def on_step_start(step: OrchestrationStep) -> None:
+            prompt_preview = step.prompt[:100]
+            if len(step.prompt) > 100:
+                prompt_preview += "..."
+            await update.message.reply_text(
+                f"\u25b6\ufe0f Step {step.step_number}: {step.bot_name}\n{prompt_preview}"
+            )
+
+        async def on_step_complete(result: StepResult) -> None:
+            preview = result.response[:200]
+            if len(result.response) > 200:
+                preview += "..."
+            await update.message.reply_text(
+                f"\u2705 Step {result.step_number} ({result.bot_name}) done\n{preview}"
+            )
+
+        async def send_typing_periodically() -> None:
+            try:
+                while True:
+                    await update.message.chat.send_action("typing")
+                    await asyncio.sleep(4)
+            except asyncio.CancelledError:
+                pass
+
+        typing_task = asyncio.create_task(send_typing_periodically())
+
+        try:
+            summary = await run_orchestrated_task(
+                task=task,
+                bot_names=target_bot_names,
+                model=current_model,
+                on_step_start=on_step_start,
+                on_step_complete=on_step_complete,
+                plan_timeout=command_timeout,
+                step_timeout=command_timeout,
+            )
+
+            html_response = markdown_to_telegram_html(summary)
+            chunks = split_message(html_response)
+            for chunk in chunks:
+                try:
+                    await update.message.reply_text(chunk, parse_mode="HTML")
+                except Exception:
+                    await update.message.reply_text(chunk)
+        except ValueError as error:
+            await update.message.reply_text(f"Planning failed: {error}")
+        except Exception as error:
+            await update.message.reply_text(f"Error: {error}")
+            logger.error("Orchestration error: %s", error)
+        finally:
+            typing_task.cancel()
+
     handlers = [
         CommandHandler("start", start_handler),
         CommandHandler("help", help_handler),
@@ -1029,6 +1126,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         CommandHandler("skills", skills_handler),
         CommandHandler("cron", cron_handler),
         CommandHandler("heartbeat", heartbeat_handler),
+        CommandHandler("collab", collab_handler),
         MessageHandler(filters.PHOTO | filters.Document.ALL, file_handler),
         MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler),
     ]
@@ -1049,6 +1147,7 @@ BOT_COMMANDS = [
     BotCommand("cron", "\u23f0 Cron job management"),
     BotCommand("heartbeat", "\U0001f493 Heartbeat management"),
     BotCommand("streaming", "\U0001f4e1 Toggle streaming mode"),
+    BotCommand("collab", "\U0001f91d Multi-bot collaboration"),
     BotCommand("cancel", "\u26d4 Stop running process"),
     BotCommand("version", "\U00002139 Show version"),
     BotCommand("help", "\U00002753 Show commands"),
