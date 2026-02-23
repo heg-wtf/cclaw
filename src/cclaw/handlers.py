@@ -892,7 +892,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                 next_display = next_time.strftime("%m-%d %H:%M") if next_time else "-"
                 message_preview = job.get("message", "")[:30]
                 lines.append(
-                    f"{status_icon} `{job['name']}` ({schedule_display})\n"
+                    f"{status_icon} `{job['name']}` (`{schedule_display}`)\n"
                     f"   Next: {next_display} | {message_preview}"
                 )
             await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
