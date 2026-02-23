@@ -81,9 +81,10 @@ Automatically runs Claude Code at scheduled times and sends results via Telegram
 - Job list defined in `cron.yaml` (schedule or at)
 - **Recurring jobs**: Standard cron expressions (`0 9 * * *` = daily at 9 AM)
 - **One-shot jobs**: ISO datetime or duration (`30m`, `2h`, `1d`) in `at` field
+- **Per-job timezone**: Optional `timezone` field (e.g., `Asia/Seoul`). Defaults to UTC. Cron expressions are evaluated in the job's timezone via `resolve_job_timezone()` using `zoneinfo.ZoneInfo`
 - `croniter` library for cron expression validation and matching
 - Scheduler loop: checks current time against job schedules every 30 seconds
-- Duplicate prevention: records last run time in memory, prevents re-execution within same minute
+- Duplicate prevention: records last run time in UTC, prevents re-execution within same minute
 - Result delivery: sends Telegram DM to all `allowed_users` in `bot.yaml`
 - Isolated working directory: Claude Code runs in `cron_sessions/{job_name}/`
 - One-shot jobs: auto-deleted after execution when `delete_after_run=true`
@@ -112,7 +113,7 @@ Frequently used skills are bundled as templates inside the package, installable 
 - `install_builtin_skill()` copies template files to `~/.cclaw/skills/<name>/`
 - After installation: requirement check -> auto-activate on pass, stays inactive with guidance on fail
 - `skill.yaml`'s `install_hints` field provides installation instructions for missing tools
-- Built-in skills: iMessage (`imsg` CLI), Apple Reminders (`reminders-cli`), Naver Map (knowledge type, web URL based), Image Processing (`slimg` CLI)
+- Built-in skills: iMessage (`imsg` CLI), Apple Reminders (`reminders-cli`), Naver Map (knowledge type, web URL based), Image Processing (`slimg` CLI), Best Price (knowledge type, web search based)
 - `cclaw skills` command also displays uninstalled built-in skills
 - Telegram `/skills` handler also shows uninstalled built-in skills
 
@@ -172,7 +173,7 @@ cli.py
 │   ├── handlers.py
 │   │   ├── claude_runner.py
 │   │   │   └── skill.py (merge_mcp_configs, collect_skill_environment_variables)
-│   │   ├── cron.py (list_cron_jobs, get_cron_job, execute_cron_job, next_run_time)
+│   │   ├── cron.py (list_cron_jobs, get_cron_job, execute_cron_job, next_run_time, resolve_job_timezone)
 │   │   ├── heartbeat.py (get/enable/disable_heartbeat, execute_heartbeat)
 │   │   ├── skill.py (attach/detach, is_skill, skill_status)
 │   │   ├── builtin_skills (list_builtin_skills)

@@ -257,7 +257,7 @@ Configuration and session data are stored in `~/.cclaw/`. Override the path with
 │       ├── bot.yaml
 │       ├── CLAUDE.md
 │       ├── MEMORY.md             # Bot long-term memory (shared across all sessions)
-│       ├── cron.yaml             # Cron job config (optional)
+│       ├── cron.yaml             # Cron job config (schedule, timezone, optional)
 │       ├── cron_sessions/        # Cron job working directories
 │       ├── heartbeat_sessions/   # Heartbeat working directory
 │       │   ├── CLAUDE.md

@@ -206,6 +206,7 @@ Additionally, `list_builtin_skills()` shows uninstalled built-in skills at the b
 jobs:
   - name: morning-email       # Job identifier
     schedule: "0 9 * * *"     # Standard cron expression
+    timezone: "Asia/Seoul"    # Optional (defaults to UTC)
     message: "Summarize today's morning emails"
     skills: [gmail]           # Optional (uses bot's default skills if omitted)
     model: haiku              # Optional (uses bot's default model if omitted)
@@ -216,12 +217,21 @@ jobs:
     delete_after_run: true    # Auto-delete after execution
 ```
 
+### Per-Job Timezone
+
+- Optional `timezone` field per job (e.g., `Asia/Seoul`, `America/New_York`)
+- Defaults to UTC when omitted
+- `resolve_job_timezone()` resolves timezone name via `zoneinfo.ZoneInfo`, falls back to UTC on invalid name
+- Cron expressions are evaluated in the job's timezone: `datetime.now(job_timezone)` is used instead of UTC
+- `next_run_time()` also returns time in the job's timezone for display
+- Last run times are tracked in UTC internally to avoid DST issues
+
 ### Scheduler Behavior
 
 - `bot_manager.py` launches `asyncio.create_task(run_cron_scheduler())` on bot start
 - Checks current time against job schedules every 30 seconds
-- Calculates fire time for current minute via `croniter`'s `get_next()`
-- Records last run time in memory (`last_run_times` dict) to prevent duplicate execution within same minute
+- Calculates fire time for current minute via `croniter`'s `get_next()` in the job's timezone
+- Records last run time in UTC (`last_run_times` dict) to prevent duplicate execution within same minute
 - `stop_event` for graceful shutdown (cron shuts down with bot)
 
 ### Result Delivery

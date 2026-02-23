@@ -72,7 +72,7 @@ pytest
 - `src/cclaw/handlers.py` - Telegram handler factory (slash commands + messages + file receive/send + model change (with version display) + process cancel + /skills unified management (list/attach/detach/builtins) + /cron management + /heartbeat management + /memory management + streaming response + /streaming toggle + session continuity (`_prepare_session_context`, `_call_with_resume_fallback`) + `set_bot_commands` command menu registration)
 - `src/cclaw/bot_manager.py` - Multi-bot polling, launchd daemon, per-bot error isolation, cron/heartbeat scheduler integration
 - `src/cclaw/heartbeat.py` - Heartbeat periodic situation awareness (config CRUD, active hours check, HEARTBEAT.md management, HEARTBEAT_OK detection, scheduler loop)
-- `src/cclaw/cron.py` - Cron schedule automation (cron.yaml CRUD, croniter-based schedule matching, one-shot support, scheduler loop)
+- `src/cclaw/cron.py` - Cron schedule automation (cron.yaml CRUD, croniter-based schedule matching, per-job timezone support via `resolve_job_timezone()`, one-shot support, scheduler loop)
 - `src/cclaw/skill.py` - Skill management (discovery/loading/creation/deletion/builtin installation, bot-skill linking, CLAUDE.md composition (memory instructions + Telegram formatting rules), MCP/env variable merging)
 - `src/cclaw/builtin_skills/__init__.py` - Built-in skill registry (scans subdirectories for templates)
 - `src/cclaw/builtin_skills/imessage/` - iMessage built-in skill template (SKILL.md, skill.yaml)
@@ -150,7 +150,7 @@ pytest
 │   ├── bot.yaml          # Bot config (token, personality, role, allowed_users, model, streaming, skills, heartbeat)
 │   ├── CLAUDE.md         # Bot system prompt (includes skills + memory instructions)
 │   ├── MEMORY.md         # Bot long-term memory (read/written by Claude Code, shared across all sessions)
-│   ├── cron.yaml         # Cron job config (schedule/at, message, skills, model)
+│   ├── cron.yaml         # Cron job config (schedule/at, timezone, message, skills, model)
 │   ├── cron_sessions/<job_name>/  # Per-cron-job working directory
 │   │   └── CLAUDE.md     # Copy of bot CLAUDE.md
 │   ├── heartbeat_sessions/       # Heartbeat working directory
