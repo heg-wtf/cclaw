@@ -888,11 +888,12 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                 enabled = job.get("enabled", True)
                 status_icon = "\u2705" if enabled else "\U0001f6d1"
                 schedule_display = job.get("schedule") or f"at: {job.get('at', 'N/A')}"
+                timezone_label = job.get("timezone", "UTC")
                 next_time = next_run_time(job) if enabled else None
                 next_display = next_time.strftime("%m-%d %H:%M") if next_time else "-"
                 message_preview = job.get("message", "")[:30]
                 lines.append(
-                    f"{status_icon} `{job['name']}` (`{schedule_display}`)\n"
+                    f"{status_icon} `{job['name']}` (`{schedule_display}` {timezone_label})\n"
                     f"   Next: {next_display} | {message_preview}"
                 )
             await update.message.reply_text("\n".join(lines), parse_mode="Markdown")

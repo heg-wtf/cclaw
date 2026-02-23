@@ -8,6 +8,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import yaml
 from croniter import croniter
@@ -17,6 +18,21 @@ from cclaw.config import bot_directory
 logger = logging.getLogger(__name__)
 
 CRON_CHECK_INTERVAL_SECONDS = 30
+
+
+def resolve_job_timezone(job: dict[str, Any]) -> ZoneInfo | timezone:
+    """Resolve the timezone for a cron job.
+
+    Returns ZoneInfo for named timezones (e.g., 'Asia/Seoul'),
+    or timezone.utc as default.
+    """
+    timezone_name = job.get("timezone")
+    if timezone_name:
+        try:
+            return ZoneInfo(timezone_name)
+        except (KeyError, ValueError):
+            logger.warning("Invalid timezone '%s', falling back to UTC", timezone_name)
+    return timezone.utc
 
 
 # --- Data structures & CRUD ---
@@ -148,6 +164,7 @@ def next_run_time(job: dict[str, Any]) -> datetime | None:
     """Calculate the next run time for a job.
 
     Returns None if the job has no valid schedule.
+    The returned datetime is timezone-aware in the job's configured timezone.
     """
     if "at" in job:
         at_time = parse_one_shot_time(job["at"])
@@ -157,9 +174,10 @@ def next_run_time(job: dict[str, Any]) -> datetime | None:
     if not schedule or not validate_cron_schedule(schedule):
         return None
 
-    now = datetime.now(timezone.utc)
+    job_timezone = resolve_job_timezone(job)
+    now = datetime.now(job_timezone)
     cron = croniter(schedule, now)
-    return cron.get_next(datetime).replace(tzinfo=timezone.utc)
+    return cron.get_next(datetime).replace(tzinfo=job_timezone)
 
 
 # --- Cron session directory ---
@@ -269,10 +287,6 @@ async def run_cron_scheduler(
 
     while not stop_event.is_set():
         try:
-            now = datetime.now(timezone.utc)
-            # Truncate to minute for comparison
-            current_minute = now.replace(second=0, microsecond=0)
-
             jobs = list_cron_jobs(bot_name)
 
             for job in jobs:
@@ -286,26 +300,37 @@ async def run_cron_scheduler(
                 should_run = False
 
                 if "at" in job:
-                    # One-shot job
+                    # One-shot job (always evaluated in UTC)
+                    now = datetime.now(timezone.utc)
                     at_time = parse_one_shot_time(job["at"])
                     if at_time and at_time <= now:
                         last_run = last_run_times.get(job_name)
                         if last_run is None:
                             should_run = True
+                            last_run_times[job_name] = now
                 elif "schedule" in job:
                     schedule = job["schedule"]
                     if validate_cron_schedule(schedule):
+                        # Evaluate cron expression in the job's timezone
+                        job_timezone = resolve_job_timezone(job)
+                        now_in_timezone = datetime.now(job_timezone)
+                        current_minute = now_in_timezone.replace(
+                            second=0, microsecond=0, tzinfo=None
+                        )
+
                         cron = croniter(schedule, current_minute - timedelta(seconds=1))
-                        previous_fire = cron.get_next(datetime).replace(tzinfo=timezone.utc)
+                        previous_fire = cron.get_next(datetime)
                         previous_fire_minute = previous_fire.replace(second=0, microsecond=0)
 
                         if previous_fire_minute == current_minute:
+                            # Use UTC for last_run tracking
+                            now_utc = datetime.now(timezone.utc).replace(second=0, microsecond=0)
                             last_run = last_run_times.get(job_name)
-                            if last_run is None or last_run < current_minute:
+                            if last_run is None or last_run < now_utc:
                                 should_run = True
+                                last_run_times[job_name] = now_utc
 
                 if should_run:
-                    last_run_times[job_name] = current_minute
                     asyncio.create_task(
                         execute_cron_job(
                             bot_name=bot_name,

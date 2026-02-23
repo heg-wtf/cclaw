@@ -20,6 +20,7 @@ from cclaw.cron import (
     next_run_time,
     parse_one_shot_time,
     remove_cron_job,
+    resolve_job_timezone,
     run_cron_scheduler,
     save_cron_config,
     validate_cron_schedule,
@@ -232,6 +233,51 @@ def test_next_run_time_invalid_schedule():
 
     job_empty = {"enabled": True}
     assert next_run_time(job_empty) is None
+
+
+# --- Timezone tests ---
+
+
+def test_resolve_job_timezone_default():
+    """resolve_job_timezone returns UTC when no timezone specified."""
+    job = {"schedule": "0 9 * * *"}
+    result = resolve_job_timezone(job)
+    assert result == timezone.utc
+
+
+def test_resolve_job_timezone_named():
+    """resolve_job_timezone returns ZoneInfo for valid timezone name."""
+    from zoneinfo import ZoneInfo
+
+    job = {"schedule": "0 9 * * *", "timezone": "Asia/Seoul"}
+    result = resolve_job_timezone(job)
+    assert result == ZoneInfo("Asia/Seoul")
+
+
+def test_resolve_job_timezone_invalid():
+    """resolve_job_timezone falls back to UTC for invalid timezone."""
+    job = {"schedule": "0 9 * * *", "timezone": "Invalid/Timezone"}
+    result = resolve_job_timezone(job)
+    assert result == timezone.utc
+
+
+def test_next_run_time_with_timezone():
+    """next_run_time uses job timezone for calculation."""
+    from zoneinfo import ZoneInfo
+
+    job = {"schedule": "0 6 * * *", "timezone": "Asia/Seoul"}
+    result = next_run_time(job)
+    assert result is not None
+    assert result.tzinfo == ZoneInfo("Asia/Seoul")
+    assert result.hour == 6  # 6 AM in KST, not UTC
+
+
+def test_next_run_time_utc_default():
+    """next_run_time uses UTC when no timezone specified."""
+    job = {"schedule": "0 9 * * *"}
+    result = next_run_time(job)
+    assert result is not None
+    assert result.tzinfo == timezone.utc
 
 
 # --- Cron session directory ---

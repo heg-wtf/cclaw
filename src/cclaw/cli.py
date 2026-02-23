@@ -717,18 +717,20 @@ def cron_list(bot: str = typer.Argument(help="Bot name")) -> None:
     table = Table(title=f"Cron Jobs - {bot}")
     table.add_column("Name", style="cyan")
     table.add_column("Schedule", style="magenta")
+    table.add_column("Timezone", style="blue")
     table.add_column("Message", style="dim", max_width=40)
     table.add_column("Next Run", style="green")
     table.add_column("Status", style="yellow")
 
     for job in jobs:
         schedule_display = job.get("schedule") or f"at: {job.get('at', 'N/A')}"
+        timezone_label = job.get("timezone", "UTC")
         enabled = job.get("enabled", True)
         status = "enabled" if enabled else "disabled"
         status_style = "green" if enabled else "red"
 
         next_time = next_run_time(job) if enabled else None
-        next_display = next_time.strftime("%Y-%m-%d %H:%M UTC") if next_time else "-"
+        next_display = next_time.strftime("%Y-%m-%d %H:%M") if next_time else "-"
 
         message = job.get("message", "")
         if len(message) > 40:
@@ -737,6 +739,7 @@ def cron_list(bot: str = typer.Argument(help="Bot name")) -> None:
         table.add_row(
             job.get("name", ""),
             schedule_display,
+            timezone_label,
             message,
             next_display,
             f"[{status_style}]{status}[/{status_style}]",
@@ -788,6 +791,9 @@ def cron_add(bot: str = typer.Argument(help="Bot name")) -> None:
             console.print(f"[red]Invalid cron expression: {schedule}[/red]")
             raise typer.Exit(1)
         job["schedule"] = schedule
+
+        timezone_input = typer.prompt("Timezone (e.g. Asia/Seoul, UTC)", default="UTC")
+        job["timezone"] = timezone_input
 
     message = typer.prompt("Message to send to Claude")
     job["message"] = message
