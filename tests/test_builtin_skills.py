@@ -469,3 +469,115 @@ def test_supabase_mcp_config_merges(temp_cclaw_home):
     merged = merge_mcp_configs(["supabase"])
     assert merged is not None
     assert "supabase" in merged["mcpServers"]
+
+
+# --- Gmail Built-in Skill Tests ---
+
+
+def test_list_builtin_skills_returns_gmail():
+    """list_builtin_skills includes the gmail skill."""
+    skills = list_builtin_skills()
+    names = [skill["name"] for skill in skills]
+    assert "gmail" in names
+
+    gmail = next(skill for skill in skills if skill["name"] == "gmail")
+    assert gmail["description"] != ""
+    assert gmail["path"].is_dir()
+
+
+def test_get_builtin_skill_path_gmail():
+    """get_builtin_skill_path returns path for gmail skill."""
+    path = get_builtin_skill_path("gmail")
+    assert path is not None
+    assert (path / "SKILL.md").exists()
+    assert (path / "skill.yaml").exists()
+
+
+def test_is_builtin_skill_gmail():
+    """is_builtin_skill returns True for gmail."""
+    assert is_builtin_skill("gmail") is True
+
+
+def test_install_builtin_skill_gmail(temp_cclaw_home):
+    """install_builtin_skill creates the gmail skill directory with files."""
+    directory = install_builtin_skill("gmail")
+    assert directory.exists()
+    assert directory == temp_cclaw_home / "skills" / "gmail"
+    assert (directory / "SKILL.md").exists()
+    assert (directory / "skill.yaml").exists()
+
+    # Verify SKILL.md content
+    skill_md_content = (directory / "SKILL.md").read_text()
+    assert "gog gmail" in skill_md_content
+    assert "confirm" in skill_md_content.lower()
+
+    # Verify skill.yaml content
+    with open(directory / "skill.yaml") as file:
+        config = yaml.safe_load(file)
+    assert config["name"] == "gmail"
+    assert config["type"] == "cli"
+    assert "gog" in config["required_commands"]
+    assert "GOG_ACCOUNT" in config["environment_variables"]
+    assert "Bash(gog:*)" in config["allowed_tools"]
+
+
+def test_installed_gmail_skill_starts_inactive(temp_cclaw_home):
+    """Installed gmail skill starts with inactive status."""
+    install_builtin_skill("gmail")
+    assert skill_status("gmail") == "inactive"
+
+
+# --- Google Calendar Built-in Skill Tests ---
+
+
+def test_list_builtin_skills_returns_gcalendar():
+    """list_builtin_skills includes the gcalendar skill."""
+    skills = list_builtin_skills()
+    names = [skill["name"] for skill in skills]
+    assert "gcalendar" in names
+
+    gcalendar = next(skill for skill in skills if skill["name"] == "gcalendar")
+    assert gcalendar["description"] != ""
+    assert gcalendar["path"].is_dir()
+
+
+def test_get_builtin_skill_path_gcalendar():
+    """get_builtin_skill_path returns path for gcalendar skill."""
+    path = get_builtin_skill_path("gcalendar")
+    assert path is not None
+    assert (path / "SKILL.md").exists()
+    assert (path / "skill.yaml").exists()
+
+
+def test_is_builtin_skill_gcalendar():
+    """is_builtin_skill returns True for gcalendar."""
+    assert is_builtin_skill("gcalendar") is True
+
+
+def test_install_builtin_skill_gcalendar(temp_cclaw_home):
+    """install_builtin_skill creates the gcalendar skill directory with files."""
+    directory = install_builtin_skill("gcalendar")
+    assert directory.exists()
+    assert directory == temp_cclaw_home / "skills" / "gcalendar"
+    assert (directory / "SKILL.md").exists()
+    assert (directory / "skill.yaml").exists()
+
+    # Verify SKILL.md content
+    skill_md_content = (directory / "SKILL.md").read_text()
+    assert "gog calendar" in skill_md_content
+    assert "confirm" in skill_md_content.lower()
+
+    # Verify skill.yaml content
+    with open(directory / "skill.yaml") as file:
+        config = yaml.safe_load(file)
+    assert config["name"] == "gcalendar"
+    assert config["type"] == "cli"
+    assert "gog" in config["required_commands"]
+    assert "GOG_ACCOUNT" in config["environment_variables"]
+    assert "Bash(gog:*)" in config["allowed_tools"]
+
+
+def test_installed_gcalendar_skill_starts_inactive(temp_cclaw_home):
+    """Installed gcalendar skill starts with inactive status."""
+    install_builtin_skill("gcalendar")
+    assert skill_status("gcalendar") == "inactive"

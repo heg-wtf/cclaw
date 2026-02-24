@@ -1,0 +1,13 @@
+name: gcalendar
+emoji: "\U0001F4C5"
+description: "Google Calendar integration via gogcli (events, scheduling, free/busy)"
+type: cli
+status: inactive
+required_commands:
+  - gog
+install_hints:
+  gog: "Install via Homebrew: brew install steipete/tap/gogcli"
+environment_variables:
+  - GOG_ACCOUNT
+allowed_tools:
+  - "Bash(gog:*)"

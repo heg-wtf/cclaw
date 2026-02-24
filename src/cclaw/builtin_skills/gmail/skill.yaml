@@ -1,0 +1,13 @@
+name: gmail
+emoji: "\U0001F4E7"
+description: "Gmail integration via gogcli (search, read, send, labels, drafts)"
+type: cli
+status: inactive
+required_commands:
+  - gog
+install_hints:
+  gog: "Install via Homebrew: brew install steipete/tap/gogcli"
+environment_variables:
+  - GOG_ACCOUNT
+allowed_tools:
+  - "Bash(gog:*)"
