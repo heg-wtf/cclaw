@@ -78,11 +78,31 @@ def get_cron_job(bot_name: str, job_name: str) -> dict[str, Any] | None:
 
 
 def add_cron_job(bot_name: str, job: dict[str, Any]) -> None:
-    """Add a cron job to a bot's configuration."""
+    """Add a cron job to a bot's configuration.
+
+    If the job has an 'at' field with a relative duration (e.g., '10m', '2h'),
+    it is converted to an absolute ISO datetime at add time so that the
+    scheduler can correctly detect when the time has passed.
+    """
     config = load_cron_config(bot_name)
     existing_names = {j["name"] for j in config["jobs"]}
     if job["name"] in existing_names:
         raise ValueError(f"Job '{job['name']}' already exists")
+
+    # Convert relative duration to absolute ISO datetime
+    if "at" in job:
+        at_value = job["at"]
+        duration_match = re.match(r"^(\d+)([mhd])$", str(at_value).strip())
+        if duration_match:
+            at_time = parse_one_shot_time(at_value)
+            if at_time:
+                job["at"] = at_time.isoformat()
+                logger.info(
+                    "Converted relative 'at' value '%s' to absolute '%s'",
+                    at_value,
+                    job["at"],
+                )
+
     config["jobs"].append(job)
     save_cron_config(bot_name, config)
 

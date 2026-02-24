@@ -521,3 +521,44 @@ async def test_run_cron_scheduler_one_shot_delete(bot_with_cron):
 
     # Job should have been deleted
     assert get_cron_job(bot_with_cron, "one-shot") is None
+
+
+def test_add_cron_job_converts_relative_at_to_absolute(bot_with_cron):
+    """add_cron_job converts relative duration (e.g., '10m') to absolute ISO datetime."""
+    job = {
+        "name": "relative-test",
+        "at": "10m",
+        "message": "Test message",
+        "enabled": True,
+    }
+    before = datetime.now(timezone.utc)
+    add_cron_job(bot_with_cron, job)
+    after = datetime.now(timezone.utc)
+
+    saved_job = get_cron_job(bot_with_cron, "relative-test")
+    assert saved_job is not None
+
+    # The 'at' value should now be an ISO datetime string, not '10m'
+    assert saved_job["at"] != "10m"
+    at_time = datetime.fromisoformat(saved_job["at"])
+
+    # Should be approximately 10 minutes from now
+    expected_min = before + timedelta(minutes=10)
+    expected_max = after + timedelta(minutes=10)
+    assert expected_min <= at_time <= expected_max
+
+
+def test_add_cron_job_keeps_absolute_at_unchanged(bot_with_cron):
+    """add_cron_job does not modify absolute ISO datetime 'at' values."""
+    iso_time = "2026-12-25T15:00:00+00:00"
+    job = {
+        "name": "absolute-test",
+        "at": iso_time,
+        "message": "Test message",
+        "enabled": True,
+    }
+    add_cron_job(bot_with_cron, job)
+
+    saved_job = get_cron_job(bot_with_cron, "absolute-test")
+    assert saved_job is not None
+    assert saved_job["at"] == iso_time
