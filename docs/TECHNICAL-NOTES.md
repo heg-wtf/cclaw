@@ -446,6 +446,30 @@ Same isolation pattern as cron_sessions/.
 Sends to all `allowed_users` in bot.yaml (same pattern as cron).
 Prepends `[heartbeat: bot_name]` header to messages.
 
+## Supabase MCP Skill (No-Deletion Guardrails)
+
+### Dual-Layer Permission Defense
+
+The Supabase skill uses two complementary defense layers to prevent data deletion:
+
+**Layer 1 — Hard block via `allowed_tools`**: Destructive MCP tools (`delete_branch`, `reset_branch`, `pause_project`, `restore_project`) are excluded from `skill.yaml`'s `allowed_tools` list. In Claude Code's `-p` mode, tools not in `allowed_tools` cannot receive auto-approval, so they are effectively blocked from execution. The `_write_session_settings()` function in `claude_runner.py` writes only the safe tools to `.claude/settings.json`.
+
+**Layer 2 — Soft block via SKILL.md instructions**: For tools that are allowed but can perform destructive operations (notably `execute_sql` which can run any SQL), SKILL.md contains explicit guardrails forbidding `DELETE FROM`, `DROP TABLE`, `TRUNCATE`, and related statements. Claude is instructed to suggest soft delete patterns instead.
+
+### MCP Server Environment Variable Injection
+
+The Supabase MCP server requires `SUPABASE_ACCESS_TOKEN`. This flows through the skill system:
+
+1. `skill.yaml` declares `environment_variables: [SUPABASE_ACCESS_TOKEN]`
+2. `cclaw skills setup supabase` prompts the user and stores the value in `environment_variable_values`
+3. `collect_skill_environment_variables()` reads the stored value during `run_claude()`
+4. The value is injected into the subprocess `env` parameter
+5. The MCP server (started by Claude Code) inherits the environment variable
+
+### MCP Config Merging
+
+The `mcp.json` in the skill directory defines the Supabase MCP server configuration. During `run_claude()`, `merge_mcp_configs()` combines all attached MCP skill configs into a single `.mcp.json` file in the session working directory. Claude Code auto-detects this file and starts the configured MCP servers.
+
 ## IME-Compatible CLI Input
 
 ### Problem

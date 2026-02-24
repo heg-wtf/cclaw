@@ -97,6 +97,7 @@ cclaw has a **skill system** that extends your bot's capabilities with tools and
 | 🗺 Naver Map | Generate Naver Map web links for search and navigation | [Guide](docs/skills/NAVER-MAP.md) |
 | 🖼 Image Processing | Convert, optimize, resize, crop images via [slimg](https://github.com/clroot/slimg) CLI | [Guide](docs/skills/IMAGE.md) |
 | 💰 Best Price | Search lowest prices across Danawa, Coupang, Naver Shopping | [Guide](docs/skills/BEST-PRICE.md) |
+| 🗄 Supabase | Database, Storage, Edge Functions via Supabase MCP (no-deletion guardrails) | [Guide](docs/skills/SUPABASE.md) |
 
 ```bash
 cclaw skills builtins          # List available built-in skills
@@ -238,7 +239,8 @@ cclaw/
 │   │   ├── reminders/      # Apple Reminders skill (reminders-cli)
 │   │   ├── naver-map/      # Naver Map skill (web URL links)
 │   │   ├── image/          # Image processing skill (slimg CLI)
-│   │   └── best-price/    # Best price search skill (knowledge)
+│   │   ├── best-price/    # Best price search skill (knowledge)
+│   │   └── supabase/      # Supabase MCP skill (DB, Storage, Edge Functions)
 │   ├── cron.py             # Cron schedule automation
 │   ├── heartbeat.py        # Heartbeat (periodic situation awareness)
 │   └── utils.py            # Utilities
