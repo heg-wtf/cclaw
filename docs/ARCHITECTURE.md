@@ -81,7 +81,7 @@ Automatically runs Claude Code at scheduled times and sends results via Telegram
 
 - Job list defined in `cron.yaml` (schedule or at)
 - **Recurring jobs**: Standard cron expressions (`0 9 * * *` = daily at 9 AM)
-- **One-shot jobs**: ISO datetime or duration (`30m`, `2h`, `1d`) in `at` field
+- **One-shot jobs**: ISO datetime or duration (`30m`, `2h`, `1d`) in `at` field. Relative durations are converted to absolute ISO datetime at `add_cron_job()` time
 - **Per-job timezone**: Optional `timezone` field (e.g., `Asia/Seoul`). Defaults to UTC. Cron expressions are evaluated in the job's timezone via `resolve_job_timezone()` using `zoneinfo.ZoneInfo`
 - `croniter` library for cron expression validation and matching
 - Scheduler loop: checks current time against job schedules every 30 seconds
@@ -114,7 +114,7 @@ Frequently used skills are bundled as templates inside the package, installable 
 - `install_builtin_skill()` copies template files to `~/.cclaw/skills/<name>/`
 - After installation: requirement check -> auto-activate on pass, stays inactive with guidance on fail
 - `skill.yaml`'s `install_hints` field provides installation instructions for missing tools
-- Built-in skills: iMessage (`imsg` CLI), Apple Reminders (`reminders-cli`), Naver Map (knowledge type, web URL based), Image Processing (`slimg` CLI), Best Price (knowledge type, web search based), Supabase (MCP type, DB/Storage/Edge Functions with no-deletion guardrails)
+- Built-in skills: iMessage (`imsg` CLI), Apple Reminders (`reminders-cli`), Naver Map (knowledge type, web URL based), Image Processing (`slimg` CLI), Best Price (knowledge type, web search based), Supabase (MCP type, DB/Storage/Edge Functions with no-deletion guardrails), Gmail (`gogcli`), Google Calendar (`gogcli`)
 - `cclaw skills` command also displays uninstalled built-in skills
 - Telegram `/skills` handler also shows uninstalled built-in skills
 

@@ -81,6 +81,8 @@ pytest
 - `src/cclaw/builtin_skills/image/` - Image processing built-in skill template (SKILL.md, skill.yaml, slimg CLI)
 - `src/cclaw/builtin_skills/best-price/` - Best price search built-in skill template (SKILL.md, skill.yaml, knowledge type, web search based)
 - `src/cclaw/builtin_skills/supabase/` - Supabase MCP built-in skill template (SKILL.md, skill.yaml, mcp.json, DB/Storage/Edge Functions with no-deletion guardrails)
+- `src/cclaw/builtin_skills/gmail/` - Gmail built-in skill template (SKILL.md, skill.yaml, gogcli-based search/read/send)
+- `src/cclaw/builtin_skills/gcalendar/` - Google Calendar built-in skill template (SKILL.md, skill.yaml, gogcli-based events/scheduling)
 - `src/cclaw/utils.py` - Message splitting, Markdown to HTML conversion, logging setup, IME-compatible CLI input (`prompt_input`, `prompt_multiline`)
 
 ## Code Style

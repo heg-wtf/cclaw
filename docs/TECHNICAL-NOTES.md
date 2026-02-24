@@ -257,6 +257,7 @@ jobs:
 
 - `at` field triggers one-shot execution instead of schedule
 - Supports ISO 8601 datetime (`2026-02-20T15:00:00`) or duration shorthand (`30m`, `2h`, `1d`)
+- **Relative-to-absolute conversion**: `add_cron_job()` converts relative durations (e.g., `10m`) to absolute ISO datetime at creation time. Without this, the scheduler would re-evaluate `parse_one_shot_time("10m")` every 30-second cycle, always computing `now + 10m`, causing the job to never fire
 - Auto-deleted from `cron.yaml` after execution when `delete_after_run: true`
 
 ### Telegram /skills Handler (Unified)
