@@ -520,12 +520,14 @@ def skill_add() -> None:
 
     console = Console()
 
-    name = typer.prompt("Skill name")
+    from cclaw.utils import prompt_input
+
+    name = prompt_input("Skill name:")
     if is_skill(name):
         console.print(f"[red]Skill '{name}' already exists.[/red]")
         raise typer.Exit(1)
 
-    description = typer.prompt("Description", default="")
+    description = prompt_input("Description (optional):")
 
     use_tools = typer.confirm("Does this skill require tools (CLI, MCP, browser)?", default=False)
 
@@ -535,17 +537,17 @@ def skill_add() -> None:
 
     if use_tools:
         type_choices = ", ".join(VALID_SKILL_TYPES)
-        selected_type = typer.prompt(f"Skill type ({type_choices})")
+        selected_type = prompt_input(f"Skill type ({type_choices}):")
         if selected_type not in VALID_SKILL_TYPES:
             console.print(f"[red]Invalid type: {selected_type}[/red]")
             raise typer.Exit(1)
 
-        commands_input = typer.prompt("Required commands (comma-separated, or empty)", default="")
+        commands_input = prompt_input("Required commands (comma-separated, or empty):", default="")
         if commands_input.strip():
             required_commands = [command.strip() for command in commands_input.split(",")]
 
-        environment_variables_input = typer.prompt(
-            "Environment variables (comma-separated, or empty)", default=""
+        environment_variables_input = prompt_input(
+            "Environment variables (comma-separated, or empty):", default=""
         )
         if environment_variables_input.strip():
             environment_variables = [
@@ -636,10 +638,12 @@ def skill_setup(name: str) -> None:
     # Prompt for environment variable values if needed
     config = load_skill_config(name)
     if config and config.get("environment_variables"):
+        from cclaw.utils import prompt_input
+
         environment_variable_values = config.get("environment_variable_values", {})
         for variable in config["environment_variables"]:
             current = environment_variable_values.get(variable, "")
-            value = typer.prompt(f"  {variable}", default=current)
+            value = prompt_input(f"  {variable}:", default=current)
             environment_variable_values[variable] = value
         config["environment_variable_values"] = environment_variable_values
         save_skill_config(name, config)
@@ -767,7 +771,9 @@ def cron_add(bot: str = typer.Argument(help="Bot name")) -> None:
         console.print(f"[red]Bot '{bot}' not found.[/red]")
         raise typer.Exit(1)
 
-    name = typer.prompt("Job name")
+    from cclaw.utils import prompt_input, prompt_multiline
+
+    name = prompt_input("Job name:")
     if get_cron_job(bot, name):
         console.print(f"[red]Job '{name}' already exists.[/red]")
         raise typer.Exit(1)
@@ -777,7 +783,7 @@ def cron_add(bot: str = typer.Argument(help="Bot name")) -> None:
     job: dict = {"name": name, "enabled": True}
 
     if use_one_shot:
-        at_value = typer.prompt("Run at (ISO datetime or duration like 30m/2h/1d)")
+        at_value = prompt_input("Run at (ISO datetime or duration like 30m/2h/1d):")
         parsed = parse_one_shot_time(at_value)
         if not parsed:
             console.print(f"[red]Invalid time: {at_value}[/red]")
@@ -786,23 +792,23 @@ def cron_add(bot: str = typer.Argument(help="Bot name")) -> None:
         delete_after = typer.confirm("Delete after run?", default=True)
         job["delete_after_run"] = delete_after
     else:
-        schedule = typer.prompt("Cron schedule (e.g. '0 9 * * *' for daily 9am)")
+        schedule = prompt_input("Cron schedule (e.g. '0 9 * * *' for daily 9am):")
         if not validate_cron_schedule(schedule):
             console.print(f"[red]Invalid cron expression: {schedule}[/red]")
             raise typer.Exit(1)
         job["schedule"] = schedule
 
-        timezone_input = typer.prompt("Timezone (e.g. Asia/Seoul, UTC)", default="UTC")
+        timezone_input = prompt_input("Timezone (e.g. Asia/Seoul, UTC):", default="UTC")
         job["timezone"] = timezone_input
 
-    message = typer.prompt("Message to send to Claude")
+    message = prompt_multiline("Message to send to Claude:")
     job["message"] = message
 
-    skills_input = typer.prompt("Skills (comma-separated, or empty)", default="")
+    skills_input = prompt_input("Skills (comma-separated, or empty):", default="")
     if skills_input.strip():
         job["skills"] = [skill.strip() for skill in skills_input.split(",")]
 
-    model_input = typer.prompt("Model (sonnet/opus/haiku, or empty for bot default)", default="")
+    model_input = prompt_input("Model (sonnet/opus/haiku, or empty for bot default):", default="")
     if model_input.strip():
         from cclaw.config import is_valid_model
 

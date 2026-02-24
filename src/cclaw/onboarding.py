@@ -122,6 +122,8 @@ async def validate_telegram_token(token: str) -> dict | None:
 
 def prompt_telegram_token() -> tuple[str, dict]:
     """Prompt user for Telegram bot token with retry. Returns (token, bot_info)."""
+    from cclaw.utils import prompt_input
+
     console.print("\n[bold]Connecting Telegram bot.[/bold]")
     console.print()
     console.print("  1. Send a DM to @BotFather on Telegram.")
@@ -130,7 +132,7 @@ def prompt_telegram_token() -> tuple[str, dict]:
     console.print()
 
     for attempt in range(MAXIMUM_TOKEN_RETRY):
-        token = console.input("Bot Token: ").strip()
+        token = prompt_input("Bot Token:")
         console.print("Verifying token...")
 
         bot_info = asyncio.run(validate_telegram_token(token))
@@ -152,10 +154,12 @@ def prompt_telegram_token() -> tuple[str, dict]:
 
 def prompt_bot_profile() -> dict:
     """Prompt user for bot profile information. Returns profile dict."""
+    from cclaw.utils import prompt_input, prompt_multiline
+
     console.print("\n[bold]Setting up bot profile.[/bold]\n")
 
     while True:
-        name = console.input("Bot name (English, used as directory name): ").strip()
+        name = prompt_input("Bot name (English, used as directory name):")
         name = name.strip().lower().replace(" ", "-")
         if not name.isascii() or not name.replace("-", "").isalnum():
             console.print("[red]Use only English letters, numbers, and hyphens.[/red]")
@@ -165,8 +169,8 @@ def prompt_bot_profile() -> dict:
             continue
         break
 
-    personality = console.input("Bot personality: ").strip()
-    description = console.input("Bot role/tasks: ").strip()
+    personality = prompt_multiline("Bot personality:")
+    description = prompt_multiline("Bot role/tasks:")
 
     return {
         "name": name,

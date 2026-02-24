@@ -12,6 +12,33 @@ from cclaw.config import cclaw_home
 TELEGRAM_MESSAGE_LIMIT = 4096
 
 
+def prompt_input(label: str, default: str | None = None) -> str:
+    """Prompt for single-line input using builtin input() for IME compatibility."""
+    from rich.console import Console
+
+    if default is not None:
+        Console().print(f"{label} [dim](default: {default})[/dim] ", end="")
+        value = input().strip()
+        return value if value else default
+    else:
+        Console().print(f"{label} ", end="")
+        return input().strip()
+
+
+def prompt_multiline(label: str) -> str:
+    """Prompt for multi-line input. Empty line finishes input."""
+    from rich.console import Console
+
+    Console().print(f"{label} [dim](empty line to finish)[/dim]")
+    lines = []
+    while True:
+        line = input()
+        if line == "":
+            break
+        lines.append(line)
+    return "\n".join(lines).strip()
+
+
 def split_message(text: str, limit: int = TELEGRAM_MESSAGE_LIMIT) -> list[str]:
     """Split a long message into chunks that fit Telegram's message limit.
 
