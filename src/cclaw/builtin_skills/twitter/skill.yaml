@@ -1,0 +1,17 @@
+name: twitter
+emoji: "\U0001F426"
+description: "Twitter/X posting and search via MCP (tweet, search, timeline)"
+type: mcp
+status: inactive
+required_commands:
+  - npx
+install_hints:
+  npx: "Install Node.js (https://nodejs.org/) - npx is included with npm"
+environment_variables:
+  - TWITTER_API_KEY
+  - TWITTER_API_SECRET_KEY
+  - TWITTER_ACCESS_TOKEN
+  - TWITTER_ACCESS_TOKEN_SECRET
+allowed_tools:
+  - "mcp__twitter__post_tweet"
+  - "mcp__twitter__search_tweets"

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "twitter": {
+      "command": "/bin/sh",
+      "args": [
+        "-c",
+        "API_KEY=\"$TWITTER_API_KEY\" API_SECRET_KEY=\"$TWITTER_API_SECRET_KEY\" ACCESS_TOKEN=\"$TWITTER_ACCESS_TOKEN\" ACCESS_TOKEN_SECRET=\"$TWITTER_ACCESS_TOKEN_SECRET\" npx -y @enescinar/twitter-mcp"
+      ]
+    }
+  }
+}

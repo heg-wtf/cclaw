@@ -581,3 +581,105 @@ def test_installed_gcalendar_skill_starts_inactive(temp_cclaw_home):
     """Installed gcalendar skill starts with inactive status."""
     install_builtin_skill("gcalendar")
     assert skill_status("gcalendar") == "inactive"
+
+
+# --- Twitter Built-in Skill Tests ---
+
+
+def test_list_builtin_skills_returns_twitter():
+    """list_builtin_skills includes the twitter skill."""
+    skills = list_builtin_skills()
+    names = [skill["name"] for skill in skills]
+    assert "twitter" in names
+
+    twitter = next(skill for skill in skills if skill["name"] == "twitter")
+    assert twitter["description"] != ""
+    assert twitter["path"].is_dir()
+
+
+def test_get_builtin_skill_path_twitter():
+    """get_builtin_skill_path returns path for twitter skill."""
+    path = get_builtin_skill_path("twitter")
+    assert path is not None
+    assert (path / "SKILL.md").exists()
+    assert (path / "skill.yaml").exists()
+    assert (path / "mcp.json").exists()
+
+
+def test_is_builtin_skill_twitter():
+    """is_builtin_skill returns True for twitter."""
+    assert is_builtin_skill("twitter") is True
+
+
+def test_install_builtin_skill_twitter(temp_cclaw_home):
+    """install_builtin_skill creates the twitter skill directory with files."""
+    directory = install_builtin_skill("twitter")
+    assert directory.exists()
+    assert directory == temp_cclaw_home / "skills" / "twitter"
+    assert (directory / "SKILL.md").exists()
+    assert (directory / "skill.yaml").exists()
+    assert (directory / "mcp.json").exists()
+
+    # Verify SKILL.md content contains safety rules
+    skill_md_content = (directory / "SKILL.md").read_text()
+    assert "confirm" in skill_md_content.lower()
+    assert "280" in skill_md_content
+    assert "post_tweet" in skill_md_content.lower() or "Post Tweet" in skill_md_content
+
+    # Verify skill.yaml content
+    with open(directory / "skill.yaml") as file:
+        config = yaml.safe_load(file)
+    assert config["name"] == "twitter"
+    assert config["type"] == "mcp"
+    assert "npx" in config["required_commands"]
+    assert "TWITTER_API_KEY" in config["environment_variables"]
+    assert "TWITTER_API_SECRET_KEY" in config["environment_variables"]
+    assert "TWITTER_ACCESS_TOKEN" in config["environment_variables"]
+    assert "TWITTER_ACCESS_TOKEN_SECRET" in config["environment_variables"]
+    assert "allowed_tools" in config
+    assert "mcp__twitter__post_tweet" in config["allowed_tools"]
+    assert "mcp__twitter__search_tweets" in config["allowed_tools"]
+
+    # Verify mcp.json content
+    import json
+
+    with open(directory / "mcp.json") as file:
+        mcp_config = json.load(file)
+    assert "mcpServers" in mcp_config
+    assert "twitter" in mcp_config["mcpServers"]
+
+
+def test_installed_twitter_skill_starts_inactive(temp_cclaw_home):
+    """Installed twitter skill starts with inactive status."""
+    install_builtin_skill("twitter")
+    assert skill_status("twitter") == "inactive"
+
+
+def test_twitter_mcp_config_merges(temp_cclaw_home):
+    """Twitter mcp.json integrates with merge_mcp_configs."""
+    from cclaw.skill import load_skill_mcp_config, merge_mcp_configs
+
+    install_builtin_skill("twitter")
+
+    # Verify MCP config loads
+    mcp_config = load_skill_mcp_config("twitter")
+    assert mcp_config is not None
+    assert "twitter" in mcp_config["mcpServers"]
+
+    # Verify merge works
+    merged = merge_mcp_configs(["twitter"])
+    assert merged is not None
+    assert "twitter" in merged["mcpServers"]
+
+
+def test_twitter_and_supabase_mcp_configs_merge(temp_cclaw_home):
+    """Twitter and Supabase MCP configs merge without conflict."""
+    from cclaw.skill import merge_mcp_configs
+
+    install_builtin_skill("twitter")
+    install_builtin_skill("supabase")
+
+    merged = merge_mcp_configs(["twitter", "supabase"])
+    assert merged is not None
+    assert "twitter" in merged["mcpServers"]
+    assert "supabase" in merged["mcpServers"]
