@@ -5,6 +5,7 @@ import pytest
 from cclaw.session import (
     clear_bot_memory,
     clear_claude_session_id,
+    collect_session_chat_ids,
     ensure_session,
     get_claude_session_id,
     list_workspace_files,
@@ -286,3 +287,38 @@ def test_clear_bot_memory(bot_path):
 def test_clear_bot_memory_missing(bot_path):
     """clear_bot_memory doesn't error when file is missing."""
     clear_bot_memory(bot_path)  # should not raise
+
+
+# --- collect_session_chat_ids tests ---
+
+
+def test_collect_session_chat_ids(bot_path):
+    """collect_session_chat_ids returns chat IDs from session directories."""
+    ensure_session(bot_path, 111)
+    ensure_session(bot_path, 222)
+    ensure_session(bot_path, 333)
+
+    chat_ids = collect_session_chat_ids(bot_path)
+    assert chat_ids == [111, 222, 333]
+
+
+def test_collect_session_chat_ids_empty(bot_path):
+    """collect_session_chat_ids returns empty list when no sessions exist."""
+    chat_ids = collect_session_chat_ids(bot_path)
+    assert chat_ids == []
+
+
+def test_collect_session_chat_ids_no_sessions_directory(tmp_path):
+    """collect_session_chat_ids returns empty list when sessions dir doesn't exist."""
+    chat_ids = collect_session_chat_ids(tmp_path / "nonexistent")
+    assert chat_ids == []
+
+
+def test_collect_session_chat_ids_ignores_non_chat_directories(bot_path):
+    """collect_session_chat_ids ignores directories that don't match chat_<id> pattern."""
+    ensure_session(bot_path, 111)
+    (bot_path / "sessions" / "not_a_chat").mkdir()
+    (bot_path / "sessions" / "chat_abc").mkdir()  # non-numeric
+
+    chat_ids = collect_session_chat_ids(bot_path)
+    assert chat_ids == [111]

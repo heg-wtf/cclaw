@@ -324,8 +324,8 @@ async def test_execute_cron_job_sends_to_allowed_users(bot_with_cron):
 
 
 @pytest.mark.asyncio
-async def test_execute_cron_job_no_allowed_users(bot_with_cron):
-    """execute_cron_job skips sending when no allowed_users configured."""
+async def test_execute_cron_job_no_allowed_users_no_sessions(bot_with_cron):
+    """execute_cron_job skips sending when no allowed_users and no session chat IDs."""
     job = {"name": "test", "message": "Hello", "enabled": True}
     bot_config = {"allowed_users": [], "model": "sonnet", "command_timeout": 60}
 
@@ -342,6 +342,38 @@ async def test_execute_cron_job_no_allowed_users(bot_with_cron):
         )
 
     send_mock.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_execute_cron_job_fallback_to_session_chat_ids(bot_with_cron, temp_cclaw_home):
+    """execute_cron_job falls back to session chat IDs when allowed_users is empty."""
+    # Create session directories to simulate past conversations
+    bot_path = temp_cclaw_home / "bots" / bot_with_cron
+    sessions_directory = bot_path / "sessions"
+    sessions_directory.mkdir(parents=True, exist_ok=True)
+    (sessions_directory / "chat_111").mkdir()
+    (sessions_directory / "chat_222").mkdir()
+
+    job = {"name": "test", "message": "Hello", "enabled": True}
+    bot_config = {"allowed_users": [], "model": "sonnet", "command_timeout": 60}
+
+    send_mock = AsyncMock()
+
+    with patch(
+        "cclaw.claude_runner.run_claude", new_callable=AsyncMock, return_value="Test response"
+    ):
+        await execute_cron_job(
+            bot_name=bot_with_cron,
+            job=job,
+            bot_config=bot_config,
+            send_message_callback=send_mock,
+        )
+
+    # Should send to both session chat IDs
+    assert send_mock.call_count >= 2
+    call_chat_ids = [call.kwargs.get("chat_id") for call in send_mock.call_args_list]
+    assert 111 in call_chat_ids
+    assert 222 in call_chat_ids
 
 
 @pytest.mark.asyncio
@@ -521,6 +553,41 @@ async def test_run_cron_scheduler_one_shot_delete(bot_with_cron):
 
     # Job should have been deleted
     assert get_cron_job(bot_with_cron, "one-shot") is None
+
+
+@pytest.mark.asyncio
+async def test_run_cron_scheduler_one_shot_disable(bot_with_cron):
+    """run_cron_scheduler disables one-shot jobs after execution when delete_after_run is False."""
+    past_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+    job = {
+        "name": "one-shot-keep",
+        "at": past_time,
+        "message": "Run once but keep",
+        "enabled": True,
+        "delete_after_run": False,
+    }
+    add_cron_job(bot_with_cron, job)
+
+    bot_config = {"allowed_users": [123], "model": "sonnet", "command_timeout": 60}
+    application = AsyncMock()
+    stop_event = asyncio.Event()
+
+    async def set_stop():
+        await asyncio.sleep(0.5)
+        stop_event.set()
+
+    asyncio.create_task(set_stop())
+
+    with patch("cclaw.claude_runner.run_claude", new_callable=AsyncMock, return_value="Done"):
+        await asyncio.wait_for(
+            run_cron_scheduler(bot_with_cron, bot_config, application, stop_event),
+            timeout=5,
+        )
+
+    # Job should still exist but be disabled
+    saved_job = get_cron_job(bot_with_cron, "one-shot-keep")
+    assert saved_job is not None
+    assert saved_job["enabled"] is False
 
 
 def test_add_cron_job_converts_relative_at_to_absolute(bot_with_cron):

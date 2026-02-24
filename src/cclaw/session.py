@@ -17,6 +17,27 @@ def session_directory(bot_path: Path, chat_id: int) -> Path:
     return bot_path / "sessions" / f"chat_{chat_id}"
 
 
+def collect_session_chat_ids(bot_path: Path) -> list[int]:
+    """Collect chat IDs from existing session directories.
+
+    Scans ``sessions/chat_<id>/`` directories and returns the list of chat IDs.
+    Used as a fallback when ``allowed_users`` is empty but the bot needs to
+    send proactive messages (cron results, heartbeat notifications).
+    """
+    sessions_directory = bot_path / "sessions"
+    if not sessions_directory.exists():
+        return []
+    chat_ids: list[int] = []
+    for child in sorted(sessions_directory.iterdir()):
+        if child.is_dir() and child.name.startswith("chat_"):
+            try:
+                chat_id = int(child.name.removeprefix("chat_"))
+                chat_ids.append(chat_id)
+            except ValueError:
+                continue
+    return chat_ids
+
+
 def ensure_session(bot_path: Path, chat_id: int) -> Path:
     """Ensure a session directory exists with required files.
 

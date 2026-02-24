@@ -263,11 +263,25 @@ async def execute_cron_job(
         response = f"Cron job '{job_name}' failed: {error}"
         logger.error("Cron job '%s' failed: %s", job_name, error)
 
-    # Send results to all allowed users
+    # Send results to all allowed users (fallback to session chat IDs)
     allowed_users = bot_config.get("allowed_users", [])
     if not allowed_users:
-        logger.warning("Cron job '%s': no allowed_users configured, skipping send", job_name)
-        return
+        from cclaw.session import collect_session_chat_ids
+
+        bot_path = bot_directory(bot_name)
+        allowed_users = collect_session_chat_ids(bot_path)
+        if allowed_users:
+            logger.info(
+                "Cron job '%s': no allowed_users configured, using %d session chat ID(s)",
+                job_name,
+                len(allowed_users),
+            )
+        else:
+            logger.warning(
+                "Cron job '%s': no allowed_users and no session chat IDs, skipping send",
+                job_name,
+            )
+            return
 
     header = f"[cron: {job_name}]\n\n"
     html_response = markdown_to_telegram_html(header + response)
@@ -361,9 +375,13 @@ async def run_cron_scheduler(
                     )
 
                     # Handle one-shot cleanup
-                    if "at" in job and job.get("delete_after_run", False):
-                        remove_cron_job(bot_name, job_name)
-                        logger.info("One-shot job '%s' deleted after run", job_name)
+                    if "at" in job:
+                        if job.get("delete_after_run", False):
+                            remove_cron_job(bot_name, job_name)
+                            logger.info("One-shot job '%s' deleted after run", job_name)
+                        else:
+                            disable_cron_job(bot_name, job_name)
+                            logger.info("One-shot job '%s' disabled after run", job_name)
 
         except Exception as error:
             logger.error("Cron scheduler error for bot '%s': %s", bot_name, error)

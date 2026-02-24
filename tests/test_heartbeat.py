@@ -293,9 +293,44 @@ async def test_execute_heartbeat_sends_notification(bot_with_config):
 
 
 @pytest.mark.asyncio
-async def test_execute_heartbeat_no_allowed_users(bot_with_config):
-    """execute_heartbeat skips sending when no allowed_users configured."""
+async def test_execute_heartbeat_no_allowed_users_no_sessions(bot_with_config):
+    """execute_heartbeat skips sending when no allowed_users and no session chat IDs."""
     save_heartbeat_markdown(bot_with_config, default_heartbeat_content())
+
+    bot_config = {
+        "allowed_users": [],
+        "model": "sonnet",
+        "command_timeout": 60,
+    }
+
+    send_mock = AsyncMock()
+
+    with patch(
+        "cclaw.claude_runner.run_claude",
+        new_callable=AsyncMock,
+        return_value="Something to report",
+    ):
+        # Ensure no session directories exist
+        await execute_heartbeat(
+            bot_name=bot_with_config,
+            bot_config=bot_config,
+            send_message_callback=send_mock,
+        )
+
+    send_mock.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_execute_heartbeat_fallback_to_session_chat_ids(bot_with_config, temp_cclaw_home):
+    """execute_heartbeat falls back to session chat IDs when allowed_users is empty."""
+    save_heartbeat_markdown(bot_with_config, default_heartbeat_content())
+
+    # Create session directories to simulate past conversations
+    bot_path = temp_cclaw_home / "bots" / bot_with_config
+    sessions_directory = bot_path / "sessions"
+    sessions_directory.mkdir(parents=True, exist_ok=True)
+    (sessions_directory / "chat_111").mkdir()
+    (sessions_directory / "chat_222").mkdir()
 
     bot_config = {
         "allowed_users": [],
@@ -316,7 +351,11 @@ async def test_execute_heartbeat_no_allowed_users(bot_with_config):
             send_message_callback=send_mock,
         )
 
-    send_mock.assert_not_called()
+    # Should send to both session chat IDs
+    assert send_mock.call_count >= 2
+    call_chat_ids = [call.kwargs.get("chat_id") for call in send_mock.call_args_list]
+    assert 111 in call_chat_ids
+    assert 222 in call_chat_ids
 
 
 @pytest.mark.asyncio

@@ -229,11 +229,25 @@ async def execute_heartbeat(
         logger.info("Heartbeat for '%s': HEARTBEAT_OK, no notification needed", bot_name)
         return
 
-    # Send notification to all allowed users
+    # Send notification to all allowed users (fallback to session chat IDs)
     allowed_users = bot_config.get("allowed_users", [])
     if not allowed_users:
-        logger.warning("Heartbeat for '%s': no allowed_users configured, skipping send", bot_name)
-        return
+        from cclaw.session import collect_session_chat_ids
+
+        bot_path = bot_directory(bot_name)
+        allowed_users = collect_session_chat_ids(bot_path)
+        if allowed_users:
+            logger.info(
+                "Heartbeat for '%s': no allowed_users configured, using %d session chat ID(s)",
+                bot_name,
+                len(allowed_users),
+            )
+        else:
+            logger.warning(
+                "Heartbeat for '%s': no allowed_users and no session chat IDs, skipping send",
+                bot_name,
+            )
+            return
 
     header = f"[heartbeat: {bot_name}]\n\n"
     html_response = markdown_to_telegram_html(header + response)
