@@ -445,3 +445,27 @@ Same isolation pattern as cron_sessions/.
 
 Sends to all `allowed_users` in bot.yaml (same pattern as cron).
 Prepends `[heartbeat: bot_name]` header to messages.
+
+## IME-Compatible CLI Input
+
+### Problem
+
+`Rich.Console.input()` and `typer.prompt()` (which uses `click.prompt`) interfere with CJK IME composition in certain terminals (e.g., Warp). Korean characters break during composition, producing garbled or incomplete input.
+
+### Solution
+
+All CLI input prompts use Python's builtin `input()` wrapped in two utility functions in `utils.py`:
+
+- `prompt_input(label, default=None)`: Single-line input. Uses `Rich.Console.print()` for label display, then `input()` for actual input capture. Optional `default` parameter returns the default value when input is empty.
+- `prompt_multiline(label)`: Multi-line input. Reads lines until an empty line is entered. Used for bot personality, description, cron messages, etc.
+
+### Applied Locations
+
+- `onboarding.py`: Bot Token, Bot name, personality, description
+- `cli.py` skill commands: skill name, description, type, required commands, environment variables, environment variable values
+- `cli.py` cron commands: job name, schedule, timezone, at value, message, skills, model
+
+### Not Changed
+
+- `typer.confirm()` (y/n prompts): These work correctly with IME since they only accept single ASCII characters.
+- `typer.Argument` / `typer.Option`: These are parsed from command-line arguments, not interactive prompts.
