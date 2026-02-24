@@ -1,4 +1,5 @@
 name: imessage
+emoji: "\U0001F4AC"
 description: "macOS iMessage/SMS integration (read and send messages)"
 type: cli
 status: inactive

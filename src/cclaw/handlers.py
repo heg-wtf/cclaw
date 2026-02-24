@@ -772,7 +772,11 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             lines = ["\U0001f9e9 *All Skills:*\n"]
             for skill in installed_skills:
                 skill_type_display = skill["type"] or "markdown"
-                status_icon = "\u2705" if skill["status"] == "active" else "\U0001f6d1"
+                skill_emoji = skill.get("emoji", "")
+                if skill["status"] == "active":
+                    status_icon = skill_emoji if skill_emoji else "\u2705"
+                else:
+                    status_icon = "\U0001f6d1"
                 connected_bots = bots_using_skill(skill["name"])
                 attached_label = f" \u2190 {', '.join(connected_bots)}" if connected_bots else ""
                 lines.append(
@@ -780,7 +784,8 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                 )
 
             for skill in not_installed_builtins:
-                lines.append(f"\U0001f4e6 `{skill['name']}` (builtin, not installed)")
+                builtin_emoji = skill.get("emoji", "\U0001f4e6")
+                lines.append(f"{builtin_emoji} `{skill['name']}` (builtin, not installed)")
 
             lines.append("")
             lines.append("`/skills attach <name>` | `/skills detach <name>`")

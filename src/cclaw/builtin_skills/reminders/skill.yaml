@@ -1,4 +1,5 @@
 name: reminders
+emoji: "\u23F0"
 description: "macOS Apple Reminders integration (create, list, complete reminders)"
 type: cli
 status: inactive

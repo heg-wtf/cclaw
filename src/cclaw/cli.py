@@ -200,8 +200,10 @@ def skills_callback(context: typer.Context) -> None:
             status = skill["status"]
             status_style = "green" if status == "active" else "yellow"
             connected_bots = ", ".join(bots_using_skill(skill["name"])) or "-"
+            skill_emoji = skill.get("emoji", "")
+            display_name = f"{skill_emoji} {skill['name']}" if skill_emoji else skill["name"]
             table.add_row(
-                skill["name"],
+                display_name,
                 skill_type_display,
                 f"[{status_style}]{status}[/{status_style}]",
                 connected_bots,
@@ -209,8 +211,10 @@ def skills_callback(context: typer.Context) -> None:
             )
 
         for skill in not_installed_builtins:
+            skill_emoji = skill.get("emoji", "")
+            display_name = f"{skill_emoji} {skill['name']}" if skill_emoji else skill["name"]
             table.add_row(
-                skill["name"],
+                display_name,
                 "[dim]builtin[/dim]",
                 "[dim]not installed[/dim]",
                 "-",

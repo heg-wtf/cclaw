@@ -34,10 +34,13 @@ def list_builtin_skills() -> list[dict[str, Any]]:
                     config = yaml.safe_load(file) or {}
                 description = config.get("description", "")
 
+            emoji = config.get("emoji", "") if skill_yaml_path.exists() else ""
+
             result.append(
                 {
                     "name": entry.name,
                     "description": description,
+                    "emoji": emoji,
                     "path": entry,
                 }
             )

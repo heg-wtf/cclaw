@@ -41,16 +41,31 @@ def list_skills() -> list[dict[str, Any]]:
     if not directory.exists():
         return []
 
+    from cclaw.builtin_skills import get_builtin_skill_path
+
     result = []
     for entry in sorted(directory.iterdir()):
         if entry.is_dir() and (entry / "SKILL.md").exists():
             config = load_skill_config(entry.name)
+            emoji = config.get("emoji", "") if config else ""
+
+            # Fallback: read emoji from builtin template if not in installed config
+            if not emoji:
+                builtin_path = get_builtin_skill_path(entry.name)
+                if builtin_path:
+                    builtin_yaml_path = builtin_path / "skill.yaml"
+                    if builtin_yaml_path.exists():
+                        with open(builtin_yaml_path) as builtin_file:
+                            builtin_config = yaml.safe_load(builtin_file) or {}
+                        emoji = builtin_config.get("emoji", "")
+
             result.append(
                 {
                     "name": entry.name,
                     "type": skill_type(entry.name),
                     "status": skill_status(entry.name),
                     "description": config.get("description", "") if config else "",
+                    "emoji": emoji,
                 }
             )
     return result
