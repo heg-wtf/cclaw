@@ -86,9 +86,9 @@ Automatically runs Claude Code at scheduled times and sends results via Telegram
 - `croniter` library for cron expression validation and matching
 - Scheduler loop: checks current time against job schedules every 30 seconds
 - Duplicate prevention: records last run time in UTC, prevents re-execution within same minute
-- Result delivery: sends Telegram DM to all `allowed_users` in `bot.yaml`
+- Result delivery: sends Telegram DM to all `allowed_users` in `bot.yaml`. Falls back to session chat IDs (`collect_session_chat_ids()`) when `allowed_users` is empty
 - Isolated working directory: Claude Code runs in `cron_sessions/{job_name}/`
-- One-shot jobs: auto-deleted after execution when `delete_after_run=true`
+- One-shot jobs: auto-deleted after execution when `delete_after_run=true`, auto-disabled when `delete_after_run=false`
 - Inherits bot's skills/model settings, overridable at job level
 
 ### 9. Heartbeat (Periodic Situation Awareness)
@@ -100,7 +100,7 @@ Proactive agent feature that periodically wakes Claude Code to run HEARTBEAT.md 
 - **active_hours**: Active time range (HH:MM, local time, midnight-crossing supported)
 - `HEARTBEAT.md`: User-editable checklist template
 - **HEARTBEAT_OK detection**: When response contains `HEARTBEAT_OK` marker, only logs without notification
-- Sends Telegram DM to all `allowed_users` when HEARTBEAT_OK is absent
+- Sends Telegram DM to all `allowed_users` when HEARTBEAT_OK is absent. Falls back to session chat IDs when `allowed_users` is empty
 - Uses all skills linked to the bot (no separate skill list for heartbeat)
 - Scheduler loop re-reads `bot.yaml` every cycle for runtime config changes
 - Isolated working directory: Claude Code runs in `heartbeat_sessions/`
@@ -114,7 +114,7 @@ Frequently used skills are bundled as templates inside the package, installable 
 - `install_builtin_skill()` copies template files to `~/.cclaw/skills/<name>/`
 - After installation: requirement check -> auto-activate on pass, stays inactive with guidance on fail
 - `skill.yaml`'s `install_hints` field provides installation instructions for missing tools
-- Built-in skills: iMessage (`imsg` CLI), Apple Reminders (`reminders-cli`), Naver Map (knowledge type, web URL based), Image Processing (`slimg` CLI), Best Price (knowledge type, web search based), Supabase (MCP type, DB/Storage/Edge Functions with no-deletion guardrails), Gmail (`gogcli`), Google Calendar (`gogcli`)
+- Built-in skills: iMessage (`imsg` CLI), Apple Reminders (`reminders-cli`), Naver Map (knowledge type, web URL based), Image Processing (`slimg` CLI), Best Price (knowledge type, web search based), Supabase (MCP type, DB/Storage/Edge Functions with no-deletion guardrails), Gmail (`gogcli`), Google Calendar (`gogcli`), Twitter/X (MCP type, tweet posting/search via `@enescinar/twitter-mcp`)
 - `cclaw skills` command also displays uninstalled built-in skills
 - Telegram `/skills` handler also shows uninstalled built-in skills
 

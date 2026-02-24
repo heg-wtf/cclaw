@@ -87,8 +87,10 @@ In `bot_manager.py`, individual bot configuration errors or startup failures don
 
 ## allowed_users
 
-When `allowed_users` in `bot.yaml` is an empty list, all users are allowed.
+When `allowed_users` in `bot.yaml` is an empty list, all users are allowed for incoming messages.
 To restrict access, add Telegram user IDs (integers) to the list.
+
+For proactive messages (cron results, heartbeat notifications), `allowed_users` is needed as the target. When empty, `collect_session_chat_ids()` in `session.py` scans `sessions/chat_<id>/` directories as a fallback — sending results to users who have previously chatted with the bot.
 
 ## Telegram Command Menu
 
@@ -244,7 +246,7 @@ jobs:
 
 - Sends to all `allowed_users` via `application.bot.send_message()`
 - In DMs, user_id == chat_id, so no separate chat ID management needed
-- Skips sending if `allowed_users` is empty (warning log)
+- **Session chat ID fallback**: When `allowed_users` is empty, `collect_session_chat_ids()` scans `sessions/chat_<id>/` directories to find users who have previously chatted with the bot. Skips sending only when both `allowed_users` and session chat IDs are empty
 - Prepends `[cron: job_name]` header to messages
 
 ### Working Directory Isolation
@@ -258,7 +260,7 @@ jobs:
 - `at` field triggers one-shot execution instead of schedule
 - Supports ISO 8601 datetime (`2026-02-20T15:00:00`) or duration shorthand (`30m`, `2h`, `1d`)
 - **Relative-to-absolute conversion**: `add_cron_job()` converts relative durations (e.g., `10m`) to absolute ISO datetime at creation time. Without this, the scheduler would re-evaluate `parse_one_shot_time("10m")` every 30-second cycle, always computing `now + 10m`, causing the job to never fire
-- Auto-deleted from `cron.yaml` after execution when `delete_after_run: true`
+- **Post-execution cleanup**: `delete_after_run: true` auto-deletes from `cron.yaml`. `delete_after_run: false` sets `enabled: false` to prevent re-execution on restart (since `last_run_times` is in-memory only and lost on restart)
 
 ### Telegram /skills Handler (Unified)
 
@@ -450,7 +452,7 @@ Same isolation pattern as cron_sessions/.
 
 ### Result Delivery
 
-Sends to all `allowed_users` in bot.yaml (same pattern as cron).
+Sends to all `allowed_users` in bot.yaml. Falls back to session chat IDs via `collect_session_chat_ids()` when `allowed_users` is empty (same fallback as cron).
 Prepends `[heartbeat: bot_name]` header to messages.
 
 ## Supabase MCP Skill (No-Deletion Guardrails)
@@ -487,6 +489,43 @@ Each builtin skill has an `emoji` field in its `skill.yaml` (e.g., `"\U0001F4AC"
 ### Builtin Fallback
 
 Already-installed skills (copied to `~/.cclaw/skills/`) may lack the `emoji` field if installed before it was added. `list_skills()` in `skill.py` falls back to the builtin template's emoji via `get_builtin_skill_path()` when the installed config has no emoji.
+
+## Twitter/X MCP Skill
+
+### MCP Server Environment Variable Mapping
+
+The `@enescinar/twitter-mcp` package expects generic env var names (`API_KEY`, `API_SECRET_KEY`, `ACCESS_TOKEN`, `ACCESS_TOKEN_SECRET`). To avoid namespace collision with other skills, cclaw uses `TWITTER_`-prefixed names in `skill.yaml`:
+
+- `TWITTER_API_KEY`
+- `TWITTER_API_SECRET_KEY`
+- `TWITTER_ACCESS_TOKEN`
+- `TWITTER_ACCESS_TOKEN_SECRET`
+
+The `mcp.json` uses a `/bin/sh -c` wrapper to map prefixed env vars to the generic names the package expects:
+
+```json
+{
+  "mcpServers": {
+    "twitter": {
+      "command": "/bin/sh",
+      "args": ["-c", "API_KEY=\"$TWITTER_API_KEY\" ... npx -y @enescinar/twitter-mcp"]
+    }
+  }
+}
+```
+
+This shell wrapper approach is necessary because:
+1. Static `mcp.json` cannot reference dynamic env var values
+2. Claude Code's MCP config `env` block requires literal values
+3. The `/bin/sh` command renames the env vars at MCP server launch time
+
+### Safety Guardrails
+
+SKILL.md enforces confirmation before posting. The bot must show the full tweet text and receive user approval before calling `post_tweet`. Character limit (280) is checked before posting.
+
+### Rate Limits
+
+Free tier: 500 posts/month (~16 per day). The skill instructs Claude to inform users when rate limits are exceeded.
 
 ## IME-Compatible CLI Input
 
