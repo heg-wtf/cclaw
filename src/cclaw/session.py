@@ -10,6 +10,10 @@ from pathlib import Path
 CLAUDE_SESSION_ID_FILE = ".claude_session_id"
 MEMORY_FILE_NAME = "MEMORY.md"
 MAX_CONVERSATION_HISTORY_TURNS = 20
+CONVERSATION_FILE_PREFIX = "conversation-"
+CONVERSATION_FILE_SUFFIX = ".md"
+CONVERSATION_DATE_FORMAT = "%y%m%d"
+CONVERSATION_GLOB_PATTERN = "conversation-[0-9][0-9][0-9][0-9][0-9][0-9].md"
 
 
 def session_directory(bot_path: Path, chat_id: int) -> Path:
@@ -61,11 +65,52 @@ def ensure_session(bot_path: Path, chat_id: int) -> Path:
     return directory
 
 
+def _conversation_file_for_today(session_directory: Path) -> Path:
+    """Return today's conversation file path (conversation-YYMMDD.md)."""
+    date_string = datetime.now(timezone.utc).strftime(CONVERSATION_DATE_FORMAT)
+    return session_directory / f"{CONVERSATION_FILE_PREFIX}{date_string}{CONVERSATION_FILE_SUFFIX}"
+
+
+def _list_all_conversation_files(session_directory: Path) -> list[Path]:
+    """List all conversation files (dated + legacy) in the session directory."""
+    if not session_directory.exists():
+        return []
+    files = list(session_directory.glob(CONVERSATION_GLOB_PATTERN))
+    legacy_file = session_directory / "conversation.md"
+    if legacy_file.exists():
+        files.append(legacy_file)
+    return files
+
+
+def conversation_status_summary(session_directory: Path) -> str:
+    """Return a human-readable summary of conversation files in the session."""
+    if not session_directory.exists():
+        return "No conversation yet"
+
+    conversation_files = list(session_directory.glob(CONVERSATION_GLOB_PATTERN))
+    legacy_file = session_directory / "conversation.md"
+
+    total_size = 0
+    file_count = 0
+
+    for file in conversation_files:
+        total_size += file.stat().st_size
+        file_count += 1
+
+    if legacy_file.exists():
+        total_size += legacy_file.stat().st_size
+        file_count += 1
+
+    if file_count == 0:
+        return "No conversation yet"
+
+    return f"{total_size:,} bytes ({file_count} files)"
+
+
 def reset_session(bot_path: Path, chat_id: int) -> None:
-    """Reset a session by deleting conversation.md (keep workspace)."""
+    """Reset a session by deleting all conversation files (keep workspace)."""
     directory = session_directory(bot_path, chat_id)
-    conversation_file = directory / "conversation.md"
-    if conversation_file.exists():
+    for conversation_file in _list_all_conversation_files(directory):
         conversation_file.unlink()
     clear_claude_session_id(directory)
 
@@ -98,44 +143,63 @@ def clear_claude_session_id(session_directory: Path) -> None:
 def load_conversation_history(
     session_directory: Path, max_turns: int = MAX_CONVERSATION_HISTORY_TURNS
 ) -> str | None:
-    """Read last N turns from conversation.md.
+    """Read last N turns from conversation files.
 
-    conversation.md format: "## role (timestamp)\\n\\ncontent\\n" repeated.
-    Parses sections starting with "## user" or "## assistant" and returns
-    the most recent max_turns entries.
+    Searches conversation-YYMMDD.md files from newest to oldest,
+    collecting turns until max_turns is reached.
+    Falls back to legacy conversation.md if no dated files exist.
 
-    Returns None if conversation.md doesn't exist or is empty.
+    Returns None if no conversation files exist or all are empty.
     """
-    conversation_file = session_directory / "conversation.md"
-    if not conversation_file.exists():
+    # Dated files in reverse chronological order (newest first)
+    conversation_files = sorted(
+        session_directory.glob(CONVERSATION_GLOB_PATTERN),
+        reverse=True,
+    )
+
+    # Legacy fallback
+    if not conversation_files:
+        legacy_file = session_directory / "conversation.md"
+        if legacy_file.exists():
+            conversation_files = [legacy_file]
+
+    if not conversation_files:
         return None
 
-    content = conversation_file.read_text()
-    if not content.strip():
+    all_sections: list[str] = []
+
+    for conversation_file in conversation_files:
+        content = conversation_file.read_text()
+        if not content.strip():
+            continue
+
+        sections = re.split(r"(?=\n## (?:user|assistant) \()", content)
+        sections = [s.strip() for s in sections if s.strip()]
+
+        # Prepend older file's sections before newer ones
+        all_sections = sections + all_sections
+
+        if len(all_sections) >= max_turns:
+            break
+
+    if not all_sections:
         return None
 
-    # Split into sections by "## user" or "## assistant" headers
-    sections = re.split(r"(?=\n## (?:user|assistant) \()", content)
-    # Filter out empty sections
-    sections = [s.strip() for s in sections if s.strip()]
-
-    if not sections:
-        return None
-
-    # Take the last max_turns sections
-    recent_sections = sections[-max_turns:]
+    recent_sections = all_sections[-max_turns:]
     return "\n\n".join(recent_sections)
 
 
 def log_conversation(session_directory: Path, role: str, content: str) -> None:
-    """Append a conversation entry to conversation.md.
+    """Append a conversation entry to today's conversation file.
+
+    Writes to conversation-YYMMDD.md (UTC date).
 
     Args:
         session_directory: Path to the session directory.
         role: Either 'user' or 'assistant'.
         content: The message content.
     """
-    conversation_file = session_directory / "conversation.md"
+    conversation_file = _conversation_file_for_today(session_directory)
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     entry = f"\n## {role} ({timestamp})\n\n{content}\n"

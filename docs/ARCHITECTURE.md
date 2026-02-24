@@ -27,7 +27,7 @@ Sessions are managed via directory structure without a database.
 
 - Each chat is a `chat_<id>/` directory
 - `CLAUDE.md`: System prompt read by Claude Code
-- `conversation.md`: Conversation log (markdown append)
+- `conversation-YYMMDD.md`: Daily conversation log (UTC date rotation, markdown append). Legacy `conversation.md` supported as read fallback
 - `workspace/`: File storage for Claude Code outputs
 
 ### 3. Multi-Bot Architecture
@@ -123,7 +123,7 @@ Frequently used skills are bundled as templates inside the package, installable 
 Each message runs `claude -p` as a new process, but maintains conversation context.
 
 - **First message**: Starts new Claude Code session with `--session-id <uuid>`
-  - Includes last 20 turns from conversation.md as bootstrap prompt
+  - Includes last 20 turns from conversation files as bootstrap prompt (searches `conversation-YYMMDD.md` newest-first)
 - **Subsequent messages**: Continues session with `--resume <session_id>`
 - **Fallback**: Auto-retries with bootstrap when `--resume` fails (session expired)
 - **Reset**: `/reset`, `/resetall` also delete session ID

@@ -282,7 +282,7 @@ The `src/cclaw/builtin_skills/` package contains skill templates.
 The `install_hints` field (dict) in `skill.yaml` provides installation guidance for missing tools.
 `check_skill_requirements()` reads `install_hints` and includes `Install: <hint>` format in error messages.
 
-## Session Continuity (conversation.md Bootstrap + --resume)
+## Session Continuity (Conversation Bootstrap + --resume)
 
 ### Problem
 
@@ -294,7 +294,7 @@ Context breaks occur when multi-turn flows are needed, like the iMessage skill.
 
 Two mechanisms are combined:
 
-1. **conversation.md bootstrap**: On first message, includes last 20 turns (`MAX_CONVERSATION_HISTORY_TURNS`) from conversation.md in the prompt
+1. **Conversation bootstrap**: On first message, includes last 20 turns (`MAX_CONVERSATION_HISTORY_TURNS`) from conversation files in the prompt
 2. **`--resume <session_id>`**: Claude Code's session continuation flag maintains context for subsequent messages
 
 ### Session ID Management
@@ -304,14 +304,29 @@ Two mechanisms are combined:
 - `save_claude_session_id()`: Saves session ID to file
 - `clear_claude_session_id()`: Deletes session ID file (`missing_ok=True`)
 
-### conversation.md History Parsing
+### Daily Conversation Rotation
 
-`load_conversation_history()` parses conversation.md.
+Conversation history is stored in daily rotating files (`conversation-YYMMDD.md`) instead of a single `conversation.md`.
 
+- **File naming**: `conversation-YYMMDD.md` (UTC date, e.g., `conversation-260225.md`)
+- **Writing**: `log_conversation()` always appends to today's dated file
+- **Reading**: `load_conversation_history()` searches dated files newest-first, collecting turns until `max_turns` is reached
+- **Legacy fallback**: Reads existing `conversation.md` when no dated files exist (no migration needed)
+- **Reset**: `/reset` deletes all dated files + legacy file. `/resetall` removes the entire session directory
+- **Glob pattern**: Strict `conversation-[0-9][0-9][0-9][0-9][0-9][0-9].md` pattern prevents matching non-conversation files
+- **Status display**: `conversation_status_summary()` reports total size and file count for `/status` command
+
+### Conversation History Parsing
+
+`load_conversation_history()` parses conversation files.
+
+- Searches `conversation-YYMMDD.md` files in reverse chronological order (newest first)
+- Falls back to legacy `conversation.md` when no dated files exist
 - Splits sections via regex `re.split(r"(?=\n## (?:user|assistant) \()", content)`
 - Recognizes sections in `## user (timestamp)` or `## assistant (timestamp)` format
+- Collects turns across multiple files until `max_turns` is reached
 - Returns only the most recent `max_turns` sections
-- Returns None if conversation.md is missing or empty
+- Returns None if no conversation files exist or all are empty
 
 ### Handler Flow
 

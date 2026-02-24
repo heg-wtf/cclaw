@@ -68,7 +68,7 @@ pytest
 - `src/cclaw/config.py` - `~/.cclaw/` configuration management (YAML), model version mapping (`MODEL_VERSIONS`, `model_display_name()`)
 - `src/cclaw/onboarding.py` - Environment check, token validation, bot creation wizard
 - `src/cclaw/claude_runner.py` - `claude -p` subprocess execution (async, path resolution via `shutil.which`, process tracking + `cancel_all_processes()` for graceful shutdown, model selection, skill MCP/env injection, streaming output, `--resume`/`--session-id` session continuity)
-- `src/cclaw/session.py` - Session directory/conversation log/workspace management, Claude session ID management (`get`/`save`/`clear_claude_session_id`), conversation.md history loading, bot-level memory CRUD (`load_bot_memory`/`save_bot_memory`/`clear_bot_memory`), `collect_session_chat_ids()` for proactive message fallback
+- `src/cclaw/session.py` - Session directory/conversation log/workspace management, Claude session ID management (`get`/`save`/`clear_claude_session_id`), daily conversation rotation (`conversation-YYMMDD.md`, legacy `conversation.md` fallback), bot-level memory CRUD (`load_bot_memory`/`save_bot_memory`/`clear_bot_memory`), `collect_session_chat_ids()` for proactive message fallback
 - `src/cclaw/handlers.py` - Telegram handler factory (slash commands + messages + file receive/send + model change (with version display) + process cancel + /skills unified management (list/attach/detach/builtins) + /cron management + /heartbeat management + /memory management + streaming response + /streaming toggle + session continuity (`_prepare_session_context`, `_call_with_resume_fallback`) + `set_bot_commands` command menu registration)
 - `src/cclaw/bot_manager.py` - Multi-bot polling, launchd daemon, per-bot error isolation, cron/heartbeat scheduler integration, graceful shutdown (`cancel_all_processes()` before `application.stop()`)
 - `src/cclaw/heartbeat.py` - Heartbeat periodic situation awareness (config CRUD, active hours check, HEARTBEAT.md management, HEARTBEAT_OK detection, session chat ID fallback for result delivery, scheduler loop)
@@ -128,7 +128,7 @@ pytest
 ## Session Continuity
 
 - Each message runs `claude -p` as a new process, but maintains conversation context via `--resume` / `--session-id` flags
-- **First message**: Starts new session with `--session-id <uuid>`. Includes MEMORY.md + last 20 turns from conversation.md as bootstrap prompt
+- **First message**: Starts new session with `--session-id <uuid>`. Includes MEMORY.md + last 20 turns from conversation files as bootstrap prompt
 - **Subsequent messages**: Continues session with `--resume <session_id>`
 - **Fallback**: If `--resume` fails (session expired, etc.), automatically deletes session_id and retries with bootstrap
 - **Reset**: `/reset` or `/resetall` also deletes the `.claude_session_id` file
@@ -141,7 +141,7 @@ pytest
 - When user requests "remember this", the bot saves to `MEMORY.md`
 - `MEMORY.md` is managed per bot (`~/.cclaw/bots/<name>/MEMORY.md`), shared across all chat sessions
 - **Saving**: `compose_claude_md()` includes memory instructions + MEMORY.md absolute path in CLAUDE.md -> Claude Code directly appends to MEMORY.md via file write tool
-- **Loading**: On new session bootstrap, MEMORY.md + conversation.md are injected into the prompt (memory -> conversation history -> new message order)
+- **Loading**: On new session bootstrap, MEMORY.md + conversation history are injected into the prompt (memory -> conversation history -> new message order)
 - **Management**: Telegram `/memory` command (show contents, `/memory clear` to reset) + CLI `cclaw memory show|edit|clear <bot>`
 
 ## Runtime Data Structure
@@ -162,10 +162,10 @@ pytest
 │   │   ├── HEARTBEAT.md  # Checklist (user-editable)
 │   │   └── workspace/    # File storage
 │   └── sessions/chat_<id>/
-│       ├── CLAUDE.md           # Per-session context
-│       ├── conversation.md     # Conversation log
-│       ├── .claude_session_id  # Claude Code session ID (for --resume)
-│       └── workspace/          # File storage
+│       ├── CLAUDE.md              # Per-session context
+│       ├── conversation-YYMMDD.md # Daily conversation log (UTC date rotation)
+│       ├── .claude_session_id     # Claude Code session ID (for --resume)
+│       └── workspace/             # File storage
 ├── skills/<name>/
 │   ├── SKILL.md          # Skill instructions (required, composed into bot CLAUDE.md)
 │   ├── skill.yaml        # Skill config (tool-based only: type, status, required_commands, install_hints, environment_variables)

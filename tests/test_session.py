@@ -6,6 +6,7 @@ from cclaw.session import (
     clear_bot_memory,
     clear_claude_session_id,
     collect_session_chat_ids,
+    conversation_status_summary,
     ensure_session,
     get_claude_session_id,
     list_workspace_files,
@@ -58,18 +59,21 @@ def test_ensure_session_idempotent(bot_path):
 
 
 def test_reset_session(bot_path):
-    """reset_session deletes conversation.md but keeps workspace."""
+    """reset_session deletes all conversation files but keeps workspace."""
     directory = ensure_session(bot_path, 12345)
 
-    conversation_file = directory / "conversation.md"
-    conversation_file.write_text("some conversation")
+    log_conversation(directory, "user", "Hello")
 
     workspace_file = directory / "workspace" / "test.txt"
     workspace_file.write_text("workspace content")
 
+    # Verify conversation file was created
+    dated_files = list(directory.glob("conversation-*.md"))
+    assert len(dated_files) == 1
+
     reset_session(bot_path, 12345)
 
-    assert not conversation_file.exists()
+    assert not list(directory.glob("conversation-*.md"))
     assert workspace_file.exists()
     assert (directory / "CLAUDE.md").exists()
 
@@ -84,7 +88,7 @@ def test_reset_all_session(bot_path):
     """reset_all_session deletes the entire session directory."""
     directory = ensure_session(bot_path, 12345)
     (directory / "workspace" / "test.txt").write_text("data")
-    (directory / "conversation.md").write_text("chat")
+    log_conversation(directory, "user", "chat")
 
     reset_all_session(bot_path, 12345)
 
@@ -97,13 +101,15 @@ def test_reset_all_session_nonexistent(bot_path):
 
 
 def test_log_conversation(bot_path):
-    """log_conversation appends entries to conversation.md."""
+    """log_conversation appends entries to dated conversation file."""
     directory = ensure_session(bot_path, 12345)
 
     log_conversation(directory, "user", "Hello")
     log_conversation(directory, "assistant", "Hi there!")
 
-    content = (directory / "conversation.md").read_text()
+    dated_files = list(directory.glob("conversation-*.md"))
+    assert len(dated_files) == 1
+    content = dated_files[0].read_text()
     assert "## user" in content
     assert "Hello" in content
     assert "## assistant" in content
@@ -176,10 +182,13 @@ def test_load_conversation_history_empty(tmp_path):
     assert load_conversation_history(tmp_path) is None
 
 
-def test_load_conversation_history_empty_file(tmp_path):
-    """load_conversation_history returns None when conversation.md is empty."""
-    (tmp_path / "conversation.md").write_text("")
-    assert load_conversation_history(tmp_path) is None
+def test_load_conversation_history_empty_file(bot_path):
+    """load_conversation_history returns None when conversation file is empty."""
+    directory = ensure_session(bot_path, 12345)
+    from cclaw.session import _conversation_file_for_today
+
+    _conversation_file_for_today(directory).write_text("")
+    assert load_conversation_history(directory) is None
 
 
 def test_load_conversation_history_full(bot_path):
@@ -224,7 +233,7 @@ def test_reset_session_clears_session_id(bot_path):
     """reset_session also clears the stored Claude session ID."""
     directory = ensure_session(bot_path, 12345)
     save_claude_session_id(directory, "test-session-id")
-    (directory / "conversation.md").write_text("some conversation")
+    log_conversation(directory, "user", "some conversation")
 
     reset_session(bot_path, 12345)
 
@@ -322,3 +331,114 @@ def test_collect_session_chat_ids_ignores_non_chat_directories(bot_path):
 
     chat_ids = collect_session_chat_ids(bot_path)
     assert chat_ids == [111]
+
+
+# --- Daily conversation rotation tests ---
+
+
+def test_log_conversation_creates_dated_file(bot_path):
+    """log_conversation creates a conversation-YYMMDD.md file."""
+    directory = ensure_session(bot_path, 12345)
+    log_conversation(directory, "user", "Hello")
+
+    dated_files = list(directory.glob("conversation-*.md"))
+    assert len(dated_files) == 1
+    assert dated_files[0].name.startswith("conversation-")
+    assert dated_files[0].name.endswith(".md")
+    # No legacy conversation.md should be created
+    assert not (directory / "conversation.md").exists()
+
+
+def test_load_conversation_history_legacy_fallback(tmp_path):
+    """load_conversation_history falls back to legacy conversation.md."""
+    (tmp_path / "conversation.md").write_text(
+        "\n## user (2026-02-25 10:00:00 UTC)\n\nHello\n"
+        "\n## assistant (2026-02-25 10:00:01 UTC)\n\nHi!\n"
+    )
+    history = load_conversation_history(tmp_path)
+    assert history is not None
+    assert "Hello" in history
+    assert "Hi!" in history
+
+
+def test_load_conversation_history_spans_multiple_days(bot_path):
+    """load_conversation_history reads across multiple dated files."""
+    directory = ensure_session(bot_path, 12345)
+
+    # Create an older dated file manually
+    (directory / "conversation-260224.md").write_text(
+        "\n## user (2026-02-24 23:00:00 UTC)\n\nYesterday message\n"
+    )
+
+    # Log to today's file
+    log_conversation(directory, "user", "Today message")
+
+    history = load_conversation_history(directory)
+    assert "Yesterday message" in history
+    assert "Today message" in history
+
+
+def test_reset_session_deletes_all_dated_files(bot_path):
+    """reset_session deletes all conversation-YYMMDD.md files and legacy."""
+    directory = ensure_session(bot_path, 12345)
+
+    (directory / "conversation-260224.md").write_text("day 1")
+    (directory / "conversation-260225.md").write_text("day 2")
+    (directory / "conversation.md").write_text("legacy")
+
+    reset_session(bot_path, 12345)
+
+    assert not list(directory.glob("conversation-*.md"))
+    assert not (directory / "conversation.md").exists()
+
+
+def test_conversation_status_summary_no_files(bot_path):
+    """conversation_status_summary returns 'No conversation yet' when empty."""
+    directory = ensure_session(bot_path, 12345)
+    assert conversation_status_summary(directory) == "No conversation yet"
+
+
+def test_conversation_status_summary_with_files(bot_path):
+    """conversation_status_summary returns file count and total size."""
+    directory = ensure_session(bot_path, 12345)
+    log_conversation(directory, "user", "Hello")
+
+    summary = conversation_status_summary(directory)
+    assert "bytes" in summary
+    assert "1 files" in summary
+
+
+def test_conversation_status_summary_multiple_files(bot_path):
+    """conversation_status_summary counts multiple dated files."""
+    directory = ensure_session(bot_path, 12345)
+
+    (directory / "conversation-260224.md").write_text("day 1")
+    (directory / "conversation-260225.md").write_text("day 2")
+
+    summary = conversation_status_summary(directory)
+    assert "2 files" in summary
+
+
+def test_load_conversation_history_truncates_across_files(bot_path):
+    """load_conversation_history respects max_turns across multiple files."""
+    directory = ensure_session(bot_path, 12345)
+
+    # Write 15 turns to an older file
+    older_entries = ""
+    for i in range(15):
+        role = "user" if i % 2 == 0 else "assistant"
+        older_entries += f"\n## {role} (2026-02-24 {10 + i}:00:00 UTC)\n\nOld message {i}\n"
+    (directory / "conversation-260224.md").write_text(older_entries)
+
+    # Write 10 turns to today's file
+    for i in range(10):
+        role = "user" if i % 2 == 0 else "assistant"
+        log_conversation(directory, role, f"New message {i}")
+
+    history = load_conversation_history(directory, max_turns=20)
+    assert history is not None
+    # Should have last 20 turns: 5 old + 10 new (from total 25)
+    assert "Old message 0" not in history
+    assert "Old message 4" not in history
+    assert "Old message 5" in history
+    assert "New message 9" in history

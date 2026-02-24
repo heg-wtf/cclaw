@@ -37,6 +37,7 @@ from cclaw.config import (
 from cclaw.session import (
     clear_bot_memory,
     clear_claude_session_id,
+    conversation_status_summary,
     ensure_session,
     get_claude_session_id,
     list_workspace_files,
@@ -177,12 +178,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         chat_id = update.effective_chat.id
         session_directory = ensure_session(bot_path, chat_id)
 
-        conversation_file = session_directory / "conversation.md"
-        if conversation_file.exists():
-            size = conversation_file.stat().st_size
-            conversation_status = f"{size:,} bytes"
-        else:
-            conversation_status = "No conversation yet"
+        conversation_status = conversation_status_summary(session_directory)
 
         files = list_workspace_files(session_directory)
 

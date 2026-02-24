@@ -78,9 +78,10 @@ Total issues found: 33 (Critical: 5, High: 4, Medium: 5, Low/Info: 19)
 ### 10. Conversation History Unlimited Growth
 
 - **File**: `src/cclaw/session.py`
-- **Status**: Open
-- **Description**: `conversation.md` is appended indefinitely with no size limit. A user sending thousands of messages can exhaust disk space.
-- **Fix**: Implement max file size (e.g., 10MB) or message count cap with archival.
+- **Status**: Mitigated
+- **Description**: `conversation.md` was appended indefinitely with no size limit. A user sending thousands of messages could exhaust disk space.
+- **Mitigation**: Daily rotation to `conversation-YYMMDD.md` files limits per-file growth. Old files are not auto-deleted yet.
+- **Remaining**: Auto-cleanup of old dated files (similar to `cclaw logs clean`) is not yet implemented.
 
 ### 11. No Workspace Size Limit
 
