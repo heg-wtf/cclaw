@@ -194,7 +194,7 @@ cli.py
 - **Foreground**: `cclaw start` -> `asyncio.run()` -> Ctrl+C to quit
 - **Daemon**: `cclaw start --daemon` -> Creates launchd plist -> `launchctl load`
 - **PID file**: Records current process ID in `~/.cclaw/cclaw.pid`
-- **Graceful Shutdown**: SIGINT/SIGTERM signal handlers for sequential bot shutdown
+- **Graceful Shutdown**: SIGINT/SIGTERM -> `cancel_all_processes()` kills all running Claude subprocesses first -> cancel cron/heartbeat tasks -> `application.stop()` for each bot. Without killing subprocesses first, `application.stop()` would wait for running handlers (up to `command_timeout` seconds)
 
 ## Message Processing Flow
 

@@ -48,6 +48,12 @@ The working directory is set to the session directory via the subprocess `cwd` p
 - When process is killed: `returncode == -9` -> raises `asyncio.CancelledError`
 - Handler catches `CancelledError` and sends "Execution was cancelled" message
 
+## Graceful Shutdown (cancel_all_processes)
+
+`cancel_all_processes()` iterates `_running_processes` and kills all running subprocesses (`returncode is None`), then clears the registry.
+
+Called first in `bot_manager.py`'s shutdown sequence (before `application.stop()`). Without this, `application.stop()` waits for running handler coroutines to complete, which blocks until the Claude subprocess finishes (up to `command_timeout`, default 300 seconds). By killing subprocesses first, the handlers complete immediately and shutdown proceeds without delay.
+
 ## Session Lock and Message Queuing
 
 Concurrent requests from the same chat are processed sequentially via `asyncio.Lock`.
@@ -469,6 +475,17 @@ The Supabase MCP server requires `SUPABASE_ACCESS_TOKEN`. This flows through the
 ### MCP Config Merging
 
 The `mcp.json` in the skill directory defines the Supabase MCP server configuration. During `run_claude()`, `merge_mcp_configs()` combines all attached MCP skill configs into a single `.mcp.json` file in the session working directory. Claude Code auto-detects this file and starts the configured MCP servers.
+
+## Per-Skill Emoji Display
+
+Each builtin skill has an `emoji` field in its `skill.yaml` (e.g., `"\U0001F4AC"` for iMessage). This emoji is displayed in:
+
+- **CLI**: `cclaw skills` table prepends emoji to skill name
+- **Telegram**: `/skills` command uses skill emoji instead of generic checkmarks for active skills
+
+### Builtin Fallback
+
+Already-installed skills (copied to `~/.cclaw/skills/`) may lack the `emoji` field if installed before it was added. `list_skills()` in `skill.py` falls back to the builtin template's emoji via `get_builtin_skill_path()` when the installed config has no emoji.
 
 ## IME-Compatible CLI Input
 

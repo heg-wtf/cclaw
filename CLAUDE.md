@@ -67,13 +67,13 @@ pytest
 - `src/cclaw/cli.py` - Typer app entry point, ASCII art banner, all command definitions (skills, bot, cron, heartbeat, memory subcommands)
 - `src/cclaw/config.py` - `~/.cclaw/` configuration management (YAML), model version mapping (`MODEL_VERSIONS`, `model_display_name()`)
 - `src/cclaw/onboarding.py` - Environment check, token validation, bot creation wizard
-- `src/cclaw/claude_runner.py` - `claude -p` subprocess execution (async, path resolution via `shutil.which`, process tracking, model selection, skill MCP/env injection, streaming output, `--resume`/`--session-id` session continuity)
+- `src/cclaw/claude_runner.py` - `claude -p` subprocess execution (async, path resolution via `shutil.which`, process tracking + `cancel_all_processes()` for graceful shutdown, model selection, skill MCP/env injection, streaming output, `--resume`/`--session-id` session continuity)
 - `src/cclaw/session.py` - Session directory/conversation log/workspace management, Claude session ID management (`get`/`save`/`clear_claude_session_id`), conversation.md history loading, bot-level memory CRUD (`load_bot_memory`/`save_bot_memory`/`clear_bot_memory`)
 - `src/cclaw/handlers.py` - Telegram handler factory (slash commands + messages + file receive/send + model change (with version display) + process cancel + /skills unified management (list/attach/detach/builtins) + /cron management + /heartbeat management + /memory management + streaming response + /streaming toggle + session continuity (`_prepare_session_context`, `_call_with_resume_fallback`) + `set_bot_commands` command menu registration)
-- `src/cclaw/bot_manager.py` - Multi-bot polling, launchd daemon, per-bot error isolation, cron/heartbeat scheduler integration
+- `src/cclaw/bot_manager.py` - Multi-bot polling, launchd daemon, per-bot error isolation, cron/heartbeat scheduler integration, graceful shutdown (`cancel_all_processes()` before `application.stop()`)
 - `src/cclaw/heartbeat.py` - Heartbeat periodic situation awareness (config CRUD, active hours check, HEARTBEAT.md management, HEARTBEAT_OK detection, scheduler loop)
 - `src/cclaw/cron.py` - Cron schedule automation (cron.yaml CRUD, croniter-based schedule matching, per-job timezone support via `resolve_job_timezone()`, one-shot support, scheduler loop)
-- `src/cclaw/skill.py` - Skill management (discovery/loading/creation/deletion/builtin installation, bot-skill linking, CLAUDE.md composition (memory instructions + Telegram formatting rules), MCP/env variable merging)
+- `src/cclaw/skill.py` - Skill management (discovery/loading/creation/deletion/builtin installation, bot-skill linking, CLAUDE.md composition (memory instructions + Telegram formatting rules), MCP/env variable merging, per-skill emoji with builtin fallback)
 - `src/cclaw/builtin_skills/__init__.py` - Built-in skill registry (scans subdirectories for templates)
 - `src/cclaw/builtin_skills/imessage/` - iMessage built-in skill template (SKILL.md, skill.yaml)
 - `src/cclaw/builtin_skills/reminders/` - Apple Reminders built-in skill template (SKILL.md, skill.yaml)
