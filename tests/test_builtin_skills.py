@@ -683,3 +683,95 @@ def test_twitter_and_supabase_mcp_configs_merge(temp_cclaw_home):
     assert merged is not None
     assert "twitter" in merged["mcpServers"]
     assert "supabase" in merged["mcpServers"]
+
+
+# --- Jira Built-in Skill Tests ---
+
+
+def test_list_builtin_skills_returns_jira():
+    """list_builtin_skills includes the jira skill."""
+    skills = list_builtin_skills()
+    names = [skill["name"] for skill in skills]
+    assert "jira" in names
+
+    jira = next(skill for skill in skills if skill["name"] == "jira")
+    assert jira["description"] != ""
+    assert jira["path"].is_dir()
+
+
+def test_get_builtin_skill_path_jira():
+    """get_builtin_skill_path returns path for jira skill."""
+    path = get_builtin_skill_path("jira")
+    assert path is not None
+    assert (path / "SKILL.md").exists()
+    assert (path / "skill.yaml").exists()
+    assert (path / "mcp.json").exists()
+
+
+def test_is_builtin_skill_jira():
+    """is_builtin_skill returns True for jira."""
+    assert is_builtin_skill("jira") is True
+
+
+def test_install_builtin_skill_jira(temp_cclaw_home):
+    """install_builtin_skill creates the jira skill directory with files."""
+    directory = install_builtin_skill("jira")
+    assert directory.exists()
+    assert directory == temp_cclaw_home / "skills" / "jira"
+    assert (directory / "SKILL.md").exists()
+    assert (directory / "skill.yaml").exists()
+    assert (directory / "mcp.json").exists()
+
+    # Verify SKILL.md content contains safety rules
+    skill_md_content = (directory / "SKILL.md").read_text()
+    assert "confirm" in skill_md_content.lower()
+    assert "jira_search" in skill_md_content
+    assert "jira_create_issue" in skill_md_content
+
+    # Verify skill.yaml content
+    with open(directory / "skill.yaml") as file:
+        config = yaml.safe_load(file)
+    assert config["name"] == "jira"
+    assert config["type"] == "mcp"
+    assert "uvx" in config["required_commands"]
+    assert "JIRA_URL" in config["environment_variables"]
+    assert "JIRA_USERNAME" in config["environment_variables"]
+    assert "JIRA_API_TOKEN" in config["environment_variables"]
+    assert "allowed_tools" in config
+    assert "mcp__jira__jira_search" in config["allowed_tools"]
+    assert "mcp__jira__jira_get_issue" in config["allowed_tools"]
+    assert "mcp__jira__jira_create_issue" in config["allowed_tools"]
+    assert "mcp__jira__jira_update_issue" in config["allowed_tools"]
+    assert "mcp__jira__jira_transition_issue" in config["allowed_tools"]
+
+    # Verify mcp.json content
+    import json
+
+    with open(directory / "mcp.json") as file:
+        mcp_config = json.load(file)
+    assert "mcpServers" in mcp_config
+    assert "jira" in mcp_config["mcpServers"]
+    assert mcp_config["mcpServers"]["jira"]["command"] == "uvx"
+
+
+def test_installed_jira_skill_starts_inactive(temp_cclaw_home):
+    """Installed jira skill starts with inactive status."""
+    install_builtin_skill("jira")
+    assert skill_status("jira") == "inactive"
+
+
+def test_jira_mcp_config_merges(temp_cclaw_home):
+    """Jira mcp.json integrates with merge_mcp_configs."""
+    from cclaw.skill import load_skill_mcp_config, merge_mcp_configs
+
+    install_builtin_skill("jira")
+
+    # Verify MCP config loads
+    mcp_config = load_skill_mcp_config("jira")
+    assert mcp_config is not None
+    assert "jira" in mcp_config["mcpServers"]
+
+    # Verify merge works
+    merged = merge_mcp_configs(["jira"])
+    assert merged is not None
+    assert "jira" in merged["mcpServers"]

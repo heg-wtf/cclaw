@@ -1,0 +1,22 @@
+name: jira
+emoji: "\U0001F4CB"
+description: "Jira issue management via MCP (search, create, update, transition)"
+type: mcp
+status: inactive
+required_commands:
+  - uvx
+install_hints:
+  uvx: "Install uv (https://docs.astral.sh/uv/) - uvx is included with uv"
+environment_variables:
+  - JIRA_URL
+  - JIRA_USERNAME
+  - JIRA_API_TOKEN
+allowed_tools:
+  # Search & Read
+  - "mcp__jira__jira_search"
+  - "mcp__jira__jira_get_issue"
+  # Create & Update
+  - "mcp__jira__jira_create_issue"
+  - "mcp__jira__jira_update_issue"
+  # Workflow
+  - "mcp__jira__jira_transition_issue"

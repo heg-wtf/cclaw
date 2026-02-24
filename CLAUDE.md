@@ -84,6 +84,7 @@ pytest
 - `src/cclaw/builtin_skills/gmail/` - Gmail built-in skill template (SKILL.md, skill.yaml, gogcli-based search/read/send)
 - `src/cclaw/builtin_skills/gcalendar/` - Google Calendar built-in skill template (SKILL.md, skill.yaml, gogcli-based events/scheduling)
 - `src/cclaw/builtin_skills/twitter/` - Twitter/X MCP built-in skill template (SKILL.md, skill.yaml, mcp.json, tweet posting/search via @enescinar/twitter-mcp)
+- `src/cclaw/builtin_skills/jira/` - Jira MCP built-in skill template (SKILL.md, skill.yaml, mcp.json, issue search/create/update/transition via mcp-atlassian)
 - `src/cclaw/utils.py` - Message splitting, Markdown to HTML conversion, logging setup, IME-compatible CLI input (`prompt_input`, `prompt_multiline`)
 
 ## Code Style

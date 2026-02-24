@@ -101,6 +101,7 @@ cclaw has a **skill system** that extends your bot's capabilities with tools and
 | 📧 Gmail | Search, read, send emails via [gogcli](https://github.com/steipete/gogcli) | [Guide](docs/skills/GMAIL.md) |
 | 📅 Google Calendar | Events, scheduling, free/busy via [gogcli](https://github.com/steipete/gogcli) | [Guide](docs/skills/GCALENDAR.md) |
 | 🐦 Twitter | Post tweets, search tweets via Twitter/X API MCP | [Guide](docs/skills/TWITTER.md) |
+| 📋 Jira | Search, create, update, transition issues via Jira MCP | [Guide](docs/skills/JIRA.md) |
 
 ```bash
 cclaw skills builtins          # List available built-in skills
@@ -246,7 +247,8 @@ cclaw/
 │   │   ├── supabase/      # Supabase MCP skill (DB, Storage, Edge Functions)
 │   │   ├── gmail/         # Gmail skill (gogcli)
 │   │   ├── gcalendar/     # Google Calendar skill (gogcli)
-│   │   └── twitter/      # Twitter/X skill (MCP, tweet posting/search)
+│   │   ├── twitter/      # Twitter/X skill (MCP, tweet posting/search)
+│   │   └── jira/         # Jira skill (MCP, issue management)
 │   ├── cron.py             # Cron schedule automation
 │   ├── heartbeat.py        # Heartbeat (periodic situation awareness)
 │   └── utils.py            # Utilities

@@ -546,6 +546,28 @@ SKILL.md enforces confirmation before posting. The bot must show the full tweet 
 
 Free tier: 500 posts/month (~16 per day). The skill instructs Claude to inform users when rate limits are exceeded.
 
+## Jira MCP Skill
+
+### MCP Server
+
+The Jira skill uses `sooperset/mcp-atlassian` (Python package) via `uvx`. Unlike the Twitter skill, no `/bin/sh -c` wrapper is needed because the package natively reads `JIRA_`-prefixed environment variables (`JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`), which matches the cclaw skill convention.
+
+### Environment Variable Flow
+
+1. `skill.yaml` declares `environment_variables: [JIRA_URL, JIRA_USERNAME, JIRA_API_TOKEN]`
+2. `cclaw skills setup jira` prompts the user and stores values in `environment_variable_values`
+3. `collect_skill_environment_variables()` reads stored values during `run_claude()`
+4. Values are injected into the subprocess `env` parameter
+5. The MCP server (started by Claude Code via `uvx mcp-atlassian`) inherits the environment variables
+
+### Safety Guardrails
+
+SKILL.md enforces confirmation before creating issues and before transitioning workflow status. Issue deletion is forbidden — closing or moving is suggested instead. Bulk modifications require explicit approval.
+
+### Allowed Tools
+
+Only 5 tools are auto-approved: `jira_search`, `jira_get_issue`, `jira_create_issue`, `jira_update_issue`, `jira_transition_issue`. The `mcp-atlassian` package also provides Confluence tools, but they are not listed in `allowed_tools` and therefore blocked in `-p` mode.
+
 ## IME-Compatible CLI Input
 
 ### Problem
