@@ -69,6 +69,22 @@ def cancel_process(session_key: str) -> bool:
     return False
 
 
+def cancel_all_processes() -> int:
+    """Kill all running Claude Code subprocesses.
+
+    Called during shutdown to avoid waiting for long-running processes.
+    Returns the number of processes killed.
+    """
+    killed = 0
+    for session_key, process in list(_running_processes.items()):
+        if process.returncode is None:
+            process.kill()
+            logger.info("Shutdown: killed process for session %s", session_key)
+            killed += 1
+    _running_processes.clear()
+    return killed
+
+
 def is_process_running(session_key: str) -> bool:
     """Check if a process is currently running for a session."""
     process = _running_processes.get(session_key)

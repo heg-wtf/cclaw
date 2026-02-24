@@ -169,6 +169,13 @@ async def _run_bots(bot_names: list[str] | None = None) -> None:
     finally:
         console.print("\nStopping bots...")
 
+        # Kill all running Claude Code subprocesses first
+        from cclaw.claude_runner import cancel_all_processes
+
+        killed = cancel_all_processes()
+        if killed:
+            console.print(f"  Killed {killed} running Claude process(es).")
+
         # Cancel cron tasks
         for task in cron_tasks:
             task.cancel()

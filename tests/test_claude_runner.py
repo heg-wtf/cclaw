@@ -12,6 +12,7 @@ from cclaw.claude_runner import (
     _extract_text_delta,
     _running_processes,
     _write_session_settings,
+    cancel_all_processes,
     cancel_process,
     is_process_running,
     register_process,
@@ -815,3 +816,49 @@ async def test_run_claude_streaming_with_session_id_no_resume():
     assert "--session-id" in call_args
     assert "stream-session-123" in call_args
     assert "--resume" not in call_args
+
+
+# --- cancel_all_processes tests ---
+
+
+def test_cancel_all_processes_kills_running():
+    """cancel_all_processes kills all running processes and clears registry."""
+    process_a = MagicMock()
+    process_a.returncode = None  # Running
+    process_b = MagicMock()
+    process_b.returncode = None  # Running
+
+    _running_processes["bot:1"] = process_a
+    _running_processes["bot:2"] = process_b
+
+    killed = cancel_all_processes()
+
+    assert killed == 2
+    process_a.kill.assert_called_once()
+    process_b.kill.assert_called_once()
+    assert len(_running_processes) == 0
+
+
+def test_cancel_all_processes_skips_finished():
+    """cancel_all_processes skips already-finished processes."""
+    running = MagicMock()
+    running.returncode = None
+    finished = MagicMock()
+    finished.returncode = 0
+
+    _running_processes["bot:run"] = running
+    _running_processes["bot:done"] = finished
+
+    killed = cancel_all_processes()
+
+    assert killed == 1
+    running.kill.assert_called_once()
+    finished.kill.assert_not_called()
+    assert len(_running_processes) == 0
+
+
+def test_cancel_all_processes_empty():
+    """cancel_all_processes returns 0 when no processes registered."""
+    _running_processes.clear()
+    killed = cancel_all_processes()
+    assert killed == 0
