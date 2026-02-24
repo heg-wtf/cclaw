@@ -190,9 +190,13 @@ and creates `.mcp.json` in the session directory. Claude Code auto-detects this 
 ### CLI Skill Environment Variables
 
 CLI skills store values in `skill.yaml`'s `environment_variable_values`.
-Environment variable values are collected during `cclaw skill setup`.
+Environment variable values are collected during `cclaw skills setup`.
 During `run_claude()`, `collect_skill_environment_variables()` gathers them
 and injects into the subprocess `env` parameter.
+
+### Skill Setup with Unconfigured Environment Variables
+
+`cclaw skills setup` normally skips already-active skills. However, if a skill is active but has unconfigured environment variables (empty values), setup re-enters the environment variable prompt. This handles the case where `cclaw skills install` auto-activates an MCP skill (no `required_commands` failure) before environment variables are set.
 
 ### Session CLAUDE.md Propagation
 

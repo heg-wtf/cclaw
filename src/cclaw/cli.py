@@ -628,31 +628,44 @@ def skill_setup(name: str) -> None:
         console.print(f"[red]Skill '{name}' not found.[/red]")
         raise typer.Exit(1)
 
-    if skill_status(name) == "active":
+    already_active = skill_status(name) == "active"
+
+    # Check if environment variables need configuration (even if already active)
+    config = load_skill_config(name)
+    has_unconfigured_environment_variables = False
+    if config and config.get("environment_variables"):
+        environment_variable_values = config.get("environment_variable_values", {})
+        for variable in config["environment_variables"]:
+            if not environment_variable_values.get(variable):
+                has_unconfigured_environment_variables = True
+                break
+
+    if already_active and not has_unconfigured_environment_variables:
         console.print(f"[green]Skill '{name}' is already active.[/green]")
         return
 
-    errors = check_skill_requirements(name)
-    if errors:
-        console.print(f"[red]Setup failed for '{name}':[/red]")
-        for error in errors:
-            console.print(f"  [red]- {error}[/red]")
-        raise typer.Exit(1)
+    if not already_active:
+        errors = check_skill_requirements(name)
+        if errors:
+            console.print(f"[red]Setup failed for '{name}':[/red]")
+            for error in errors:
+                console.print(f"  [red]- {error}[/red]")
+            raise typer.Exit(1)
 
     # Prompt for environment variable values if needed
-    config = load_skill_config(name)
     if config and config.get("environment_variables"):
         from cclaw.utils import prompt_input
 
         environment_variable_values = config.get("environment_variable_values", {})
         for variable in config["environment_variables"]:
             current = environment_variable_values.get(variable, "")
-            value = prompt_input(f"  {variable}:", default=current)
+            value = prompt_input(f"  ○ {variable}:", default=current)
             environment_variable_values[variable] = value
         config["environment_variable_values"] = environment_variable_values
         save_skill_config(name, config)
 
-    activate_skill(name)
+    if not already_active:
+        activate_skill(name)
     console.print(f"[green]Skill '{name}' activated.[/green]")
 
 
