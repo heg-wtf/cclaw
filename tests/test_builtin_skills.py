@@ -376,3 +376,96 @@ def test_installed_best_price_skill_starts_inactive(temp_cclaw_home):
     """Installed best-price skill starts with inactive status."""
     install_builtin_skill("best-price")
     assert skill_status("best-price") == "inactive"
+
+
+# --- Supabase Built-in Skill Tests ---
+
+
+def test_list_builtin_skills_returns_supabase():
+    """list_builtin_skills includes the supabase skill."""
+    skills = list_builtin_skills()
+    names = [skill["name"] for skill in skills]
+    assert "supabase" in names
+
+    supabase = next(skill for skill in skills if skill["name"] == "supabase")
+    assert supabase["description"] != ""
+    assert supabase["path"].is_dir()
+
+
+def test_get_builtin_skill_path_supabase():
+    """get_builtin_skill_path returns path for supabase skill."""
+    path = get_builtin_skill_path("supabase")
+    assert path is not None
+    assert (path / "SKILL.md").exists()
+    assert (path / "skill.yaml").exists()
+    assert (path / "mcp.json").exists()
+
+
+def test_is_builtin_skill_supabase():
+    """is_builtin_skill returns True for supabase."""
+    assert is_builtin_skill("supabase") is True
+
+
+def test_install_builtin_skill_supabase(temp_cclaw_home):
+    """install_builtin_skill creates the supabase skill directory with files."""
+    directory = install_builtin_skill("supabase")
+    assert directory.exists()
+    assert directory == temp_cclaw_home / "skills" / "supabase"
+    assert (directory / "SKILL.md").exists()
+    assert (directory / "skill.yaml").exists()
+    assert (directory / "mcp.json").exists()
+
+    # Verify SKILL.md content contains safety guardrails
+    skill_md_content = (directory / "SKILL.md").read_text()
+    assert "NEVER DELETE" in skill_md_content
+    assert "DELETE FROM" in skill_md_content
+    assert "DROP TABLE" in skill_md_content
+    assert "TRUNCATE" in skill_md_content
+    assert "execute_sql" in skill_md_content
+
+    # Verify skill.yaml content
+    with open(directory / "skill.yaml") as file:
+        config = yaml.safe_load(file)
+    assert config["name"] == "supabase"
+    assert config["type"] == "mcp"
+    assert "npx" in config["required_commands"]
+    assert "SUPABASE_ACCESS_TOKEN" in config["environment_variables"]
+    assert "allowed_tools" in config
+    assert "mcp__supabase__execute_sql" in config["allowed_tools"]
+    assert "mcp__supabase__list_tables" in config["allowed_tools"]
+
+    # Verify destructive tools are NOT in allowed_tools
+    assert "mcp__supabase__delete_branch" not in config["allowed_tools"]
+    assert "mcp__supabase__reset_branch" not in config["allowed_tools"]
+    assert "mcp__supabase__pause_project" not in config["allowed_tools"]
+
+    # Verify mcp.json content
+    import json
+
+    with open(directory / "mcp.json") as file:
+        mcp_config = json.load(file)
+    assert "mcpServers" in mcp_config
+    assert "supabase" in mcp_config["mcpServers"]
+
+
+def test_installed_supabase_skill_starts_inactive(temp_cclaw_home):
+    """Installed supabase skill starts with inactive status."""
+    install_builtin_skill("supabase")
+    assert skill_status("supabase") == "inactive"
+
+
+def test_supabase_mcp_config_merges(temp_cclaw_home):
+    """Supabase mcp.json integrates with merge_mcp_configs."""
+    from cclaw.skill import load_skill_mcp_config, merge_mcp_configs
+
+    install_builtin_skill("supabase")
+
+    # Verify MCP config loads
+    mcp_config = load_skill_mcp_config("supabase")
+    assert mcp_config is not None
+    assert "supabase" in mcp_config["mcpServers"]
+
+    # Verify merge works
+    merged = merge_mcp_configs(["supabase"])
+    assert merged is not None
+    assert "supabase" in merged["mcpServers"]

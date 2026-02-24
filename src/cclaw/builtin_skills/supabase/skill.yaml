@@ -1,0 +1,46 @@
+name: supabase
+description: "Supabase MCP integration (Database, Storage, Edge Functions - read/write only, no deletion)"
+type: mcp
+status: inactive
+required_commands:
+  - npx
+install_hints:
+  npx: "Install Node.js (https://nodejs.org/) - npx is included with npm"
+environment_variables:
+  - SUPABASE_ACCESS_TOKEN
+allowed_tools:
+  # Documentation
+  - "mcp__supabase__search_docs"
+  # Organization & Project (read)
+  - "mcp__supabase__list_organizations"
+  - "mcp__supabase__get_organization"
+  - "mcp__supabase__list_projects"
+  - "mcp__supabase__get_project"
+  - "mcp__supabase__get_cost"
+  - "mcp__supabase__confirm_cost"
+  - "mcp__supabase__create_project"
+  - "mcp__supabase__get_project_url"
+  - "mcp__supabase__get_publishable_keys"
+  # Database
+  - "mcp__supabase__list_tables"
+  - "mcp__supabase__list_extensions"
+  - "mcp__supabase__list_migrations"
+  - "mcp__supabase__apply_migration"
+  - "mcp__supabase__execute_sql"
+  - "mcp__supabase__get_logs"
+  - "mcp__supabase__get_advisors"
+  - "mcp__supabase__generate_typescript_types"
+  # Edge Functions
+  - "mcp__supabase__list_edge_functions"
+  - "mcp__supabase__get_edge_function"
+  - "mcp__supabase__deploy_edge_function"
+  # Branches (read + create/merge only)
+  - "mcp__supabase__list_branches"
+  - "mcp__supabase__create_branch"
+  - "mcp__supabase__merge_branch"
+  - "mcp__supabase__rebase_branch"
+  # BLOCKED (not listed = no auto-approval in -p mode):
+  # - mcp__supabase__pause_project
+  # - mcp__supabase__restore_project
+  # - mcp__supabase__delete_branch
+  # - mcp__supabase__reset_branch
