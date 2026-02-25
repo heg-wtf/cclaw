@@ -1,0 +1,13 @@
+name: translate
+emoji: "\U0001F310"
+description: "Text and transcript translation via translatecli (Gemini-powered, format-preserving)"
+type: cli
+status: inactive
+required_commands:
+  - translatecli
+install_hints:
+  translatecli: "Install via uv: uv tool install git+https://github.com/seapy/translatecli.git"
+environment_variables:
+  - GEMINI_API_KEY
+allowed_tools:
+  - "Bash(translatecli:*)"

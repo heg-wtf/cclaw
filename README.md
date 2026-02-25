@@ -105,6 +105,7 @@ cclaw has a **skill system** that extends your bot's capabilities with tools and
 | 🔍 Naver Search | Search Naver (local, book, blog, cafe, news, shopping) via [naver-cli](https://github.com/heg-wtf/naver-cli) | [Guide](docs/skills/NAVER-SEARCH.md) |
 | 📍 Kakao Local | Address/coordinate conversion, keyword place search via [kakao-cli](https://github.com/heg-wtf/kakao-cli) | [Guide](docs/skills/KAKAO-LOCAL.md) |
 | 📈 DART | Query Korean corporate disclosure (DART OpenAPI) via [dartcli](https://github.com/seapy/dartcli) | [Guide](docs/skills/DART.md) |
+| 🌐 Translate | Translate text and transcripts via [translatecli](https://github.com/seapy/translatecli) (Gemini-powered) | [Guide](docs/skills/TRANSLATE.md) |
 
 ```bash
 cclaw skills builtins          # List available built-in skills

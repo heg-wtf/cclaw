@@ -830,3 +830,57 @@ def test_installed_dart_skill_starts_inactive(temp_cclaw_home):
     """Installed dart skill starts with inactive status."""
     install_builtin_skill("dart")
     assert skill_status("dart") == "inactive"
+
+
+# --- Translate Skill Tests ---
+
+
+def test_list_builtin_skills_returns_translate():
+    """list_builtin_skills includes the translate skill."""
+    skills = list_builtin_skills()
+    names = [skill["name"] for skill in skills]
+    assert "translate" in names
+
+    translate = next(skill for skill in skills if skill["name"] == "translate")
+    assert translate["description"] != ""
+    assert translate["path"].is_dir()
+
+
+def test_get_builtin_skill_path_translate():
+    """get_builtin_skill_path returns path for translate skill."""
+    path = get_builtin_skill_path("translate")
+    assert path is not None
+    assert (path / "SKILL.md").exists()
+    assert (path / "skill.yaml").exists()
+
+
+def test_is_builtin_skill_translate():
+    """is_builtin_skill returns True for translate."""
+    assert is_builtin_skill("translate") is True
+
+
+def test_install_builtin_skill_translate(temp_cclaw_home):
+    """install_builtin_skill creates the translate skill directory with files."""
+    directory = install_builtin_skill("translate")
+    assert directory.exists()
+    assert directory == temp_cclaw_home / "skills" / "translate"
+    assert (directory / "SKILL.md").exists()
+    assert (directory / "skill.yaml").exists()
+
+    skill_md_content = (directory / "SKILL.md").read_text()
+    assert "translatecli" in skill_md_content
+    assert "--sttcli" in skill_md_content
+
+    with open(directory / "skill.yaml") as file:
+        config = yaml.safe_load(file)
+    assert config["name"] == "translate"
+    assert config["type"] == "cli"
+    assert "translatecli" in config["required_commands"]
+    assert "GEMINI_API_KEY" in config["environment_variables"]
+    assert "Bash(translatecli:*)" in config["allowed_tools"]
+
+
+def test_installed_translate_skill_starts_inactive(temp_cclaw_home):
+    """Installed translate skill starts with inactive status."""
+    install_builtin_skill("translate")
+    assert skill_status("translate") == "inactive"

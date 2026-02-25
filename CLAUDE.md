@@ -88,6 +88,7 @@ pytest
 - `src/cclaw/builtin_skills/naver-search/` - Naver Search built-in skill template (SKILL.md, skill.yaml, naver-cli based 6-type search: local/book/blog/cafe/news/shopping)
 - `src/cclaw/builtin_skills/kakao-local/` - Kakao Local built-in skill template (SKILL.md, skill.yaml, kakao-cli based address/coordinate/keyword search)
 - `src/cclaw/builtin_skills/dart/` - DART corporate disclosure built-in skill template (SKILL.md, skill.yaml, dartcli based company/finance/filing search)
+- `src/cclaw/builtin_skills/translate/` - Translate built-in skill template (SKILL.md, skill.yaml, translatecli based Gemini translation with format preservation)
 - `src/cclaw/utils.py` - Message splitting, Markdown to HTML conversion, logging setup, IME-compatible CLI input (`prompt_input`, `prompt_multiline`)
 
 ## Code Style
