@@ -10,7 +10,7 @@
 # cclaw (claude-claw)
 
 Personal AI assistant powered by Telegram + Claude Code.
-A multi-bot, file-based session system that runs locally on Mac (Intel/Apple Silicon).
+A multi-bot, file-based session system that runs locally on Mac.
 
 ## Table of Contents
 
