@@ -78,7 +78,7 @@ async def _run_bots(bot_names: list[str] | None = None) -> None:
             bot_path = bot_directory(name)
             handlers = make_handlers(name, bot_path, bot_config)
 
-            application = Application.builder().token(token).post_init(set_bot_commands).build()
+            application = Application.builder().token(token).build()
 
             for handler in handlers:
                 application.add_handler(handler)
@@ -121,6 +121,11 @@ async def _run_bots(bot_names: list[str] | None = None) -> None:
                 await application.start()
                 await application.updater.start_polling(drop_pending_updates=True)
                 started_applications.append((name, application))
+
+                try:
+                    await set_bot_commands(application)
+                except Exception as command_error:
+                    logger.warning("Failed to register commands for %s: %s", name, command_error)
             except Exception as error:
                 console.print(f"[red]Failed to start {name}: {error}[/red]")
                 logger.error("Failed to start bot %s: %s", name, error)

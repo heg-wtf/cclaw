@@ -179,6 +179,26 @@ def prompt_bot_profile() -> dict:
     }
 
 
+def _is_daemon_running() -> bool:
+    """Check if cclaw daemon is currently running."""
+    from cclaw.bot_manager import _plist_path
+
+    return _plist_path().exists()
+
+
+def _restart_daemon() -> None:
+    """Restart the cclaw daemon to pick up new bot."""
+    from cclaw.bot_manager import start_bots, stop_bots
+
+    console.print("\n[yellow]Restarting daemon to register new bot...[/yellow]")
+    try:
+        stop_bots()
+        start_bots(daemon=True)
+    except Exception as error:
+        console.print(f"[red]Failed to restart daemon: {error}[/red]")
+        console.print("  Restart manually: [bold]cclaw stop && cclaw start --daemon[/bold]")
+
+
 def create_bot(token: str, bot_info: dict, profile: dict) -> None:
     """Create bot configuration files."""
     bot_config = {
@@ -212,11 +232,15 @@ def create_bot(token: str, bot_info: dict, profile: dict) -> None:
             f"  Personality: {profile['personality']}\n"
             f"  Role:      {profile['description']}\n"
             f"  Path:      {home / 'bots' / profile['name']}\n"
-            f"  Telegram:  {bot_info['username']}\n\n"
-            f"  Start the bot: cclaw start",
+            f"  Telegram:  {bot_info['username']}",
             title=profile["name"],
         )
     )
+
+    if _is_daemon_running():
+        _restart_daemon()
+    else:
+        console.print("\n  Start the bot: [bold]cclaw start[/bold]")
 
 
 def run_onboarding() -> None:

@@ -6,6 +6,7 @@ import pytest
 
 from cclaw.onboarding import (
     EnvironmentCheckResult,
+    _is_daemon_running,
     check_claude_code,
     check_node,
     check_python,
@@ -119,3 +120,56 @@ def test_create_bot(tmp_path, monkeypatch):
 
     config_path = tmp_path / ".cclaw" / "config.yaml"
     assert config_path.exists()
+
+
+def test_create_bot_restarts_daemon_when_running(tmp_path, monkeypatch):
+    """create_bot restarts daemon automatically when daemon is running."""
+    monkeypatch.setenv("CCLAW_HOME", str(tmp_path / ".cclaw"))
+
+    token = "123456:ABCDEF"
+    bot_info = {"username": "@new_bot", "botname": "New Bot"}
+    profile = {
+        "name": "new-bot",
+        "personality": "Helpful",
+        "description": "Test",
+    }
+
+    with patch("cclaw.onboarding._is_daemon_running", return_value=True):
+        with patch("cclaw.onboarding._restart_daemon") as mock_restart:
+            create_bot(token, bot_info, profile)
+            mock_restart.assert_called_once()
+
+
+def test_create_bot_no_restart_when_daemon_not_running(tmp_path, monkeypatch):
+    """create_bot does not restart when daemon is not running."""
+    monkeypatch.setenv("CCLAW_HOME", str(tmp_path / ".cclaw"))
+
+    token = "123456:ABCDEF"
+    bot_info = {"username": "@new_bot", "botname": "New Bot"}
+    profile = {
+        "name": "new-bot",
+        "personality": "Helpful",
+        "description": "Test",
+    }
+
+    with patch("cclaw.onboarding._is_daemon_running", return_value=False):
+        with patch("cclaw.onboarding._restart_daemon") as mock_restart:
+            create_bot(token, bot_info, profile)
+            mock_restart.assert_not_called()
+
+
+def test_is_daemon_running_with_plist(tmp_path):
+    """_is_daemon_running returns True when plist exists."""
+    plist_path = tmp_path / "com.cclaw.daemon.plist"
+    plist_path.write_text("<plist/>")
+
+    with patch("cclaw.bot_manager._plist_path", return_value=plist_path):
+        assert _is_daemon_running() is True
+
+
+def test_is_daemon_running_without_plist(tmp_path):
+    """_is_daemon_running returns False when plist does not exist."""
+    plist_path = tmp_path / "com.cclaw.daemon.plist"
+
+    with patch("cclaw.bot_manager._plist_path", return_value=plist_path):
+        assert _is_daemon_running() is False
