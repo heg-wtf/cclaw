@@ -92,10 +92,19 @@ To restrict access, add Telegram user IDs (integers) to the list.
 
 For proactive messages (cron results, heartbeat notifications), `allowed_users` is needed as the target. When empty, `collect_session_chat_ids()` in `session.py` scans `sessions/chat_<id>/` directories as a fallback — sending results to users who have previously chatted with the bot.
 
+## Daemon Auto-Restart on Bot Creation
+
+When a new bot is created via `cclaw init` or `cclaw bot add` while the daemon is already running, the daemon is automatically restarted to pick up the new bot. This ensures the new bot's Telegram polling and command menu are registered immediately.
+
+- `_is_daemon_running()` in `onboarding.py` checks if the launchd plist file exists
+- `_restart_daemon()` calls `stop_bots()` then `start_bots(daemon=True)`
+- If the daemon is not running, a message is shown: "Start the bot: cclaw start"
+- If restart fails, a manual restart command is displayed as fallback
+
 ## Telegram Command Menu
 
 The `BOT_COMMANDS` list is registered with Telegram via the `set_my_commands()` API.
-Called automatically on bot start via `Application.builder().post_init(set_bot_commands)`.
+Called after `start_polling()` completes on bot start (`bot_manager.py`). Command registration failure is caught and logged as a warning — it does not prevent the bot from running.
 After registration, typing `/` displays the command autocomplete menu.
 Adding/changing commands only requires a bot restart.
 

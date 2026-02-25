@@ -775,3 +775,58 @@ def test_jira_mcp_config_merges(temp_cclaw_home):
     merged = merge_mcp_configs(["jira"])
     assert merged is not None
     assert "jira" in merged["mcpServers"]
+
+
+# --- DART Skill Tests ---
+
+
+def test_list_builtin_skills_returns_dart():
+    """list_builtin_skills includes the dart skill."""
+    skills = list_builtin_skills()
+    names = [skill["name"] for skill in skills]
+    assert "dart" in names
+
+    dart = next(skill for skill in skills if skill["name"] == "dart")
+    assert dart["description"] != ""
+    assert dart["path"].is_dir()
+
+
+def test_get_builtin_skill_path_dart():
+    """get_builtin_skill_path returns path for dart skill."""
+    path = get_builtin_skill_path("dart")
+    assert path is not None
+    assert (path / "SKILL.md").exists()
+    assert (path / "skill.yaml").exists()
+
+
+def test_is_builtin_skill_dart():
+    """is_builtin_skill returns True for dart."""
+    assert is_builtin_skill("dart") is True
+
+
+def test_install_builtin_skill_dart(temp_cclaw_home):
+    """install_builtin_skill creates the dart skill directory with files."""
+    directory = install_builtin_skill("dart")
+    assert directory.exists()
+    assert directory == temp_cclaw_home / "skills" / "dart"
+    assert (directory / "SKILL.md").exists()
+    assert (directory / "skill.yaml").exists()
+
+    skill_md_content = (directory / "SKILL.md").read_text()
+    assert "dartcli" in skill_md_content
+    assert "finance" in skill_md_content
+    assert "company" in skill_md_content
+
+    with open(directory / "skill.yaml") as file:
+        config = yaml.safe_load(file)
+    assert config["name"] == "dart"
+    assert config["type"] == "cli"
+    assert "dartcli" in config["required_commands"]
+    assert "DART_API_KEY" in config["environment_variables"]
+    assert "Bash(dartcli:*)" in config["allowed_tools"]
+
+
+def test_installed_dart_skill_starts_inactive(temp_cclaw_home):
+    """Installed dart skill starts with inactive status."""
+    install_builtin_skill("dart")
+    assert skill_status("dart") == "inactive"

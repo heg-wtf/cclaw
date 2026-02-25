@@ -87,6 +87,7 @@ pytest
 - `src/cclaw/builtin_skills/jira/` - Jira MCP built-in skill template (SKILL.md, skill.yaml, mcp.json, issue search/create/update/transition via mcp-atlassian)
 - `src/cclaw/builtin_skills/naver-search/` - Naver Search built-in skill template (SKILL.md, skill.yaml, naver-cli based 6-type search: local/book/blog/cafe/news/shopping)
 - `src/cclaw/builtin_skills/kakao-local/` - Kakao Local built-in skill template (SKILL.md, skill.yaml, kakao-cli based address/coordinate/keyword search)
+- `src/cclaw/builtin_skills/dart/` - DART corporate disclosure built-in skill template (SKILL.md, skill.yaml, dartcli based company/finance/filing search)
 - `src/cclaw/utils.py` - Message splitting, Markdown to HTML conversion, logging setup, IME-compatible CLI input (`prompt_input`, `prompt_multiline`)
 
 ## Code Style
@@ -114,7 +115,7 @@ pytest
 
 ## Telegram Command Menu
 
-- `set_bot_commands()` registers the `BOT_COMMANDS` list with Telegram (called in `post_init`)
+- `set_bot_commands()` registers the `BOT_COMMANDS` list with Telegram (called after `start_polling`)
 - When users type `/`, an autocomplete menu of commands is displayed
 - Automatically registered on every bot start, so adding/changing commands only requires a restart
 

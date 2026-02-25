@@ -1058,6 +1058,6 @@ BOT_COMMANDS = [
 
 
 async def set_bot_commands(application: Application) -> None:
-    """Register slash commands with Telegram (called via post_init)."""
+    """Register slash commands with Telegram (called after start_polling)."""
     await application.bot.set_my_commands(BOT_COMMANDS)
     logger.info("Registered %d bot commands with Telegram", len(BOT_COMMANDS))
