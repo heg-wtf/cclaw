@@ -102,6 +102,8 @@ cclaw has a **skill system** that extends your bot's capabilities with tools and
 | 📅 Google Calendar | Events, scheduling, free/busy via [gogcli](https://github.com/steipete/gogcli) | [Guide](docs/skills/GCALENDAR.md) |
 | 🐦 Twitter | Post tweets, search tweets via Twitter/X API MCP | [Guide](docs/skills/TWITTER.md) |
 | 📋 Jira | Search, create, update, transition issues via Jira MCP | [Guide](docs/skills/JIRA.md) |
+| 🔍 Naver Search | Search Naver (local, book, blog, cafe, news, shopping) via [naver-cli](https://github.com/heg-wtf/naver-cli) | [Guide](docs/skills/NAVER-SEARCH.md) |
+| 📍 Kakao Local | Address/coordinate conversion, keyword place search via [kakao-cli](https://github.com/heg-wtf/kakao-cli) | [Guide](docs/skills/KAKAO-LOCAL.md) |
 
 ```bash
 cclaw skills builtins          # List available built-in skills
@@ -248,7 +250,9 @@ cclaw/
 │   │   ├── gmail/         # Gmail skill (gogcli)
 │   │   ├── gcalendar/     # Google Calendar skill (gogcli)
 │   │   ├── twitter/      # Twitter/X skill (MCP, tweet posting/search)
-│   │   └── jira/         # Jira skill (MCP, issue management)
+│   │   ├── jira/         # Jira skill (MCP, issue management)
+│   │   ├── naver-search/ # Naver Search skill (naver-cli)
+│   │   └── kakao-local/  # Kakao Local skill (kakao-cli)
 │   ├── cron.py             # Cron schedule automation
 │   ├── heartbeat.py        # Heartbeat (periodic situation awareness)
 │   └── utils.py            # Utilities
