@@ -1,58 +1,20 @@
 # Apple Reminders
 
-macOS Reminders integration skill. Uses the `reminders` CLI tool to view, create, and complete reminders.
+macOS Reminders. `reminders` CLI. **생성/완료/삭제 전 반드시 사용자 확인.**
 
-## Available Commands
+## Commands
 
-### List All Reminder Lists
-
-```bash
-reminders show-lists
+```
+reminders show-lists                                      # 리스트 목록
+reminders show <list> [--include-completed]                # 리스트별 리마인더
+reminders show-all --due-date today                        # 오늘 할 일
+reminders show-all --include-overdue                       # 기한 지난 항목
+reminders add <list> "title" [--due-date "2026-02-22"] [--priority high] [--notes "note"]
+reminders complete <list> <index>
+reminders delete <list> <index>
 ```
 
-### View Reminders in a Specific List
-
-```bash
-reminders show <list_name>
-reminders show <list_name> --include-completed
-```
-
-### Create a Reminder
-
-```bash
-reminders add <list_name> "<title>"
-reminders add <list_name> "<title>" --due-date "2026-02-22"
-reminders add <list_name> "<title>" --due-date "tomorrow 9am" --priority high
-reminders add <list_name> "<title>" --notes "Note content"
-```
-
-### Complete a Reminder
-
-```bash
-reminders complete <list_name> <index>
-```
-
-### Delete a Reminder
-
-```bash
-reminders delete <list_name> <index>
-```
-
-### View Today's Reminders
-
-```bash
-reminders show-all --due-date today
-```
-
-### View Overdue Reminders
-
-```bash
-reminders show-all --include-overdue
-```
-
-## Usage Guidelines
-
-- There may be multiple reminder lists, so check with show-lists first.
-- Before creating a reminder, confirm the title, list, and date with the user.
-- Always confirm with the user before completing or deleting a reminder.
-- Index numbers can be found in the output of the show command.
+## Notes
+- `show-lists`로 먼저 목록 확인 후 작업
+- index 번호는 `show` 출력에서 확인
+- `--due-date`: 날짜(`2026-02-22`) 또는 자연어(`tomorrow 9am`)

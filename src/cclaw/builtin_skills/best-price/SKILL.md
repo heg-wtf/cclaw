@@ -1,109 +1,30 @@
 # Best Price Search
 
-A skill that searches for the lowest product price across major Korean price comparison sites: Danawa, Coupang, and Naver Shopping.
-
-## Supported Sites
-
-- **Danawa** (danawa.com) - Price comparison aggregator
-- **Coupang** (coupang.com) - Direct retailer
-- **Naver Shopping** (search.shopping.naver.com) - Price comparison aggregator
+한국 3대 가격비교 사이트(다나와, 쿠팡, 네이버쇼핑)에서 최저가 검색. **총비용 = 상품가 + 배송비** 기준 비교.
 
 ## Search Strategy
 
-### Step 1: Danawa (Primary Source)
+3개 사이트 병렬 검색:
 
-Danawa provides the most structured price comparison data. Always start here.
+**다나와** (Primary): `https://search.danawa.com/dsearch.php?query={상품명}&tab=goods&sort=price`
+- 상세 페이지 `https://prod.danawa.com/info/?pcode={code}` 에서 판매처별 가격+배송비 확인 (반드시 fetch)
 
-**Search URL:**
-```
-https://search.danawa.com/dsearch.php?query={product_name}&tab=goods&sort=price
-```
+**Coupang (쿠팡)**: 직접 fetch 차단(403). 웹 검색 사용 → `쿠팡 {상품명} 가격 {현재연도}`
 
-**Product detail page (when product code is known):**
-```
-https://prod.danawa.com/info/?pcode={product_code}
-```
-
-The product detail page shows seller-by-seller price breakdown including shipping costs. **Always fetch the product detail page** for accurate price + shipping totals.
-
-### Step 2: Coupang
-
-Coupang blocks direct web fetching (403 error). Use **web search** instead.
-
-**Search query pattern:**
-```
-쿠팡 {product_name} 가격 {current_year}
-```
-
-Note Rocket Delivery availability and whether shipping is free or paid.
-
-### Step 3: Naver Shopping
-
-Naver Shopping search pages also block direct fetching. Use **web search** instead.
-
-**Search query pattern:**
-```
-네이버쇼핑 {product_name} 최저가 {current_year}
-```
-
-Alternatively, try fetching the Naver Shopping search page directly:
-```
-https://search.shopping.naver.com/search/all?query={product_name}&sort=price_asc
-```
-
-If direct fetch fails, fall back to web search.
+**네이버쇼핑**: 웹 검색 사용 → `네이버쇼핑 {상품명} 최저가 {현재연도}`
+- 또는 `https://search.shopping.naver.com/search/all?query={상품명}&sort=price_asc` 시도, 실패 시 웹 검색 fallback
 
 ## Execution Flow
-
-1. **Danawa search page fetch** + **Coupang web search** + **Naver Shopping web search** (run all three in parallel)
-2. From Danawa results, identify top product detail page URLs (`prod.danawa.com/info/?pcode=...`)
-3. **Fetch Danawa product detail pages** for exact seller-by-seller breakdown
-4. Compile all results into the comparison table
-
-## Important: Always Calculate Total Cost
-
-**Never compare product prices alone.** Always calculate:
-
-```
-Total cost = Product price + Shipping fee
-```
-
-- Free shipping items may have higher product prices but lower total cost
-- Always present both the product price and shipping fee separately
-- Sort final results by **total cost (ascending)**
+1. 다나와 검색 + 쿠팡 웹 검색 + 네이버쇼핑 웹 검색 (병렬)
+2. 다나와 상세 페이지 fetch (판매처별 가격+배송비)
+3. 결과 종합
 
 ## Output Format
 
-Always present results in this format:
+사이트별 결과 (상품가 낮은 순, 배송비·총비용 포함) → 전체 최저가 순위 (총비용 오름차순)
 
-**1. Per-site results (product price lowest first, with shipping and total)**
-
-```
-[Site Name]
-1. Product name - Product price + Shipping fee = Total cost (Seller)
-2. ...
-```
-
-**2. Cross-site comparison summary (total cost lowest first)**
-
-```
-Overall Best Price:
-1. Total cost - Product name (Site / Seller) [Shipping info]
-2. ...
-```
-
-## Output Rules
-
-- Present prices in Korean Won (원)
-- Include the source link for each product when available (Markdown link format)
-- Clearly mark free shipping as "무료배송"
-- Note any special conditions (membership required, limited quantity, etc.)
-- If a site is unreachable or returns no results, state that explicitly rather than omitting it
-
-## Usage Guidelines
-
-- When the user asks for "최저가", "최적가", "가격비교", or "제일 싼 곳", activate this skill
-- Always search all three sites. Do not skip any site even if one already has a good result
-- If the product name is ambiguous, clarify with the user before searching (e.g., "삼다수 2L 6개 vs 12개")
-- Prices change frequently. Always note that results are based on the current search time
-- For products with variants (color, size, label/no-label), note which variant the price applies to
+- 가격: 원 단위, 무료배송은 "무료배송" 표기
+- 출처 링크 Markdown 형식
+- 사이트 접속 불가/결과 없음 시 명시
+- 상품 모호 시 사용자에게 확인 (예: "삼다수 2L 6개 vs 12개")
+- 옵션(색상, 사이즈) 해당 여부 표기

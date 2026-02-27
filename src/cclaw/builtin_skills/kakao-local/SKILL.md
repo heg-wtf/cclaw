@@ -1,92 +1,26 @@
 # Kakao Local
 
-Kakao Local API via `kakao-cli`. Address-to-coordinate conversion, coordinate-to-address conversion, and keyword place search.
+`kakao-cli`로 주소→좌표, 좌표→주소, 키워드 장소 검색.
 
-## Prerequisites
-
-- `kakao-cli` installed (`pip install git+https://github.com/heg-wtf/kakao-cli.git`)
-- Kakao Developer (https://developers.kakao.com) REST API key issued
-- `KAKAO_REST_API_KEY` environment variable set during skill setup
-
-## Available Commands
-
-### Address to Coordinate
-
-Convert an address string to latitude/longitude coordinates.
+## Commands
 
 ```bash
-kakao address search "강남구 역삼동"
-kakao address search "테헤란로 152" --analyze-type exact
-kakao address search "서울시 강남구" --format json
+# 주소 → 좌표
+kakao address search "강남구 역삼동" [--analyze-type exact] [--format json]
+
+# 좌표 → 주소 (경도 위도 순서: x y)
+kakao coordinate search 127.028610 37.499516 [--format markdown]
+
+# 키워드 장소 검색
+kakao keyword search "강남역 맛집" [--category CE7] [--sort distance] [--x 127.0 --y 37.5 --radius 1000] [--size 5] [--format json]
 ```
 
-- `--analyze-type`: `similar` (default), `exact` (exact match only)
+## Category Codes
+MT1=대형마트, CS2=편의점, PS3=유치원, SC4=학교, AC5=학원, PK6=주차장, OL7=주유소, SW8=지하철, BK9=은행, CT1=문화시설, AG2=중개, PO3=공공기관, AT4=관광, AD5=숙박, FD6=음식점, CE7=카페, HP8=병원, PM9=약국
 
-### Coordinate to Address
-
-Convert latitude/longitude coordinates to an address.
-
-```bash
-kakao coordinate search 127.028610 37.499516
-kakao coordinate search 127.028610 37.499516 --format markdown
-```
-
-- Arguments: `<longitude> <latitude>` (x, y order)
-
-### Keyword Place Search
-
-Search places by keyword. Supports category filtering and location-based radius search.
-
-```bash
-kakao keyword search "강남역 맛집"
-kakao keyword search "카페" --category CE7 --sort distance --x 127.0 --y 37.5 --radius 1000
-kakao keyword search "약국" --format json --size 5
-```
-
-- `--category`: Category group code (see Category Codes below)
-- `--sort`: `accuracy` (default), `distance` (requires x, y)
-- `--x`, `--y`: Center longitude/latitude for radius search
-- `--radius`: Search radius in meters (0-20000)
-- `--size`: Number of results (1-15, default: 15)
-
-## Category Group Codes
-
-| Code | Category |
-|------|----------|
-| MT1 | Large mart |
-| CS2 | Convenience store |
-| PS3 | Kindergarten |
-| SC4 | School |
-| AC5 | Academy |
-| PK6 | Parking lot |
-| OL7 | Gas station |
-| SW8 | Subway station |
-| BK9 | Bank |
-| CT1 | Cultural facility |
-| AG2 | Brokerage |
-| PO3 | Public institution |
-| AT4 | Tourist attraction |
-| AD5 | Accommodation |
-| FD6 | Restaurant |
-| CE7 | Cafe |
-| HP8 | Hospital |
-| PM9 | Pharmacy |
-
-## Common Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--format` | Output format (`text`, `markdown`, `json`) | text |
-| `--size` | Number of results (keyword search) | 15 |
-| `--page` | Result page number | 1 |
-
-## Usage Guidelines
-
-- When the user asks about addresses, coordinates, or place searches in Korea, use this skill.
-- For place/restaurant/cafe searches, use `keyword search`. For address lookups, use `address search`.
-- Use `--format markdown` for chat-friendly results. Use `--format json` when parsing is needed.
-- For proximity-based searches, combine `--x`, `--y`, `--radius`, and `--sort distance` for best results.
-- Coordinate order is **longitude first, latitude second** (x, y) — this differs from the common lat/lng convention.
-- For place search results, consider combining with the naver-map skill (if available) to provide map links using the returned coordinates.
-- Present results clearly: place name, address, category, phone number, and distance (when available).
-- Korean search queries work as-is without encoding.
+## Notes
+- **좌표 순서: 경도(x) 먼저, 위도(y) 나중** — 일반적인 lat/lng 순서와 반대
+- 근거리 검색: `--x`, `--y`, `--radius`, `--sort distance` 조합
+- 채팅: `--format markdown`, 파싱: `--format json`
+- naver-map 스킬 가용 시 반환 좌표로 지도 링크 생성
+- 한국어 인코딩 불필요

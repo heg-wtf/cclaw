@@ -1,91 +1,36 @@
 # Naver Map
 
-A skill that generates Naver Map web URLs for place search and route navigation links.
-On mobile, if the Naver Maps app is installed, the app opens directly.
+네이버 지도 웹 URL 생성. 모바일에서 앱 설치 시 앱으로 바로 열림. **반드시 Markdown 링크 형식으로 출력** (plain URL 금지).
 
-## Important: Link Output Rules
+## URLs
 
-**Always output links in Markdown link format.** Never send URLs as plain text.
-
-Correct example:
+### Place Search (기본)
 ```
-[Search Gangnam Station on Naver Map](https://map.naver.com/p/search/강남역)
+[강남역 지도](https://map.naver.com/p/search/강남역)
+[홍대 카페](https://map.naver.com/p/search/홍대 카페)
 ```
 
-Incorrect example (never do this):
+### 좌표로 위치 표시
 ```
-https://map.naver.com/p/search/강남역
-```
-
-## URLs by Feature
-
-### Place Search (Most Common)
-
-Search by keyword without coordinates. **Use this as the default for place-related requests.**
-
-```
-https://map.naver.com/p/search/{query}
+[정자동](https://map.naver.com/?lat=37.4979502&lng=127.0276368&title=정자동)
 ```
 
-Examples:
-- `[View Gangnam Station on map](https://map.naver.com/p/search/강남역)`
-- `[Cafes near Hongdae](https://map.naver.com/p/search/홍대 카페)`
-- `[Starbucks Yeoksam](https://map.naver.com/p/search/스타벅스 역삼점)`
-
-### Show Place by Coordinates
-
-Display a specific location on the map when coordinates are known.
-
+### 경로 안내 (좌표 필요, 모바일 웹)
 ```
-https://map.naver.com/?lat={latitude}&lng={longitude}&title={place_name}
+https://m.map.naver.com/route.nhn?menu=route&sname={출발}&sx={경도}&sy={위도}&ename={도착}&ex={경도}&ey={위도}&pathType={mode}
+```
+pathType: 0=자동차, 1=대중교통(기본), 2=도보
+
+### 좌표 없이 경로
+```
+[서울역에서 강남역](https://map.naver.com/p/search/서울역에서 강남역)
 ```
 
-Example:
-- `[View Jeongja-dong](https://map.naver.com/?lat=37.4979502&lng=127.0276368&title=정자동)`
+## Key Coordinates
+서울역: 37.5547, 126.9707 / 강남역: 37.4981, 127.0276 / 홍대입구: 37.5573, 126.9255
+여의도: 37.5219, 126.9245 / 잠실역: 37.5133, 127.1001
 
-### Route Navigation (Mobile Web)
-
-Directions between origin and destination. Requires coordinates.
-
-```
-https://m.map.naver.com/route.nhn?menu=route&sname={origin_name}&sx={origin_longitude}&sy={origin_latitude}&ename={destination_name}&ex={destination_longitude}&ey={destination_latitude}&pathType={transport_mode}
-```
-
-pathType values:
-- 0: Car
-- 1: Public transit
-- 2: Walking
-
-Example:
-- `[View public transit route](https://m.map.naver.com/route.nhn?menu=route&sname=서울대학교&sx=126.9522394&sy=37.4640070&ename=올림픽공원&ex=127.1230074&ey=37.5209436&pathType=1)`
-
-### Route Navigation (Without Coordinates)
-
-When coordinates are unknown, **provide two search links**:
-
-```
-Origin: [Search Seoul Station](https://map.naver.com/p/search/서울역)
-Destination: [Search Gangnam Station](https://map.naver.com/p/search/강남역)
-```
-
-Or **combine origin and destination in a single search**:
-
-```
-[Directions from Seoul Station to Gangnam Station](https://map.naver.com/p/search/서울역에서 강남역)
-```
-
-## Key Coordinate Reference
-
-Seoul Station: lat=37.5547, lng=126.9707
-Gangnam Station: lat=37.4981, lng=127.0276
-Hongdae Entrance: lat=37.5573, lng=126.9255
-Yeouido: lat=37.5219, lng=126.9245
-Jamsil Station: lat=37.5133, lng=127.1001
-
-## Usage Guidelines
-
-- For place names only, use **search URL** (`/p/search/`). No coordinates needed.
-- Only use route navigation URLs when coordinates are known.
-- Default to **public transit** (pathType=1) when transport mode is not specified.
-- Korean parameters can be used as-is without URL encoding.
-- Write link text that is easy for users to understand (e.g., "View on Naver Map", "View public transit route").
+## Notes
+- 장소명만 있으면 검색 URL(`/p/search/`) 사용, 좌표 불필요
+- 이동수단 미지정 시 대중교통(pathType=1) 기본
+- 한국어 파라미터 URL 인코딩 불필요

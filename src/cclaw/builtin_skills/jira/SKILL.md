@@ -1,85 +1,34 @@
 # Jira
 
-Jira issue management via MCP. Search, create, update, and transition issues.
+Jira MCP. 이슈 검색, 생성, 수정, 상태 전환.
 
-## Prerequisites
+**Always confirm before creating/transitioning issues.** 생성 전 프로젝트·유형·제목 확인 후 승인. 상태 전환 전 현재→목표 확인 후 승인. 일괄 수정 금지. 삭제 금지 (닫기 제안).
 
-- uv installed (`uvx` available)
-- Atlassian Cloud account with Jira access
-- API token generated from Atlassian account settings
+## Operations
 
-## Setup Guide
+### jira_search — JQL 검색
+```
+project = PROJ
+assignee = currentUser()
+status = "In Progress"
+priority = High AND status != Done
+created >= -7d
+text ~ "keyword"
+sprint in openSprints()
+```
 
-1. Go to Atlassian API Token page (https://id.atlassian.com/manage-profile/security/api-tokens)
-2. Click "Create API token" and save the token
-3. Note your Jira instance URL (e.g., `https://your-company.atlassian.net`)
-4. Run `cclaw skills setup jira` to enter:
-   - `JIRA_URL`: Your Jira instance URL
-   - `JIRA_USERNAME`: Your Atlassian account email
-   - `JIRA_API_TOKEN`: The API token you created
+### jira_get_issue — 상세 조회
+이슈 키 (예: `PROJ-123`) → summary, description, status, assignee, comments
 
-## Safety Rules
+### jira_create_issue — 생성
+필수: project key, issue type(Bug/Task/Story/Epic), summary. 선택: description, assignee, priority, labels
 
-- **Always show issue details before creating.** Show project, type, summary, and description, then ask for confirmation.
-- **Always confirm before transitioning issues.** Show the current status, target status, and issue key before changing workflow state.
-- **Never bulk-modify issues without explicit approval.** When asked to update multiple issues, list them first and confirm.
-- **Never delete issues.** Jira issues should be closed or moved, not deleted. If deletion is requested, explain this policy and suggest closing instead.
-- When updating an issue, show the fields being changed and ask for confirmation.
+### jira_update_issue — 수정
+이슈 키 + 변경할 필드. 변경 내용을 보여주고 승인 후 실행
 
-## Available Operations
+### jira_transition_issue — 상태 전환
+이슈 키 + 목표 상태. 일반 흐름: To Do → In Progress → In Review → Done
 
-### Search Issues (jira_search)
-
-Search issues using JQL (Jira Query Language).
-
-- Common JQL queries:
-  - `project = PROJ` - All issues in a project
-  - `assignee = currentUser()` - My issues
-  - `status = "In Progress"` - Issues in progress
-  - `priority = High AND status != Done` - High priority open issues
-  - `created >= -7d` - Created in the last 7 days
-  - `text ~ "keyword"` - Full text search
-  - `sprint in openSprints()` - Current sprint issues
-- Present results in a readable list format (key, summary, status, assignee)
-
-### Get Issue Details (jira_get_issue)
-
-Get detailed information about a specific issue.
-
-- Provide the issue key (e.g., `PROJ-123`)
-- Shows summary, description, status, assignee, priority, labels, comments
-- Useful for understanding context before updates
-
-### Create Issue (jira_create_issue)
-
-Create a new Jira issue.
-
-- Required: project key, issue type, summary
-- Optional: description, assignee, priority, labels, components
-- Always show the full issue details and confirm before creating
-- Common issue types: Bug, Task, Story, Epic
-
-### Update Issue (jira_update_issue)
-
-Update fields on an existing issue.
-
-- Provide the issue key and fields to update
-- Can update: summary, description, assignee, priority, labels, components
-- Always show what will change and confirm before updating
-
-### Transition Issue (jira_transition_issue)
-
-Change the workflow status of an issue.
-
-- Provide the issue key and target status
-- Common transitions: To Do -> In Progress -> In Review -> Done
-- Always show current status and target status before transitioning
-
-## Usage Guidelines
-
-- When searching, use specific JQL to narrow results. Avoid overly broad queries.
-- Present issue lists with key information: issue key, summary, status, assignee.
-- When the user mentions an issue by key (e.g., "PROJ-123"), fetch details first before acting.
-- For status updates, verify the transition is valid (available transitions depend on workflow).
-- When creating issues, ask for at least the project and summary if not provided.
-- Use Korean for all responses to the user, but keep JQL and issue fields in English.
+## Notes
+- 이슈 키 언급 시 먼저 `jira_get_issue`로 상세 확인
+- JQL과 필드명은 영문, 사용자 응답은 한국어

@@ -1,78 +1,29 @@
 # iMessage
 
-macOS iMessage/SMS integration skill. Uses the `imsg` CLI tool to read and send messages.
-Uses `osascript` to look up phone numbers by name from macOS Contacts.
+macOS iMessage/SMS. `imsg` CLI + `osascript` 연락처 조회. **전송 전 반드시 수신자·내용 확인 후 사용자 승인.**
 
 ## Contact Lookup
 
-When a user requests a message by name, look up the phone number from Contacts first.
-
-### Search Contacts by Name
+이름으로 요청 시 먼저 연락처에서 전화번호를 조회:
 
 ```bash
-osascript -e 'tell application "Contacts" to get {name, value of phones} of every person whose name contains "search term"'
+osascript -e 'tell application "Contacts" to get {name, value of phones} of every person whose name contains "검색어"'
 ```
 
-- Partial matching is supported. Searching "John" will also match "John Smith".
-- If multiple results are returned, ask the user to confirm the correct contact.
-- Extract the phone number from the result and use it with `imsg send --to`.
+- 부분 일치 지원 ("John" → "John Smith" 매치)
+- 복수 결과 시 사용자에게 확인
+- 조회된 번호로 `imsg send --to +821012345678 --text "message"` 실행
 
-### Contact Lookup -> Message Send Flow
+## Commands
 
-1. User: "Send hello to John Smith"
-2. Search "John" or "John Smith" via `osascript` -> Confirm phone number
-3. Ask user to confirm recipient and content
-4. After approval: `imsg send --to +821012345678 --text "hello"`
-
-## Available Commands
-
-### List Conversations
-
-```bash
-imsg chats [--limit N] [--json]
+```
+imsg chats [--limit N] [--json]                          # 대화 목록
+imsg history --chat-id <id> [--limit N] [--json]         # 메시지 이력
+imsg send --to <handle> [--text "msg"] [--file /path]    # 메시지/파일 전송
+imsg watch [--chat-id <id>] [--json]                     # 실시간 모니터링
 ```
 
-- Shows recent conversation list
-- `--limit N`: Limit number of conversations shown (default: 20)
-- `--json`: Output in JSON format
-
-### View Message History
-
-```bash
-imsg history --chat-id <id> [--limit N] [--json]
-```
-
-- Views message history for a specific conversation
-- `--chat-id`: Conversation ID (check via chats command)
-- `--limit N`: Limit number of messages shown (default: 50)
-- `--json`: Output in JSON format
-
-### Send Message
-
-```bash
-imsg send --to <handle> [--text "message"] [--file /path/to/file]
-```
-
-- Sends a message or file
-- `--to`: Recipient (phone number or email)
-- `--text`: Text message
-- `--file`: Attachment file path
-
-### Real-Time Monitoring
-
-```bash
-imsg watch [--chat-id <id>] [--json]
-```
-
-- Monitors new messages in real-time
-- `--chat-id`: Monitor specific conversation only (all if omitted)
-- `--json`: Output in JSON format
-
-## Usage Guidelines
-
-- **Always confirm with the user before sending a message.** Never send without confirmation.
-- When user requests by name, look up contacts via `osascript` first.
-- Using `--json` option makes structured data easier to parse.
-- Check chat-id from the conversation list before viewing history.
-- Phone number format: `+821012345678` (international format recommended)
-- Use absolute paths when sending files.
+## Notes
+- 전화번호: `+821012345678` (국제 형식)
+- 파일 전송 시 절대 경로 사용
+- `--json`: 구조화된 파싱 필요시
