@@ -601,6 +601,36 @@ SKILL.md enforces confirmation before creating issues and before transitioning w
 
 Only 5 tools are auto-approved: `jira_search`, `jira_get_issue`, `jira_create_issue`, `jira_update_issue`, `jira_transition_issue`. The `mcp-atlassian` package also provides Confluence tools, but they are not listed in `allowed_tools` and therefore blocked in `-p` mode.
 
+## Token Compact
+
+### Target Selection
+
+`collect_compact_targets()` collects three types of files:
+
+1. **MEMORY.md** (`~/.cclaw/bots/<name>/MEMORY.md`): Bot long-term memory that grows over time
+2. **User-created SKILL.md**: Skills attached to the bot, excluding builtins (`is_builtin_skill()` check). Builtin skills are already compressed at build time
+3. **HEARTBEAT.md** (`~/.cclaw/bots/<name>/heartbeat_sessions/HEARTBEAT.md`): Periodic check checklist
+
+Empty files (whitespace-only) are skipped.
+
+### Compression Approach
+
+Each target is compressed via a separate one-shot `claude -p` call with a structured prompt (`COMPACT_PROMPT`). The `document_type` parameter provides context-specific guidance (e.g., "Bot long-term memory" vs "AI assistant skill instructions").
+
+Each call runs in a fresh `tempfile.TemporaryDirectory()` — no session state, no MCP config, no skill injection needed.
+
+### Token Estimation
+
+`estimate_token_count()` uses `len(text) // 4` (minimum 1). This is a rough heuristic sufficient for relative before/after comparison in the report. Not intended for billing accuracy.
+
+### Error Isolation
+
+`run_compact()` processes targets sequentially. If one target's compression fails (Claude timeout, runtime error, etc.), the error is captured in `CompactResult.error` and remaining targets continue processing. `save_compact_results()` only writes back results with no error.
+
+### Post-Save Propagation
+
+After saving compacted files, both CLI and Telegram handlers call `regenerate_bot_claude_md()` + `update_session_claude_md()` to propagate SKILL.md changes into bot and session CLAUDE.md files.
+
 ## IME-Compatible CLI Input
 
 ### Problem

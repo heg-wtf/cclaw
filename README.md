@@ -143,6 +143,7 @@ cclaw skills setup <name>      # Activate (check requirements)
 | `/heartbeat on` | Enable heartbeat |
 | `/heartbeat off` | Disable heartbeat |
 | `/heartbeat run` | Run heartbeat now |
+| `/compact` | Compact MD files to save tokens |
 | `/cancel` | Stop running process |
 | `/version` | Version info |
 | `/help` | Show commands |
@@ -186,6 +187,8 @@ cclaw bot model <name>         # Show current model
 cclaw bot model <name> opus    # Change model
 cclaw bot streaming <name>     # Show streaming status
 cclaw bot streaming <name> off # Toggle streaming on/off
+cclaw bot compact <name>       # Compact MD files to save tokens
+cclaw bot compact <name> -y    # Compact without confirmation
 
 # Skill management
 cclaw skills                   # List all skills (installed + available builtins)
@@ -267,6 +270,7 @@ cclaw/
 │   │   ├── kakao-local/  # Kakao Local skill (kakao-cli)
 │   │   ├── dart/         # DART corporate disclosure skill (dartcli)
 │   │   └── translate/    # Translate skill (translatecli, Gemini)
+│   ├── token_compact.py    # Token compaction (compress MD files via Claude)
 │   ├── cron.py             # Cron schedule automation
 │   ├── heartbeat.py        # Heartbeat (periodic situation awareness)
 │   └── utils.py            # Utilities

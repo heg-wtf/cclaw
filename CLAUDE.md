@@ -44,6 +44,8 @@ uv run cclaw heartbeat enable <bot>  # Enable heartbeat
 uv run cclaw heartbeat disable <bot> # Disable heartbeat
 uv run cclaw heartbeat run <bot>     # Run heartbeat immediately (test)
 uv run cclaw heartbeat edit <bot>    # Edit HEARTBEAT.md
+uv run cclaw bot compact <name>      # Compact MD files to save tokens
+uv run cclaw bot compact <name> -y   # Compact without confirmation
 uv run cclaw memory show <bot>       # Show memory contents
 uv run cclaw memory edit <bot>       # Edit MEMORY.md
 uv run cclaw memory clear <bot>      # Clear memory
@@ -72,7 +74,7 @@ pytest
 - `src/cclaw/onboarding.py` - Environment check, token validation, bot creation wizard
 - `src/cclaw/claude_runner.py` - `claude -p` subprocess execution (async, path resolution via `shutil.which`, process tracking + `cancel_all_processes()` for graceful shutdown, model selection, skill MCP/env injection, streaming output, `--resume`/`--session-id` session continuity)
 - `src/cclaw/session.py` - Session directory/conversation log/workspace management, Claude session ID management (`get`/`save`/`clear_claude_session_id`), daily conversation rotation (`conversation-YYMMDD.md`, legacy `conversation.md` fallback), bot-level memory CRUD (`load_bot_memory`/`save_bot_memory`/`clear_bot_memory`), global memory CRUD (`load_global_memory`/`save_global_memory`/`clear_global_memory`), `collect_session_chat_ids()` for proactive message fallback
-- `src/cclaw/handlers.py` - Telegram handler factory (slash commands + messages + file receive/send + model change (with version display) + process cancel + /skills unified management (list/attach/detach/builtins) + /cron management + /heartbeat management + /memory management + streaming response + /streaming toggle + session continuity (`_prepare_session_context`, `_call_with_resume_fallback`) + `set_bot_commands` command menu registration)
+- `src/cclaw/handlers.py` - Telegram handler factory (slash commands + messages + file receive/send + model change (with version display) + process cancel + /skills unified management (list/attach/detach/builtins) + /cron management + /heartbeat management + /memory management + /compact token compaction + streaming response + /streaming toggle + session continuity (`_prepare_session_context`, `_call_with_resume_fallback`) + `set_bot_commands` command menu registration)
 - `src/cclaw/bot_manager.py` - Multi-bot polling, launchd daemon, per-bot error isolation, cron/heartbeat scheduler integration, graceful shutdown (`cancel_all_processes()` before `application.stop()`)
 - `src/cclaw/heartbeat.py` - Heartbeat periodic situation awareness (config CRUD, active hours check, HEARTBEAT.md management, HEARTBEAT_OK detection, session chat ID fallback for result delivery, scheduler loop)
 - `src/cclaw/cron.py` - Cron schedule automation (cron.yaml CRUD, croniter-based schedule matching, per-job timezone support via `resolve_job_timezone()`, one-shot support with auto-disable, session chat ID fallback for result delivery, scheduler loop)
@@ -92,6 +94,7 @@ pytest
 - `src/cclaw/builtin_skills/kakao-local/` - Kakao Local built-in skill template (SKILL.md, skill.yaml, kakao-cli based address/coordinate/keyword search)
 - `src/cclaw/builtin_skills/dart/` - DART corporate disclosure built-in skill template (SKILL.md, skill.yaml, dartcli based company/finance/filing search)
 - `src/cclaw/builtin_skills/translate/` - Translate built-in skill template (SKILL.md, skill.yaml, translatecli based Gemini translation with format preservation)
+- `src/cclaw/token_compact.py` - Token compaction (estimate_token_count, collect_compact_targets for MEMORY.md/user SKILL.md/HEARTBEAT.md, compact_content via claude -p one-shot, run_compact sequential with error isolation, format_compact_report, save_compact_results)
 - `src/cclaw/utils.py` - Message splitting, Markdown to HTML conversion, logging setup, IME-compatible CLI input (`prompt_input`, `prompt_multiline`)
 
 ## Code Style

@@ -398,6 +398,69 @@ def bot_streaming(
         raise typer.Exit(1)
 
 
+@bot_app.command("compact")
+def bot_compact(
+    name: str = typer.Argument(help="Bot name"),
+    model: str = typer.Option("sonnet", help="Model for compaction"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+) -> None:
+    """Compact bot's MD files to save tokens."""
+    import asyncio
+
+    from rich.console import Console
+
+    from cclaw.config import load_bot_config
+    from cclaw.skill import regenerate_bot_claude_md, update_session_claude_md
+    from cclaw.token_compact import (
+        collect_compact_targets,
+        format_compact_report,
+        run_compact,
+        save_compact_results,
+    )
+
+    console = Console()
+
+    bot_config = load_bot_config(name)
+    if not bot_config:
+        console.print(f"[red]Bot '{name}' not found.[/red]")
+        raise typer.Exit(1)
+
+    targets = collect_compact_targets(name)
+    if not targets:
+        console.print("[yellow]No compactable files found.[/yellow]")
+        return
+
+    console.print(f"[cyan]Found {len(targets)} file(s) to compact:[/cyan]")
+    for target in targets:
+        console.print(
+            f"  - {target.label} ({target.line_count} lines, ~{target.token_count:,} tokens)"
+        )
+
+    console.print("\n[cyan]Compacting...[/cyan]")
+
+    results = asyncio.run(run_compact(name, model=model))
+    report = format_compact_report(name, results)
+    console.print(f"\n{report}")
+
+    successful = [r for r in results if r.error is None]
+    if not successful:
+        console.print("[yellow]No files were successfully compacted.[/yellow]")
+        return
+
+    if not yes:
+        confirmed = typer.confirm("Save compacted files?")
+        if not confirmed:
+            console.print("[yellow]Cancelled.[/yellow]")
+            return
+
+    save_compact_results(results)
+    from cclaw.config import bot_directory
+
+    regenerate_bot_claude_md(name)
+    update_session_claude_md(bot_directory(name))
+    console.print("[green]Compacted files saved. CLAUDE.md regenerated.[/green]")
+
+
 @bot_app.command("edit")
 def bot_edit(name: str) -> None:
     """Edit bot configuration."""

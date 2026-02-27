@@ -174,6 +174,18 @@ Delivers Claude Code output to Telegram in real-time. User-toggleable on/off.
   - `run_claude()`: Sends typing action every 4 seconds -> Markdown-to-HTML conversion on completion -> batch send
   - Same pattern as cron and heartbeat (Phase 3 approach)
 
+### 15. Token Compact
+
+Compresses bot MD files (MEMORY.md, user-created SKILL.md, HEARTBEAT.md) via one-shot `claude -p` calls to reduce token costs.
+
+- **Targets**: MEMORY.md, user-created SKILL.md (builtins excluded via `is_builtin_skill()`), HEARTBEAT.md
+- **Execution**: Sequential per-target with error isolation — individual failures don't stop remaining targets
+- **Working directory**: Each compaction runs in a `tempfile.TemporaryDirectory()` (no session state needed)
+- **Token estimation**: `chars // 4` heuristic for relative before/after comparison
+- **Post-save**: After saving compacted files, `regenerate_bot_claude_md()` + `update_session_claude_md()` propagate changes
+- **CLI**: `cclaw bot compact <name>` with `--yes/-y` skip confirmation
+- **Telegram**: `/compact` auto-saves on success
+
 ## Module Dependencies
 
 ```
@@ -191,12 +203,14 @@ cli.py
 │   │   ├── heartbeat.py (get/enable/disable_heartbeat, execute_heartbeat)
 │   │   ├── skill.py (attach/detach, is_skill, skill_status)
 │   │   ├── builtin_skills (list_builtin_skills)
+│   │   ├── token_compact.py (collect_compact_targets, run_compact, format_compact_report, save_compact_results)
 │   │   ├── session.py (ensure_session, reset_session, get/save/clear_claude_session_id, load_conversation_history, load_bot_memory, clear_bot_memory, load_global_memory)
 │   │   ├── config.py (save_bot_config, VALID_MODELS)
 │   │   └── utils.py
 │   └── utils.py
 ├── cron.py -> config.py, claude_runner.py, session.py (load_global_memory, load_bot_memory), utils.py
 ├── heartbeat.py -> config.py, claude_runner.py, session.py (load_global_memory, load_bot_memory), utils.py
+├── token_compact.py -> config.py, skill.py (skill_directory), builtin_skills (is_builtin_skill), claude_runner.py (run_claude)
 ├── skill.py -> config.py, builtin_skills (circular reference: config.py -> skill.py resolved via lazy import)
 ├── builtin_skills -> (internal package templates, no external dependencies)
 └── config.py
@@ -268,6 +282,14 @@ Bot start -> Check heartbeat.enabled -> asyncio.create_task(run_heartbeat_schedu
 Receive -> Permission check -> Args branch
   -> (none): load_bot_memory() -> Show contents (or "No memories" message)
   -> clear: clear_bot_memory() -> "Memory cleared" response
+```
+
+### /compact Command
+```
+Receive -> Permission check -> collect_compact_targets() -> Show target list
+  -> typing action -> run_compact() (sequential, per-target error isolation)
+  -> format_compact_report() -> split_message() + send
+  -> save_compact_results() (success only) -> regenerate_bot_claude_md() + update_session_claude_md()
 ```
 
 ### /streaming Command

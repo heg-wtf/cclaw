@@ -39,7 +39,7 @@ def bot_config():
 def test_make_handlers_returns_handlers(bot_path, bot_config):
     """make_handlers returns a list of handlers."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    assert len(handlers) == 17
+    assert len(handlers) == 18
 
 
 def test_is_user_allowed_empty_list():
@@ -142,7 +142,7 @@ async def test_reset_handler(bot_path, bot_config, mock_update):
 async def test_message_handler_calls_claude(bot_path, bot_config, mock_update):
     """Message handler forwards to Claude and replies."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[16]
+    message_handler = handlers[17]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Claude response"
@@ -295,7 +295,7 @@ async def test_message_handler_passes_model(bot_path, bot_config, mock_update):
     """Message handler passes model to run_claude."""
     bot_config["model"] = "opus"
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[16]
+    message_handler = handlers[17]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -440,7 +440,7 @@ async def test_message_handler_passes_skill_names(bot_path, bot_config, mock_upd
     """Message handler passes skill_names to run_claude when skills are attached."""
     bot_config["skills"] = ["my-skill"]
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[16]
+    message_handler = handlers[17]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -455,7 +455,7 @@ async def test_message_handler_passes_skill_names(bot_path, bot_config, mock_upd
 async def test_message_handler_no_skill_names(bot_path, bot_config, mock_update):
     """Message handler passes None for skill_names when no skills attached."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[16]
+    message_handler = handlers[17]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -582,7 +582,7 @@ async def test_message_handler_non_streaming(bot_path, bot_config, mock_update):
     """Message handler uses run_claude (non-streaming) when streaming is off."""
     bot_config["streaming"] = False
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[16]
+    message_handler = handlers[17]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Non-streaming response"
@@ -602,7 +602,7 @@ async def test_message_handler_non_streaming(bot_path, bot_config, mock_update):
 async def test_message_handler_first_message_bootstraps(bot_path, bot_config, mock_update):
     """First message creates session_id and uses --session-id (not --resume)."""
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[16]
+    message_handler = handlers[17]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -636,7 +636,7 @@ async def test_message_handler_resume_session(bot_path, bot_config, mock_update)
     save_claude_session_id(session_dir, "existing-session-id")
 
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[16]
+    message_handler = handlers[17]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -659,7 +659,7 @@ async def test_message_handler_resume_fallback(bot_path, bot_config, mock_update
     save_claude_session_id(session_dir, "expired-session-id")
 
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[16]
+    message_handler = handlers[17]
 
     call_count = 0
 
@@ -708,7 +708,7 @@ async def test_message_handler_first_message_with_history(bot_path, bot_config, 
     log_conversation(session_dir, "assistant", "Previous answer")
 
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[16]
+    message_handler = handlers[17]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -788,7 +788,7 @@ async def test_message_handler_bootstrap_includes_memory(bot_path, bot_config, m
     save_bot_memory(bot_path, "# Memory\n\n- User prefers Korean")
 
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[16]
+    message_handler = handlers[17]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
@@ -816,7 +816,7 @@ async def test_message_handler_bootstrap_memory_and_history(bot_path, bot_config
     log_conversation(session_dir, "assistant", "Previous answer")
 
     handlers = make_handlers("test-bot", bot_path, bot_config)
-    message_handler = handlers[16]
+    message_handler = handlers[17]
 
     with patch("cclaw.handlers.run_claude", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"

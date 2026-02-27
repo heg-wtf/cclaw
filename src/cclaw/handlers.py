@@ -129,6 +129,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             "\U0001f9e9 /skills - Skill management\n"
             "\u23f0 /cron - Cron job management\n"
             "\U0001f493 /heartbeat - Heartbeat management\n"
+            "\U0001f4e6 /compact - Compact MD files\n"
             "\u26d4 /cancel - Stop running process\n"
             "\U00002139 /version - Show version\n"
             "\U00002753 /help - Show this message"
@@ -1041,6 +1042,63 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                 "Unknown subcommand. Use: on, off, run",
             )
 
+    async def compact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle /compact command — compress MD files to save tokens."""
+        if not await check_authorization(update):
+            return
+
+        from cclaw.token_compact import (
+            collect_compact_targets,
+            format_compact_report,
+            run_compact,
+            save_compact_results,
+        )
+
+        targets = collect_compact_targets(bot_name)
+        if not targets:
+            await update.message.reply_text("No compactable files found.")
+            return
+
+        target_list = "\n".join(
+            f"  - {t.label} ({t.line_count} lines, ~{t.token_count:,} tokens)" for t in targets
+        )
+        await update.message.reply_text(
+            f"\U0001f4e6 Found {len(targets)} file(s) to compact:\n{target_list}\n\nCompacting..."
+        )
+
+        async def send_typing_periodically() -> None:
+            try:
+                while True:
+                    await update.message.chat.send_action("typing")
+                    await asyncio.sleep(4)
+            except asyncio.CancelledError:
+                pass
+
+        typing_task = asyncio.create_task(send_typing_periodically())
+
+        try:
+            results = await run_compact(bot_name, model=current_model)
+            report = format_compact_report(bot_name, results)
+
+            for chunk in split_message(report):
+                await update.message.reply_text(chunk)
+
+            successful = [r for r in results if r.error is None]
+            if successful:
+                save_compact_results(results)
+
+                from cclaw.skill import regenerate_bot_claude_md, update_session_claude_md
+
+                regenerate_bot_claude_md(bot_name)
+                update_session_claude_md(bot_path)
+                await update.message.reply_text("\u2705 Compacted files saved.")
+            else:
+                await update.message.reply_text("No files were successfully compacted.")
+        except Exception as error:
+            await update.message.reply_text(f"Compact failed: {error}")
+        finally:
+            typing_task.cancel()
+
     handlers = [
         CommandHandler("start", start_handler),
         CommandHandler("help", help_handler),
@@ -1057,6 +1115,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         CommandHandler("skills", skills_handler),
         CommandHandler("cron", cron_handler),
         CommandHandler("heartbeat", heartbeat_handler),
+        CommandHandler("compact", compact_handler),
         MessageHandler(filters.PHOTO | filters.Document.ALL, file_handler),
         MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler),
     ]
@@ -1076,6 +1135,7 @@ BOT_COMMANDS = [
     BotCommand("skills", "\U0001f9e9 Skill management"),
     BotCommand("cron", "\u23f0 Cron job management"),
     BotCommand("heartbeat", "\U0001f493 Heartbeat management"),
+    BotCommand("compact", "\U0001f4e6 Compact MD files"),
     BotCommand("streaming", "\U0001f4e1 Toggle streaming mode"),
     BotCommand("cancel", "\u26d4 Stop running process"),
     BotCommand("version", "\U00002139 Show version"),
