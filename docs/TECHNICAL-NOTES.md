@@ -631,6 +631,26 @@ Each call runs in a fresh `tempfile.TemporaryDirectory()` — no session state, 
 
 After saving compacted files, both CLI and Telegram handlers call `regenerate_bot_claude_md()` + `update_session_claude_md()` to propagate SKILL.md changes into bot and session CLAUDE.md files.
 
+## Encrypted Backup
+
+### Why pyzipper
+
+Python's built-in `zipfile` module supports reading encrypted zips but cannot create them. The system `zip -P` command exposes the password in the process list (`ps aux`). `pyzipper` provides AES-256 encryption with a `zipfile`-compatible API, pure Python, no system dependency.
+
+### Password Handling
+
+Password is read via `getpass.getpass()` which masks terminal input. Confirmed twice to prevent typos. The password string is encoded to bytes (`password.encode()`, UTF-8) before passing to pyzipper's `setpassword()`. The password is never logged or stored.
+
+### File Collection
+
+`collect_backup_files()` walks `~/.cclaw/` via `Path.rglob("*")`. Two exclusion rules:
+- `cclaw.pid`: Runtime artifact, meaningless after process ends
+- `__pycache__/`: Python bytecode cache, regenerated automatically
+
+### Output
+
+Backup file is written to the current working directory as `YYMMDD-cclaw.zip`. Same-day re-runs prompt for overwrite via `typer.confirm()`.
+
 ## IME-Compatible CLI Input
 
 ### Problem

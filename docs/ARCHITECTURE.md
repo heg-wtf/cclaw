@@ -186,6 +186,16 @@ Compresses bot MD files (MEMORY.md, user-created SKILL.md, HEARTBEAT.md) via one
 - **CLI**: `cclaw bot compact <name>` with `--yes/-y` skip confirmation
 - **Telegram**: `/compact` auto-saves on success
 
+### 16. Encrypted Backup
+
+Full backup of `~/.cclaw/` directory to an AES-256 encrypted zip file.
+
+- `cclaw backup` generates `YYMMDD-cclaw.zip` in the current working directory
+- Password input via `getpass.getpass()` (masked, confirmed twice)
+- Encryption via `pyzipper` (AES-256, WZ_AES mode)
+- Excludes runtime artifacts: `cclaw.pid`, `__pycache__/`
+- Same-day backup prompts for overwrite confirmation
+
 ## Module Dependencies
 
 ```
@@ -210,6 +220,7 @@ cli.py
 │   └── utils.py
 ├── cron.py -> config.py, claude_runner.py, session.py (load_global_memory, load_bot_memory), utils.py
 ├── heartbeat.py -> config.py, claude_runner.py, session.py (load_global_memory, load_bot_memory), utils.py
+├── backup.py -> (standalone: pathlib, pyzipper)
 ├── token_compact.py -> config.py, skill.py (skill_directory), builtin_skills (is_builtin_skill), claude_runner.py (run_claude)
 ├── skill.py -> config.py, builtin_skills (circular reference: config.py -> skill.py resolved via lazy import)
 ├── builtin_skills -> (internal package templates, no external dependencies)

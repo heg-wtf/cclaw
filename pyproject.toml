@@ -9,6 +9,7 @@ dependencies = [
     "pyyaml>=6.0",
     "rich>=13.0",
     "croniter>=2.0",
+    "pyzipper>=0.3.6",
 ]
 
 [project.scripts]

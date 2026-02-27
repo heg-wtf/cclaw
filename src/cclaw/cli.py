@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import typer
 
 app = typer.Typer(help="cclaw - Telegram + Claude Code AI assistant", invoke_without_command=True)
@@ -87,6 +89,53 @@ def doctor() -> None:
     from cclaw.onboarding import run_doctor
 
     run_doctor()
+
+
+@app.command()
+def backup() -> None:
+    """Backup ~/.cclaw/ to a password-encrypted zip file."""
+    import getpass
+
+    from rich.console import Console
+
+    from cclaw.backup import create_encrypted_backup, generate_backup_filename
+    from cclaw.config import cclaw_home
+
+    console = Console()
+    home = cclaw_home()
+
+    if not home.exists():
+        console.print(f"[red]cclaw home not found: {home}[/red]")
+        raise typer.Exit(1)
+
+    filename = generate_backup_filename()
+    output_path = Path.cwd() / filename
+
+    if output_path.exists():
+        overwrite = typer.confirm(f"{filename} already exists. Overwrite?")
+        if not overwrite:
+            console.print("[yellow]Backup cancelled.[/yellow]")
+            raise typer.Exit()
+
+    password = getpass.getpass("Password: ")
+    if not password:
+        console.print("[red]Password cannot be empty.[/red]")
+        raise typer.Exit(1)
+
+    password_confirm = getpass.getpass("Confirm password: ")
+    if password != password_confirm:
+        console.print("[red]Passwords do not match.[/red]")
+        raise typer.Exit(1)
+
+    with console.status("Creating encrypted backup..."):
+        file_count = create_encrypted_backup(output_path, password, home)
+
+    size_megabytes = output_path.stat().st_size / (1024 * 1024)
+    console.print("\n[green]Backup complete![/green]")
+    console.print(f"  File: {output_path}")
+    console.print(f"  Files: {file_count}")
+    console.print(f"  Size: {size_megabytes:.1f} MB")
+    console.print("  Encryption: AES-256")
 
 
 @bot_app.command("add")

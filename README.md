@@ -160,6 +160,7 @@ Use the `/send` command to retrieve workspace files back via Telegram.
 | Telegram | python-telegram-bot v21+ |
 | Configuration | PyYAML |
 | Cron Scheduler | croniter |
+| Encrypted Backup | pyzipper (AES-256) |
 | AI Engine | Claude Code CLI (`claude -p`, streaming) |
 | Process Manager | launchd (macOS) |
 
@@ -233,6 +234,9 @@ cclaw logs -f                  # Tail mode
 cclaw logs clean               # Delete logs older than 7 days
 cclaw logs clean -d 30         # Keep last 30 days
 cclaw logs clean --dry-run     # Preview without deleting
+
+# Backup
+cclaw backup                   # Backup ~/.cclaw/ to AES-256 encrypted zip
 ```
 
 ## Project Structure
@@ -265,6 +269,7 @@ cclaw/
 │   │   ├── kakao-local/  # Kakao Local skill (kakao-cli)
 │   │   ├── dart/         # DART corporate disclosure skill (dartcli)
 │   │   └── translate/    # Translate skill (translatecli, Gemini)
+│   ├── backup.py            # Encrypted backup (AES-256 zip)
 │   ├── token_compact.py    # Token compaction (compress MD files via Claude)
 │   ├── cron.py             # Cron schedule automation
 │   ├── heartbeat.py        # Heartbeat (periodic situation awareness)
