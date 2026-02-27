@@ -44,17 +44,22 @@ A multi-bot, file-based session system that runs locally on Mac.
 
 ## Installation
 
-### uv (Recommended)
+### Quick Install (Recommended)
 
 ```bash
-uv sync
+curl -sSL https://raw.githubusercontent.com/heg-wtf/cclaw/main/install.sh | bash
 ```
 
-### pip / pipx
+Auto-detects `uv` / `pipx` / `pip` and installs from GitHub.
+
+### Manual Install
 
 ```bash
+# uv
+uv sync
+
+# pip / pipx
 pip install .
-# or
 pipx install .
 ```
 
