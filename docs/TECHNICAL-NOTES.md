@@ -303,7 +303,7 @@ Context breaks occur when multi-turn flows are needed, like the iMessage skill.
 
 Two mechanisms are combined:
 
-1. **Conversation bootstrap**: On first message, includes last 20 turns (`MAX_CONVERSATION_HISTORY_TURNS`) from conversation files in the prompt
+1. **Conversation bootstrap**: On first message, composes bootstrap prompt in order: global memory -> bot memory -> last 20 turns (`MAX_CONVERSATION_HISTORY_TURNS`) from conversation files -> new message
 2. **`--resume <session_id>`**: Claude Code's session continuation flag maintains context for subsequent messages
 
 ### Session ID Management
@@ -342,13 +342,13 @@ Conversation history is stored in daily rotating files (`conversation-YYMMDD.md`
 `_prepare_session_context(session_directory, user_message)`:
 1. Calls `get_claude_session_id()`
 2. If session ID exists: `resume_session=True`, uses original message as-is
-3. If no session ID: Generates new UUID -> `load_conversation_history()` -> Composes bootstrap prompt -> `save_claude_session_id()`
+3. If no session ID: Generates new UUID -> Composes bootstrap prompt (global memory -> bot memory -> conversation history -> message) -> `save_claude_session_id()`
 
 `_call_with_resume_fallback(send_function, ...)`:
 1. First call with configured settings (resume or new session)
 2. If `resume_session=True` and `RuntimeError` occurs:
    - Calls `clear_claude_session_id()`
-   - Generates new UUID -> Recomposes with bootstrap prompt
+   - Generates new UUID -> Recomposes with bootstrap prompt (same order: global memory -> bot memory -> conversation history -> message)
    - Retries with `resume_session=False`
 
 ### Claude Runner Flags
@@ -380,14 +380,38 @@ so when Claude Code receives "remember this" requests, it organizes by category 
 
 ### Load Mechanism
 
-`_prepare_session_context()` reads MEMORY.md via `load_bot_memory()` when composing the bootstrap prompt.
-Injection order: **long-term memory -> conversation history -> new message**. Each section is separated by `---`.
+`_prepare_session_context()` reads GLOBAL_MEMORY.md via `load_global_memory()` and MEMORY.md via `load_bot_memory()` when composing the bootstrap prompt.
+Injection order: **global memory -> bot memory -> conversation history -> new message**. Each section is separated by `---`.
 `--resume` sessions don't inject memory separately since the Claude Code session maintains its own context.
 
 ### Memory Instructions in CLAUDE.md
 
 When `bot_path` parameter is passed to `compose_claude_md()`, a Memory section is added after the Rules section.
 `save_bot_config()` and `regenerate_bot_claude_md()` automatically pass `bot_path`.
+
+## Global Memory
+
+### Storage Location
+
+`~/.cclaw/GLOBAL_MEMORY.md` — Root-level file shared across all bots (read-only for bots).
+
+### CRUD Functions
+
+In `session.py`: `global_memory_file_path()`, `load_global_memory()`, `save_global_memory()`, `clear_global_memory()`.
+Same pattern as bot memory CRUD. `load_global_memory()` returns `None` when file is missing or empty/whitespace-only.
+
+### Injection Points
+
+Global memory is injected at four points:
+
+1. **CLAUDE.md composition** (`compose_claude_md()` in `skill.py`): "Global Memory (Read-Only)" section placed before bot Memory section. No file path exposed to prevent Claude from modifying it.
+2. **Session bootstrap** (`_prepare_session_context()` in `handlers.py`): Injected as first context part in bootstrap prompt.
+3. **Resume fallback** (`_call_with_resume_fallback()` in `handlers.py`): Same injection on `--resume` failure fallback.
+4. **Cron/Heartbeat execution** (`execute_cron_job()` in `cron.py`, `execute_heartbeat()` in `heartbeat.py`): Injected before bot memory in the prompt.
+
+### CLI Management
+
+`cclaw global-memory show|edit|clear`. After `edit` or `clear`, `_regenerate_all_bots_claude_md()` iterates all bots and regenerates CLAUDE.md + propagates to all sessions via `update_session_claude_md()`.
 
 ## macOS Contacts Lookup (osascript)
 

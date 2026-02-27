@@ -123,14 +123,14 @@ Frequently used skills are bundled as templates inside the package, installable 
 Each message runs `claude -p` as a new process, but maintains conversation context.
 
 - **First message**: Starts new Claude Code session with `--session-id <uuid>`
-  - Includes last 20 turns from conversation files as bootstrap prompt (searches `conversation-YYMMDD.md` newest-first)
+  - Bootstrap prompt order: global memory -> bot memory -> last 20 turns from conversation files -> new message
 - **Subsequent messages**: Continues session with `--resume <session_id>`
-- **Fallback**: Auto-retries with bootstrap when `--resume` fails (session expired)
+- **Fallback**: Auto-retries with bootstrap when `--resume` fails (session expired). Fallback uses same bootstrap order (global memory -> bot memory -> conversation history -> message)
 - **Reset**: `/reset`, `/resetall` also delete session ID
 - Session ID stored as UUID in `sessions/chat_<id>/.claude_session_id`
 - `_prepare_session_context()`: Decides resume/bootstrap
 - `_call_with_resume_fallback()`: Handles fallback on resume failure
-- Cron and heartbeat are one-shot executions, no session continuity needed
+- Cron and heartbeat: one-shot executions with global memory + bot memory injected into prompt
 
 ### 12. Bot-Level Long-Term Memory
 
@@ -138,12 +138,25 @@ When user requests "remember this", the bot saves to `MEMORY.md` and injects it 
 
 - `MEMORY.md` managed per bot (`~/.cclaw/bots/<name>/MEMORY.md`). All chat sessions share the same memory
 - **Save mechanism**: `compose_claude_md()` includes memory instructions + MEMORY.md absolute path in CLAUDE.md -> Claude Code writes to MEMORY.md directly via file write tool
-- **Load mechanism**: `_prepare_session_context()` reads `load_bot_memory()` during bootstrap -> prompt injection (memory -> conversation history -> new message order)
+- **Load mechanism**: `_prepare_session_context()` reads `load_global_memory()` + `load_bot_memory()` during bootstrap -> prompt injection (global memory -> bot memory -> conversation history -> new message order)
 - `--resume` sessions don't inject memory separately (Claude Code session maintains its own context)
 - Management: Telegram `/memory` (show), `/memory clear` (reset), CLI `cclaw memory show|edit|clear`
 - CRUD functions in `session.py`: `memory_file_path()`, `load_bot_memory()`, `save_bot_memory()`, `clear_bot_memory()`
 
-### 13. Streaming Response
+### 13. Global Memory
+
+Shared read-only memory accessible by all bots, managed via CLI only.
+
+- `GLOBAL_MEMORY.md` stored at `~/.cclaw/GLOBAL_MEMORY.md`
+- Stores timezone, user preferences, and other information all bots should reference
+- **CLAUDE.md injection**: `compose_claude_md()` inserts a "Global Memory (Read-Only)" section without the file path, preventing Claude from modifying it. Placed before bot Memory section
+- **Bootstrap injection**: `_prepare_session_context()` and `_call_with_resume_fallback()` inject global memory before bot memory (global memory -> bot memory -> conversation history -> message)
+- **Cron/Heartbeat injection**: `execute_cron_job()` and `execute_heartbeat()` inject global memory + bot memory into prompt before execution
+- **CLI management**: `cclaw global-memory show|edit|clear`. Editing or clearing regenerates all bots' CLAUDE.md and propagates to sessions
+- Not editable via Telegram (no file path exposed, no Telegram command)
+- CRUD functions in `session.py`: `global_memory_file_path()`, `load_global_memory()`, `save_global_memory()`, `clear_global_memory()`
+
+### 14. Streaming Response
 
 Delivers Claude Code output to Telegram in real-time. User-toggleable on/off.
 
@@ -178,12 +191,12 @@ cli.py
 │   │   ├── heartbeat.py (get/enable/disable_heartbeat, execute_heartbeat)
 │   │   ├── skill.py (attach/detach, is_skill, skill_status)
 │   │   ├── builtin_skills (list_builtin_skills)
-│   │   ├── session.py (ensure_session, reset_session, get/save/clear_claude_session_id, load_conversation_history, load_bot_memory, clear_bot_memory)
+│   │   ├── session.py (ensure_session, reset_session, get/save/clear_claude_session_id, load_conversation_history, load_bot_memory, clear_bot_memory, load_global_memory)
 │   │   ├── config.py (save_bot_config, VALID_MODELS)
 │   │   └── utils.py
 │   └── utils.py
-├── cron.py -> config.py, claude_runner.py, utils.py
-├── heartbeat.py -> config.py, claude_runner.py, utils.py
+├── cron.py -> config.py, claude_runner.py, session.py (load_global_memory, load_bot_memory), utils.py
+├── heartbeat.py -> config.py, claude_runner.py, session.py (load_global_memory, load_bot_memory), utils.py
 ├── skill.py -> config.py, builtin_skills (circular reference: config.py -> skill.py resolved via lazy import)
 ├── builtin_skills -> (internal package templates, no external dependencies)
 └── config.py
@@ -200,7 +213,7 @@ cli.py
 
 ### Text Messages
 ```
-Receive -> Permission check -> Session Lock (queuing) -> ensure_session -> _prepare_session_context (resume/bootstrap decision, inject memory+history on bootstrap)
+Receive -> Permission check -> Session Lock (queuing) -> ensure_session -> _prepare_session_context (resume/bootstrap decision, inject global memory+bot memory+history on bootstrap)
   -> _call_with_resume_fallback -> streaming_enabled branch
     -> (streaming on) run_claude_streaming (--resume or --session-id) -> per-token message edit -> Markdown->HTML conversion -> final message replace/split send
     -> (streaming off) typing action every 4s -> run_claude (--resume or --session-id) -> Markdown->HTML conversion -> batch send
@@ -233,7 +246,7 @@ Receive -> Permission check -> Args branch
 ### Cron Scheduler
 ```
 Bot start -> Load cron.yaml -> asyncio.create_task(run_cron_scheduler) -> 30-second loop
-  -> Match current time against schedule -> execute_cron_job -> run_claude -> Send results to allowed_users
+  -> Match current time against schedule -> execute_cron_job -> inject global memory + bot memory -> run_claude -> Send results to allowed_users
 ```
 
 ### /cron run Command
@@ -245,7 +258,7 @@ Receive -> Permission check -> get_cron_job() -> execute_cron_job() -> Send resu
 ```
 Bot start -> Check heartbeat.enabled -> asyncio.create_task(run_heartbeat_scheduler) -> interval_minutes loop
   -> Check active_hours range -> Skip if outside range
-  -> Load HEARTBEAT.md -> run_claude -> Check for HEARTBEAT_OK in response
+  -> Load HEARTBEAT.md -> inject global memory + bot memory -> run_claude -> Check for HEARTBEAT_OK in response
   -> If HEARTBEAT_OK present: log only
   -> If HEARTBEAT_OK absent: send to allowed_users via Telegram
 ```

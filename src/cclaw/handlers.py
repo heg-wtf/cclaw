@@ -500,10 +500,18 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             # Resume existing Claude Code session
             return user_message, claude_session_id, True
 
-        # New session: bootstrap from memory + conversation.md
+        # New session: bootstrap from global memory + bot memory + conversation.md
+        from cclaw.session import load_global_memory
+
         claude_session_id = str(uuid.uuid4())
 
         context_parts: list[str] = []
+
+        global_memory = load_global_memory()
+        if global_memory:
+            context_parts.append(
+                "아래는 글로벌 메모리입니다. 참고하세요 (수정 불가):\n\n" + global_memory
+            )
 
         memory = load_bot_memory(bot_path)
         if memory:
@@ -553,13 +561,31 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             )
             clear_claude_session_id(session_dir)
             new_session_id = str(uuid.uuid4())
+
+            from cclaw.session import load_global_memory
+
+            fallback_parts: list[str] = []
+
+            global_memory = load_global_memory()
+            if global_memory:
+                fallback_parts.append(
+                    "아래는 글로벌 메모리입니다. 참고하세요 (수정 불가):\n\n" + global_memory
+                )
+
+            memory = load_bot_memory(bot_path)
+            if memory:
+                fallback_parts.append("아래는 장기 메모리입니다. 참고하세요:\n\n" + memory)
+
             history = load_conversation_history(session_dir)
             if history:
+                fallback_parts.append(
+                    "아래는 이전 대화 기록입니다. 맥락으로 활용하세요:\n\n" + history
+                )
+
+            if fallback_parts:
                 # Original prompt was just the raw message for resume
                 fallback_prompt = (
-                    "아래는 이전 대화 기록입니다. 맥락으로 활용하세요:\n\n"
-                    f"{history}\n\n---\n\n"
-                    f"새 메시지: {prompt}"
+                    "\n\n---\n\n".join(fallback_parts) + f"\n\n---\n\n새 메시지: {prompt}"
                 )
             else:
                 fallback_prompt = prompt

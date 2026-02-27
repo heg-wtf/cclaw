@@ -241,12 +241,30 @@ async def execute_cron_job(
     from cclaw.utils import markdown_to_telegram_html, split_message
 
     job_name = job["name"]
-    message = job.get("message", "")
+    raw_message = job.get("message", "")
     model = job.get("model") or bot_config.get("model", DEFAULT_MODEL)
     job_skills = job.get("skills") or bot_config.get("skills", [])
     command_timeout = bot_config.get("command_timeout", 300)
 
     working_directory = str(cron_session_directory(bot_name, job_name))
+
+    from cclaw.session import load_bot_memory, load_global_memory
+
+    prompt_parts: list[str] = []
+
+    global_memory = load_global_memory()
+    if global_memory:
+        prompt_parts.append(
+            "아래는 글로벌 메모리입니다. 참고하세요 (수정 불가):\n\n" + global_memory
+        )
+
+    bot_memory = load_bot_memory(bot_directory(bot_name))
+    if bot_memory:
+        prompt_parts.append("아래는 장기 메모리입니다. 참고하세요:\n\n" + bot_memory)
+
+    prompt_parts.append(raw_message)
+
+    message = "\n\n---\n\n".join(prompt_parts)
 
     logger.info("Executing cron job '%s' for bot '%s'", job_name, bot_name)
 

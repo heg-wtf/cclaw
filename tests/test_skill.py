@@ -417,6 +417,52 @@ def test_compose_claude_md_nonexistent_skill():
     assert "Available Skills" not in result
 
 
+def test_compose_claude_md_with_global_memory(temp_cclaw_home):
+    """compose_claude_md includes global memory section when present."""
+    from cclaw.session import save_global_memory
+
+    save_global_memory("- Timezone: Asia/Seoul\n- Language: Korean")
+
+    result = compose_claude_md(
+        bot_name="my-bot",
+        personality="Friendly",
+        description="Helper",
+    )
+    assert "## Global Memory (Read-Only)" in result
+    assert "Timezone: Asia/Seoul" in result
+    assert "수정하지 마라" in result
+
+
+def test_compose_claude_md_no_global_memory(temp_cclaw_home):
+    """compose_claude_md omits global memory section when not present."""
+    result = compose_claude_md(
+        bot_name="my-bot",
+        personality="Friendly",
+        description="Helper",
+    )
+    assert "Global Memory" not in result
+
+
+def test_compose_claude_md_global_memory_before_bot_memory(temp_cclaw_home):
+    """compose_claude_md places global memory before bot memory."""
+    from cclaw.session import save_global_memory
+
+    save_global_memory("- Global setting")
+
+    bot_path = temp_cclaw_home / "bots" / "my-bot"
+    bot_path.mkdir(parents=True)
+
+    result = compose_claude_md(
+        bot_name="my-bot",
+        personality="Friendly",
+        description="Helper",
+        bot_path=bot_path,
+    )
+    global_memory_index = result.index("Global Memory (Read-Only)")
+    bot_memory_index = result.index("## Memory")
+    assert global_memory_index < bot_memory_index
+
+
 def test_regenerate_bot_claude_md(setup_skill, setup_bot, temp_cclaw_home):
     """regenerate_bot_claude_md updates CLAUDE.md."""
     from cclaw.config import bot_directory

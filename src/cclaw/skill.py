@@ -314,6 +314,16 @@ def compose_claude_md(
         "  ☁️ 오후~밤 차차 맑아짐",
     ]
 
+    from cclaw.session import load_global_memory
+
+    global_memory = load_global_memory()
+    if global_memory:
+        sections.append("")
+        sections.append("## Global Memory (Read-Only)")
+        sections.append("- 아래는 모든 봇이 공유하는 글로벌 메모리이다. 참고만 하고 수정하지 마라.")
+        sections.append("")
+        sections.append(global_memory.strip())
+
     if bot_path is not None:
         memory_path = bot_path / "MEMORY.md"
         sections.append("")

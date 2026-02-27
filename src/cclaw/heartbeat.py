@@ -207,7 +207,23 @@ async def execute_heartbeat(
         logger.warning("Heartbeat for '%s': no HEARTBEAT.md found, skipping", bot_name)
         return
 
-    message = f"다음 체크리스트를 확인하고 결과를 알려주세요.\n\n{heartbeat_content}"
+    from cclaw.session import load_bot_memory, load_global_memory
+
+    prompt_parts: list[str] = []
+
+    global_memory = load_global_memory()
+    if global_memory:
+        prompt_parts.append(
+            "아래는 글로벌 메모리입니다. 참고하세요 (수정 불가):\n\n" + global_memory
+        )
+
+    bot_memory = load_bot_memory(bot_directory(bot_name))
+    if bot_memory:
+        prompt_parts.append("아래는 장기 메모리입니다. 참고하세요:\n\n" + bot_memory)
+
+    prompt_parts.append(f"다음 체크리스트를 확인하고 결과를 알려주세요.\n\n{heartbeat_content}")
+
+    message = "\n\n---\n\n".join(prompt_parts)
 
     logger.info("Executing heartbeat for bot '%s'", bot_name)
 

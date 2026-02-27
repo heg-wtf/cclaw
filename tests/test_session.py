@@ -442,3 +442,65 @@ def test_load_conversation_history_truncates_across_files(bot_path):
     assert "Old message 4" not in history
     assert "Old message 5" in history
     assert "New message 9" in history
+
+
+# --- Global memory tests ---
+
+
+@pytest.fixture
+def cclaw_home(tmp_path, monkeypatch):
+    """Set CCLAW_HOME to a temporary directory."""
+    home = tmp_path / ".cclaw"
+    home.mkdir()
+    monkeypatch.setenv("CCLAW_HOME", str(home))
+    return home
+
+
+def test_global_memory_file_path(cclaw_home):
+    """global_memory_file_path returns expected path."""
+    from cclaw.session import global_memory_file_path
+
+    result = global_memory_file_path()
+    assert result == cclaw_home / "GLOBAL_MEMORY.md"
+
+
+def test_load_global_memory_none(cclaw_home):
+    """load_global_memory returns None when file doesn't exist."""
+    from cclaw.session import load_global_memory
+
+    assert load_global_memory() is None
+
+
+def test_load_global_memory_empty(cclaw_home):
+    """load_global_memory returns None when file is empty."""
+    from cclaw.session import load_global_memory
+
+    (cclaw_home / "GLOBAL_MEMORY.md").write_text("")
+    assert load_global_memory() is None
+
+
+def test_load_global_memory_whitespace_only(cclaw_home):
+    """load_global_memory returns None when file is whitespace only."""
+    from cclaw.session import load_global_memory
+
+    (cclaw_home / "GLOBAL_MEMORY.md").write_text("   \n\n  ")
+    assert load_global_memory() is None
+
+
+def test_save_and_load_global_memory(cclaw_home):
+    """save_global_memory and load_global_memory round-trip."""
+    from cclaw.session import load_global_memory, save_global_memory
+
+    save_global_memory("# Global\n\n- Timezone: Asia/Seoul")
+    content = load_global_memory()
+    assert content == "# Global\n\n- Timezone: Asia/Seoul"
+
+
+def test_clear_global_memory(cclaw_home):
+    """clear_global_memory removes the GLOBAL_MEMORY.md file."""
+    from cclaw.session import clear_global_memory, load_global_memory, save_global_memory
+
+    save_global_memory("some global memory")
+    clear_global_memory()
+    assert load_global_memory() is None
+    assert not (cclaw_home / "GLOBAL_MEMORY.md").exists()

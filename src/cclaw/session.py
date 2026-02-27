@@ -9,6 +9,7 @@ from pathlib import Path
 
 CLAUDE_SESSION_ID_FILE = ".claude_session_id"
 MEMORY_FILE_NAME = "MEMORY.md"
+GLOBAL_MEMORY_FILE_NAME = "GLOBAL_MEMORY.md"
 MAX_CONVERSATION_HISTORY_TURNS = 20
 CONVERSATION_FILE_PREFIX = "conversation-"
 CONVERSATION_FILE_SUFFIX = ".md"
@@ -254,3 +255,40 @@ def save_bot_memory(bot_path: Path, content: str) -> None:
 def clear_bot_memory(bot_path: Path) -> None:
     """Delete the bot's MEMORY.md file."""
     memory_file_path(bot_path).unlink(missing_ok=True)
+
+
+# --- Global memory ---
+
+
+def global_memory_file_path() -> Path:
+    """Return the path to the global GLOBAL_MEMORY.md file."""
+    from cclaw.config import cclaw_home
+
+    return cclaw_home() / GLOBAL_MEMORY_FILE_NAME
+
+
+def load_global_memory() -> str | None:
+    """Load the global GLOBAL_MEMORY.md content.
+
+    Returns None if GLOBAL_MEMORY.md doesn't exist or is empty.
+    """
+    path = global_memory_file_path()
+    if not path.exists():
+        return None
+    content = path.read_text()
+    if not content.strip():
+        return None
+    return content
+
+
+def save_global_memory(content: str) -> None:
+    """Save content to the global GLOBAL_MEMORY.md file."""
+    from cclaw.config import ensure_home
+
+    ensure_home()
+    global_memory_file_path().write_text(content)
+
+
+def clear_global_memory() -> None:
+    """Delete the global GLOBAL_MEMORY.md file."""
+    global_memory_file_path().unlink(missing_ok=True)

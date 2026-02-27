@@ -47,6 +47,9 @@ uv run cclaw heartbeat edit <bot>    # Edit HEARTBEAT.md
 uv run cclaw memory show <bot>       # Show memory contents
 uv run cclaw memory edit <bot>       # Edit MEMORY.md
 uv run cclaw memory clear <bot>      # Clear memory
+uv run cclaw global-memory show      # Show global memory contents
+uv run cclaw global-memory edit      # Edit GLOBAL_MEMORY.md (regenerates all bots)
+uv run cclaw global-memory clear     # Clear global memory (regenerates all bots)
 uv run cclaw logs            # Show today's log
 uv run cclaw logs -f         # Tail mode
 uv run cclaw logs clean              # Delete logs older than 7 days
@@ -64,16 +67,16 @@ pytest
 
 ## Code Structure
 
-- `src/cclaw/cli.py` - Typer app entry point, ASCII art banner, all command definitions (skills, bot, cron, heartbeat, memory subcommands)
+- `src/cclaw/cli.py` - Typer app entry point, ASCII art banner, all command definitions (skills, bot, cron, heartbeat, memory, global-memory subcommands)
 - `src/cclaw/config.py` - `~/.cclaw/` configuration management (YAML), model version mapping (`MODEL_VERSIONS`, `model_display_name()`)
 - `src/cclaw/onboarding.py` - Environment check, token validation, bot creation wizard
 - `src/cclaw/claude_runner.py` - `claude -p` subprocess execution (async, path resolution via `shutil.which`, process tracking + `cancel_all_processes()` for graceful shutdown, model selection, skill MCP/env injection, streaming output, `--resume`/`--session-id` session continuity)
-- `src/cclaw/session.py` - Session directory/conversation log/workspace management, Claude session ID management (`get`/`save`/`clear_claude_session_id`), daily conversation rotation (`conversation-YYMMDD.md`, legacy `conversation.md` fallback), bot-level memory CRUD (`load_bot_memory`/`save_bot_memory`/`clear_bot_memory`), `collect_session_chat_ids()` for proactive message fallback
+- `src/cclaw/session.py` - Session directory/conversation log/workspace management, Claude session ID management (`get`/`save`/`clear_claude_session_id`), daily conversation rotation (`conversation-YYMMDD.md`, legacy `conversation.md` fallback), bot-level memory CRUD (`load_bot_memory`/`save_bot_memory`/`clear_bot_memory`), global memory CRUD (`load_global_memory`/`save_global_memory`/`clear_global_memory`), `collect_session_chat_ids()` for proactive message fallback
 - `src/cclaw/handlers.py` - Telegram handler factory (slash commands + messages + file receive/send + model change (with version display) + process cancel + /skills unified management (list/attach/detach/builtins) + /cron management + /heartbeat management + /memory management + streaming response + /streaming toggle + session continuity (`_prepare_session_context`, `_call_with_resume_fallback`) + `set_bot_commands` command menu registration)
 - `src/cclaw/bot_manager.py` - Multi-bot polling, launchd daemon, per-bot error isolation, cron/heartbeat scheduler integration, graceful shutdown (`cancel_all_processes()` before `application.stop()`)
 - `src/cclaw/heartbeat.py` - Heartbeat periodic situation awareness (config CRUD, active hours check, HEARTBEAT.md management, HEARTBEAT_OK detection, session chat ID fallback for result delivery, scheduler loop)
 - `src/cclaw/cron.py` - Cron schedule automation (cron.yaml CRUD, croniter-based schedule matching, per-job timezone support via `resolve_job_timezone()`, one-shot support with auto-disable, session chat ID fallback for result delivery, scheduler loop)
-- `src/cclaw/skill.py` - Skill management (discovery/loading/creation/deletion/builtin installation, bot-skill linking, CLAUDE.md composition (memory instructions + Telegram formatting rules), MCP/env variable merging, per-skill emoji with builtin fallback)
+- `src/cclaw/skill.py` - Skill management (discovery/loading/creation/deletion/builtin installation, bot-skill linking, CLAUDE.md composition (global memory + memory instructions + Telegram formatting rules), MCP/env variable merging, per-skill emoji with builtin fallback)
 - `src/cclaw/builtin_skills/__init__.py` - Built-in skill registry (scans subdirectories for templates)
 - `src/cclaw/builtin_skills/imessage/` - iMessage built-in skill template (SKILL.md, skill.yaml)
 - `src/cclaw/builtin_skills/reminders/` - Apple Reminders built-in skill template (SKILL.md, skill.yaml)
@@ -133,21 +136,30 @@ pytest
 ## Session Continuity
 
 - Each message runs `claude -p` as a new process, but maintains conversation context via `--resume` / `--session-id` flags
-- **First message**: Starts new session with `--session-id <uuid>`. Includes MEMORY.md + last 20 turns from conversation files as bootstrap prompt
+- **First message**: Starts new session with `--session-id <uuid>`. Includes GLOBAL_MEMORY.md + MEMORY.md + last 20 turns from conversation files as bootstrap prompt
 - **Subsequent messages**: Continues session with `--resume <session_id>`
 - **Fallback**: If `--resume` fails (session expired, etc.), automatically deletes session_id and retries with bootstrap
 - **Reset**: `/reset` or `/resetall` also deletes the `.claude_session_id` file
 - Session ID stored in `sessions/chat_<id>/.claude_session_id`
-- `_prepare_session_context()`: Determines resume/bootstrap (bootstrap order: memory -> conversation history -> message)
-- `_call_with_resume_fallback()`: Handles fallback on resume failure
+- `_prepare_session_context()`: Determines resume/bootstrap (bootstrap order: global memory -> bot memory -> conversation history -> message)
+- `_call_with_resume_fallback()`: Handles fallback on resume failure (same bootstrap order)
 
 ## Bot-Level Long-Term Memory
 
 - When user requests "remember this", the bot saves to `MEMORY.md`
 - `MEMORY.md` is managed per bot (`~/.cclaw/bots/<name>/MEMORY.md`), shared across all chat sessions
 - **Saving**: `compose_claude_md()` includes memory instructions + MEMORY.md absolute path in CLAUDE.md -> Claude Code directly appends to MEMORY.md via file write tool
-- **Loading**: On new session bootstrap, MEMORY.md + conversation history are injected into the prompt (memory -> conversation history -> new message order)
+- **Loading**: On new session bootstrap, GLOBAL_MEMORY.md + MEMORY.md + conversation history are injected into the prompt (global memory -> bot memory -> conversation history -> new message order)
 - **Management**: Telegram `/memory` command (show contents, `/memory clear` to reset) + CLI `cclaw memory show|edit|clear <bot>`
+
+## Global Memory
+
+- `GLOBAL_MEMORY.md` is stored at `~/.cclaw/GLOBAL_MEMORY.md`, shared across all bots (read-only for bots)
+- Stores timezone, user preferences, and other information all bots should reference
+- **CLAUDE.md injection**: `compose_claude_md()` inserts a "Global Memory (Read-Only)" section without the file path, preventing Claude from modifying it
+- **Bootstrap injection**: On new session bootstrap, global memory is injected before bot memory
+- **Management**: CLI only (`cclaw global-memory show|edit|clear`). Not editable via Telegram
+- Editing or clearing regenerates all bots' CLAUDE.md and propagates to sessions
 
 ## Runtime Data Structure
 
@@ -155,6 +167,7 @@ pytest
 ~/.cclaw/
 ├── config.yaml           # Global config (bot list, log_level, command_timeout)
 ├── cclaw.pid             # Running PID
+├── GLOBAL_MEMORY.md      # Global memory (shared across all bots, read-only for bots, CLI-managed)
 ├── bots/<name>/
 │   ├── bot.yaml          # Bot config (token, personality, role, allowed_users, model, streaming, skills, heartbeat)
 │   ├── CLAUDE.md         # Bot system prompt (includes skills + memory instructions)

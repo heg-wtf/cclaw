@@ -211,6 +211,11 @@ cclaw memory show <bot>        # Show memory contents
 cclaw memory edit <bot>        # Edit MEMORY.md ($EDITOR)
 cclaw memory clear <bot>       # Clear memory
 
+# Global memory (shared across all bots, read-only for bots)
+cclaw global-memory show       # Show global memory contents
+cclaw global-memory edit       # Edit GLOBAL_MEMORY.md ($EDITOR)
+cclaw global-memory clear      # Clear global memory
+
 # Heartbeat management
 cclaw heartbeat status         # Show heartbeat status for all bots
 cclaw heartbeat enable <bot>   # Enable heartbeat
@@ -259,7 +264,9 @@ cclaw/
 │   │   ├── twitter/      # Twitter/X skill (MCP, tweet posting/search)
 │   │   ├── jira/         # Jira skill (MCP, issue management)
 │   │   ├── naver-search/ # Naver Search skill (naver-cli)
-│   │   └── kakao-local/  # Kakao Local skill (kakao-cli)
+│   │   ├── kakao-local/  # Kakao Local skill (kakao-cli)
+│   │   ├── dart/         # DART corporate disclosure skill (dartcli)
+│   │   └── translate/    # Translate skill (translatecli, Gemini)
 │   ├── cron.py             # Cron schedule automation
 │   ├── heartbeat.py        # Heartbeat (periodic situation awareness)
 │   └── utils.py            # Utilities
@@ -273,6 +280,7 @@ Configuration and session data are stored in `~/.cclaw/`. Override the path with
 ```
 ~/.cclaw/
 ├── config.yaml
+├── GLOBAL_MEMORY.md          # Global memory (shared across all bots, read-only)
 ├── bots/
 │   └── <bot-name>/
 │       ├── bot.yaml

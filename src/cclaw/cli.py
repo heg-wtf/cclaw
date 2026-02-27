@@ -40,6 +40,8 @@ cron_app = typer.Typer(help="Cron job management")
 app.add_typer(cron_app, name="cron")
 memory_app = typer.Typer(help="Bot memory management")
 app.add_typer(memory_app, name="memory")
+global_memory_app = typer.Typer(help="Global memory management (shared across all bots)")
+app.add_typer(global_memory_app, name="global-memory")
 heartbeat_app = typer.Typer(help="Heartbeat management")
 app.add_typer(heartbeat_app, name="heartbeat")
 
@@ -1021,6 +1023,85 @@ def memory_clear(bot: str = typer.Argument(help="Bot name")) -> None:
 
     clear_bot_memory(bot_directory(bot))
     console.print(f"[green]Memory cleared for '{bot}'.[/green]")
+
+
+# --- Global memory subcommands ---
+
+
+def _regenerate_all_bots_claude_md() -> None:
+    """Regenerate CLAUDE.md for all bots and propagate to sessions."""
+    from cclaw.config import bot_directory, load_config
+    from cclaw.skill import regenerate_bot_claude_md, update_session_claude_md
+
+    config = load_config()
+    if not config or not config.get("bots"):
+        return
+
+    for bot_entry in config["bots"]:
+        name = bot_entry["name"]
+        regenerate_bot_claude_md(name)
+        update_session_claude_md(bot_directory(name))
+
+
+@global_memory_app.command("show")
+def global_memory_show() -> None:
+    """Show global memory contents."""
+    from rich.console import Console
+    from rich.markdown import Markdown
+
+    from cclaw.session import load_global_memory
+
+    console = Console()
+
+    content = load_global_memory()
+    if not content:
+        console.print("[yellow]No global memory saved yet.[/yellow]")
+        return
+
+    console.print(Markdown(content))
+
+
+@global_memory_app.command("edit")
+def global_memory_edit() -> None:
+    """Edit global memory in the default editor."""
+    import os
+    import subprocess
+
+    from rich.console import Console
+
+    from cclaw.session import global_memory_file_path, save_global_memory
+
+    console = Console()
+
+    path = global_memory_file_path()
+    if not path.exists():
+        save_global_memory("# Global Memory\n\n")
+
+    editor = os.environ.get("EDITOR", "vi")
+    subprocess.run([editor, str(path)])
+
+    # Regenerate all bots' CLAUDE.md to include updated global memory
+    _regenerate_all_bots_claude_md()
+    console.print("[green]Global memory updated. All bots' CLAUDE.md regenerated.[/green]")
+
+
+@global_memory_app.command("clear")
+def global_memory_clear() -> None:
+    """Clear global memory."""
+    from rich.console import Console
+
+    from cclaw.session import clear_global_memory
+
+    console = Console()
+
+    confirmed = typer.confirm("Clear global memory? This affects all bots.")
+    if not confirmed:
+        console.print("[yellow]Cancelled.[/yellow]")
+        return
+
+    clear_global_memory()
+    _regenerate_all_bots_claude_md()
+    console.print("[green]Global memory cleared. All bots' CLAUDE.md regenerated.[/green]")
 
 
 # --- Heartbeat subcommands ---
