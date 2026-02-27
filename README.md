@@ -1,8 +1,8 @@
-<p align="center">
-  <img src="cclaw-logo.jpg" width="160" alt="cclaw logo" />
-</p>
-
 # cclaw (claude-claw)
+
+<p align="center">
+  <img src="cclaw-logo.png" width="160" alt="cclaw logo" />
+</p>
 
 Personal AI assistant powered by Telegram + Claude Code.
 A multi-bot, file-based session system that runs locally on Mac.
