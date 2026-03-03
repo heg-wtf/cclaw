@@ -130,13 +130,14 @@ pytest
 
 ## Streaming Response
 
-- Controlled by the `streaming` field in `bot.yaml` (default: `DEFAULT_STREAMING = False`)
+- Controlled by the `streaming` field in `bot.yaml` (default: `DEFAULT_STREAMING = True`)
 - Runtime toggle via Telegram `/streaming on|off` command or CLI `cclaw bot streaming <name> on|off`
-- **Streaming mode (on)**: `run_claude_streaming()` -> per-token message editing -> cursor marker `▌`
+- **Streaming mode (on)**: `run_claude_streaming()` -> `sendMessageDraft` (Bot API 9.3) -> draft bubble with cursor marker `▌` -> final `sendMessage`
 - **Non-streaming mode (off)**: `run_claude()` -> typing action every 4 seconds -> batch send on completion
-- Throttling: message edits at 0.5 second intervals (`STREAM_THROTTLE_SECONDS`)
-- First message sent after at least 10 characters accumulated (`STREAM_MIN_CHARS_BEFORE_SEND`)
-- Streaming preview stops when exceeding 4096 characters, final response is split-sent
+- **Draft streaming**: Uses `sendMessageDraft(chat_id, draft_id=DRAFT_ID, text)` to show real-time draft bubble while generating. Draft auto-clears before final message. Same `draft_id` ensures smooth animated transitions between updates
+- **Fallback**: If `sendMessageDraft` fails (e.g., TEXTDRAFT_PEER_INVALID), automatically falls back to `editMessageText` approach
+- Throttling: draft updates at 0.5 second intervals (`STREAM_THROTTLE_SECONDS`)
+- First draft sent after at least 10 characters accumulated (`STREAM_MIN_CHARS_BEFORE_SEND`)
 
 ## Session Continuity
 

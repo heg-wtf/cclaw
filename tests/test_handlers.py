@@ -141,6 +141,7 @@ async def test_reset_handler(bot_path, bot_config, mock_update):
 @pytest.mark.asyncio
 async def test_message_handler_calls_claude(bot_path, bot_config, mock_update):
     """Message handler forwards to Claude and replies."""
+    bot_config["streaming"] = False
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[17]
 
@@ -294,6 +295,7 @@ async def test_model_handler_invalid_model(bot_path, bot_config, mock_update):
 async def test_message_handler_passes_model(bot_path, bot_config, mock_update):
     """Message handler passes model to run_claude."""
     bot_config["model"] = "opus"
+    bot_config["streaming"] = False
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[17]
 
@@ -439,6 +441,7 @@ async def test_skills_handler_detach(bot_path, bot_config, mock_update):
 async def test_message_handler_passes_skill_names(bot_path, bot_config, mock_update):
     """Message handler passes skill_names to run_claude when skills are attached."""
     bot_config["skills"] = ["my-skill"]
+    bot_config["streaming"] = False
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[17]
 
@@ -454,6 +457,7 @@ async def test_message_handler_passes_skill_names(bot_path, bot_config, mock_upd
 @pytest.mark.asyncio
 async def test_message_handler_no_skill_names(bot_path, bot_config, mock_update):
     """Message handler passes None for skill_names when no skills attached."""
+    bot_config["streaming"] = False
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[17]
 
@@ -595,12 +599,126 @@ async def test_message_handler_non_streaming(bot_path, bot_config, mock_update):
     assert "Non-streaming response" in reply_text
 
 
+@pytest.mark.asyncio
+async def test_streaming_uses_send_message_draft(bot_path, bot_config, mock_update):
+    """Streaming mode uses sendMessageDraft for real-time draft updates."""
+    bot_config["streaming"] = True
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    message_handler = handlers[17]
+
+    async def fake_streaming(**kwargs):
+        on_text_chunk = kwargs.get("on_text_chunk")
+        if on_text_chunk:
+            # Send enough text to trigger draft (>= STREAM_MIN_CHARS_BEFORE_SEND)
+            await on_text_chunk("Hello, this is a streaming response from Claude!")
+        return "Hello, this is a streaming response from Claude!"
+
+    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_stream:
+        mock_stream.side_effect = fake_streaming
+        mock_context = MagicMock()
+        mock_context.bot.send_message_draft = AsyncMock()
+        await message_handler.callback(mock_update, mock_context)
+
+    # sendMessageDraft should have been called during streaming
+    assert mock_context.bot.send_message_draft.call_count >= 2  # streaming + clear
+    # First call is the streaming draft with cursor marker
+    first_call_kwargs = mock_context.bot.send_message_draft.call_args_list[0][1]
+    assert first_call_kwargs["chat_id"] == 67890
+    assert first_call_kwargs["draft_id"] == 1
+    assert "\u258c" in first_call_kwargs["text"]  # cursor marker
+
+
+@pytest.mark.asyncio
+async def test_streaming_draft_clears_before_final(bot_path, bot_config, mock_update):
+    """Draft is cleared with empty text before sending final message."""
+    bot_config["streaming"] = True
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    message_handler = handlers[17]
+
+    async def fake_streaming(**kwargs):
+        on_text_chunk = kwargs.get("on_text_chunk")
+        if on_text_chunk:
+            await on_text_chunk("Draft streaming response text")
+        return "Draft streaming response text"
+
+    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_stream:
+        mock_stream.side_effect = fake_streaming
+        mock_context = MagicMock()
+        mock_context.bot.send_message_draft = AsyncMock()
+        await message_handler.callback(mock_update, mock_context)
+
+    # Last send_message_draft call should clear the draft (empty text)
+    last_call = mock_context.bot.send_message_draft.call_args_list[-1]
+    assert last_call[1]["text"] == ""
+
+    # Final response should be sent via reply_text
+    mock_update.message.reply_text.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_streaming_fallback_to_edit_message(bot_path, bot_config, mock_update):
+    """Falls back to editMessageText when sendMessageDraft fails."""
+    bot_config["streaming"] = True
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    message_handler = handlers[17]
+
+    async def fake_streaming(**kwargs):
+        on_text_chunk = kwargs.get("on_text_chunk")
+        if on_text_chunk:
+            await on_text_chunk("Fallback streaming response text")
+        return "Fallback streaming response text"
+
+    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_stream:
+        mock_stream.side_effect = fake_streaming
+        mock_context = MagicMock()
+        # sendMessageDraft fails -> triggers fallback
+        mock_context.bot.send_message_draft = AsyncMock(
+            side_effect=Exception("TEXTDRAFT_PEER_INVALID")
+        )
+        mock_context.bot.edit_message_text = AsyncMock()
+        sent_message = MagicMock()
+        sent_message.message_id = 999
+        mock_update.message.reply_text = AsyncMock(return_value=sent_message)
+        await message_handler.callback(mock_update, mock_context)
+
+    # sendMessageDraft was attempted but failed
+    mock_context.bot.send_message_draft.assert_called()
+    # Fallback: reply_text was used to create initial message
+    mock_update.message.reply_text.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_streaming_short_response_no_draft(bot_path, bot_config, mock_update):
+    """Short responses below threshold don't trigger draft updates."""
+    bot_config["streaming"] = True
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    message_handler = handlers[17]
+
+    async def fake_streaming(**kwargs):
+        on_text_chunk = kwargs.get("on_text_chunk")
+        if on_text_chunk:
+            await on_text_chunk("Hi")  # Too short for STREAM_MIN_CHARS_BEFORE_SEND
+        return "Hi"
+
+    with patch("cclaw.handlers.run_claude_streaming", new_callable=AsyncMock) as mock_stream:
+        mock_stream.side_effect = fake_streaming
+        mock_context = MagicMock()
+        mock_context.bot.send_message_draft = AsyncMock()
+        await message_handler.callback(mock_update, mock_context)
+
+    # sendMessageDraft should NOT be called for short responses
+    mock_context.bot.send_message_draft.assert_not_called()
+    # Final response should still be sent
+    mock_update.message.reply_text.assert_called()
+
+
 # --- Session continuity tests ---
 
 
 @pytest.mark.asyncio
 async def test_message_handler_first_message_bootstraps(bot_path, bot_config, mock_update):
     """First message creates session_id and uses --session-id (not --resume)."""
+    bot_config["streaming"] = False
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[17]
 
@@ -635,6 +753,7 @@ async def test_message_handler_resume_session(bot_path, bot_config, mock_update)
     session_dir = ensure_session(bot_path, 67890)
     save_claude_session_id(session_dir, "existing-session-id")
 
+    bot_config["streaming"] = False
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[17]
 
@@ -658,6 +777,7 @@ async def test_message_handler_resume_fallback(bot_path, bot_config, mock_update
     session_dir = ensure_session(bot_path, 67890)
     save_claude_session_id(session_dir, "expired-session-id")
 
+    bot_config["streaming"] = False
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[17]
 
@@ -707,6 +827,7 @@ async def test_message_handler_first_message_with_history(bot_path, bot_config, 
     log_conversation(session_dir, "user", "Previous question")
     log_conversation(session_dir, "assistant", "Previous answer")
 
+    bot_config["streaming"] = False
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[17]
 
@@ -787,6 +908,7 @@ async def test_message_handler_bootstrap_includes_memory(bot_path, bot_config, m
 
     save_bot_memory(bot_path, "# Memory\n\n- User prefers Korean")
 
+    bot_config["streaming"] = False
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[17]
 
@@ -815,6 +937,7 @@ async def test_message_handler_bootstrap_memory_and_history(bot_path, bot_config
     log_conversation(session_dir, "user", "Previous question")
     log_conversation(session_dir, "assistant", "Previous answer")
 
+    bot_config["streaming"] = False
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[17]
 
