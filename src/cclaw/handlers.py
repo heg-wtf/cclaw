@@ -59,6 +59,7 @@ STREAM_THROTTLE_SECONDS = 0.5
 STREAM_MIN_CHARS_BEFORE_SEND = 10
 TELEGRAM_MESSAGE_LIMIT = 4096
 STREAM_BUFFER_MARGIN = 100
+DRAFT_ID = 1
 
 
 def _get_session_lock(key: str) -> asyncio.Lock:
@@ -375,19 +376,26 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         claude_session_id: str | None = None,
         resume_session: bool = False,
     ) -> str:
-        """Run Claude with streaming and send real-time updates to Telegram.
+        """Run Claude with streaming via sendMessageDraft and send final response.
+
+        Uses Telegram Bot API sendMessageDraft to stream partial text as a draft
+        bubble while Claude generates. The draft disappears when the final message
+        is sent. Falls back to editMessageText if sendMessageDraft fails.
 
         Returns the final response text.
         """
         chat_id = update.effective_chat.id
-        stream_message_id: int | None = None
         accumulated_text = ""
-        last_edit_time = 0.0
+        last_draft_time = 0.0
+        draft_started = False
+        draft_failed = False
+        # Fallback state (editMessageText approach)
+        fallback_message_id: int | None = None
         stream_stopped = False
 
         async def on_text_chunk(chunk: str) -> None:
-            nonlocal accumulated_text, stream_message_id, last_edit_time
-            nonlocal stream_stopped
+            nonlocal accumulated_text, last_draft_time, draft_started
+            nonlocal draft_failed, fallback_message_id, stream_stopped
 
             if stream_stopped:
                 return
@@ -395,38 +403,56 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             accumulated_text += chunk
             now = time.monotonic()
 
-            # Send first message once enough text accumulated
-            if stream_message_id is None:
-                if len(accumulated_text) >= STREAM_MIN_CHARS_BEFORE_SEND:
-                    try:
-                        display = accumulated_text[: TELEGRAM_MESSAGE_LIMIT - 2]
-                        sent = await update.message.reply_text(display + STREAMING_CURSOR)
-                        stream_message_id = sent.message_id
-                        last_edit_time = now
-                    except Exception as send_error:
-                        logger.debug("Stream first send failed: %s", send_error)
-                        stream_stopped = True
+            # Wait until enough text accumulated
+            if len(accumulated_text) < STREAM_MIN_CHARS_BEFORE_SEND:
                 return
 
-            # Throttle edits
-            if now - last_edit_time < STREAM_THROTTLE_SECONDS:
+            # Throttle updates
+            if now - last_draft_time < STREAM_THROTTLE_SECONDS:
                 return
 
-            # Stop streaming preview if exceeding Telegram limit
+            display = accumulated_text[: TELEGRAM_MESSAGE_LIMIT - 2]
+
+            if not draft_failed:
+                # Primary: sendMessageDraft
+                try:
+                    await context.bot.send_message_draft(
+                        chat_id=chat_id,
+                        draft_id=DRAFT_ID,
+                        text=display + STREAMING_CURSOR,
+                    )
+                    draft_started = True
+                    last_draft_time = now
+                    return
+                except Exception as draft_error:
+                    logger.debug("sendMessageDraft failed: %s", draft_error)
+                    draft_failed = True
+                    # Fall through to editMessageText fallback
+
+            # Fallback: editMessageText approach
             if len(accumulated_text) > TELEGRAM_MESSAGE_LIMIT - STREAM_BUFFER_MARGIN:
                 stream_stopped = True
                 return
 
-            # Edit existing message
+            if fallback_message_id is None:
+                try:
+                    sent = await update.message.reply_text(display + STREAMING_CURSOR)
+                    fallback_message_id = sent.message_id
+                    last_draft_time = now
+                except Exception as send_error:
+                    logger.debug("Stream fallback first send failed: %s", send_error)
+                    stream_stopped = True
+                return
+
             try:
                 await context.bot.edit_message_text(
                     chat_id=chat_id,
-                    message_id=stream_message_id,
-                    text=accumulated_text + STREAMING_CURSOR,
+                    message_id=fallback_message_id,
+                    text=display + STREAMING_CURSOR,
                 )
-                last_edit_time = now
+                last_draft_time = now
             except Exception as edit_error:
-                logger.debug("Stream edit failed: %s", edit_error)
+                logger.debug("Stream fallback edit failed: %s", edit_error)
                 stream_stopped = True
 
         response = await run_claude_streaming(
@@ -442,18 +468,26 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             resume_session=resume_session,
         )
 
-        # Finalize: remove cursor and send complete response
-        if stream_message_id is not None:
-            # We had a streaming preview message
-            html_response = markdown_to_telegram_html(response)
-            chunks = split_message(html_response)
+        # Clear the draft by sending an empty draft before final message
+        if draft_started and not draft_failed:
+            with suppress(Exception):
+                await context.bot.send_message_draft(
+                    chat_id=chat_id,
+                    draft_id=DRAFT_ID,
+                    text="",
+                )
 
+        # Send final formatted response
+        html_response = markdown_to_telegram_html(response)
+        chunks = split_message(html_response)
+
+        if fallback_message_id is not None and not draft_started:
+            # Fallback path: we used editMessageText during streaming
             if len(chunks) == 1 and len(chunks[0]) <= TELEGRAM_MESSAGE_LIMIT:
-                # Single chunk: edit the preview message with final formatted text
                 try:
                     await context.bot.edit_message_text(
                         chat_id=chat_id,
-                        message_id=stream_message_id,
+                        message_id=fallback_message_id,
                         text=chunks[0],
                         parse_mode="HTML",
                     )
@@ -461,15 +495,14 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                     with suppress(Exception):
                         await context.bot.edit_message_text(
                             chat_id=chat_id,
-                            message_id=stream_message_id,
+                            message_id=fallback_message_id,
                             text=response,
                         )
             else:
-                # Multiple chunks: delete preview and send all chunks
                 with suppress(Exception):
                     await context.bot.delete_message(
                         chat_id=chat_id,
-                        message_id=stream_message_id,
+                        message_id=fallback_message_id,
                     )
                 for chunk in chunks:
                     try:
@@ -477,9 +510,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                     except Exception:
                         await update.message.reply_text(chunk)
         else:
-            # No streaming preview was sent (short response or streaming failed)
-            html_response = markdown_to_telegram_html(response)
-            chunks = split_message(html_response)
+            # Draft path or no preview: send final message directly
             for chunk in chunks:
                 try:
                     await update.message.reply_text(chunk, parse_mode="HTML")

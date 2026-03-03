@@ -163,7 +163,7 @@ MODEL_VERSIONS: dict[str, str] = {
     "haiku": "3.5",
 }
 DEFAULT_MODEL = "sonnet"
-DEFAULT_STREAMING = False
+DEFAULT_STREAMING = True
 
 
 def is_valid_model(model: str) -> bool:
