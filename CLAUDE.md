@@ -95,6 +95,7 @@ pytest
 - `src/cclaw/builtin_skills/kakao-local/` - Kakao Local built-in skill template (SKILL.md, skill.yaml, kakao-cli based address/coordinate/keyword search)
 - `src/cclaw/builtin_skills/dart/` - DART corporate disclosure built-in skill template (SKILL.md, skill.yaml, dartcli based company/finance/filing search)
 - `src/cclaw/builtin_skills/translate/` - Translate built-in skill template (SKILL.md, skill.yaml, translatecli based Gemini translation with format preservation)
+- `src/cclaw/builtin_skills/daiso/` - Daiso Mall built-in skill template (SKILL.md, skill.yaml, daiso-cli based product search)
 - `src/cclaw/backup.py` - Encrypted backup (AES-256 zip via pyzipper, file collection with pid/pycache exclusion)
 - `src/cclaw/token_compact.py` - Token compaction (estimate_token_count, collect_compact_targets for MEMORY.md/user SKILL.md/HEARTBEAT.md, compact_content via claude -p one-shot, run_compact sequential with error isolation, format_compact_report, save_compact_results)
 - `src/cclaw/utils.py` - Message splitting, Markdown to HTML conversion, logging setup, IME-compatible CLI input (`prompt_input`, `prompt_multiline`)
