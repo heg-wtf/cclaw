@@ -961,3 +961,164 @@ async def test_message_handler_bootstrap_memory_and_history(bot_path, bot_config
     memory_position = prompt.index("장기 메모리")
     history_position = prompt.index("이전 대화 기록")
     assert memory_position < history_position
+
+
+# --- Cron handler tests ---
+
+CRON_HANDLER_INDEX = 13
+
+
+@pytest.mark.asyncio
+async def test_cron_handler_no_args(bot_path, bot_config, mock_update):
+    """cron_handler shows help when no args."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    cron_handler = handlers[CRON_HANDLER_INDEX]
+
+    mock_context = MagicMock()
+    mock_context.args = []
+
+    await cron_handler.callback(mock_update, mock_context)
+
+    text = mock_update.message.reply_text.call_args[0][0]
+    assert "/cron add" in text
+    assert "/cron remove" in text
+
+
+@pytest.mark.asyncio
+async def test_cron_handler_add_no_description(bot_path, bot_config, mock_update):
+    """cron add with no description shows usage."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    cron_handler = handlers[CRON_HANDLER_INDEX]
+
+    mock_context = MagicMock()
+    mock_context.args = ["add"]
+
+    await cron_handler.callback(mock_update, mock_context)
+
+    text = mock_update.message.reply_text.call_args_list[-1][0][0]
+    assert "Usage" in text
+
+
+@pytest.mark.asyncio
+async def test_cron_handler_add_recurring(bot_path, bot_config, mock_update):
+    """cron add creates a recurring job from natural language."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    cron_handler = handlers[CRON_HANDLER_INDEX]
+
+    mock_context = MagicMock()
+    mock_context.args = ["add", "매일", "아침", "9시에", "이메일", "요약"]
+
+    with (
+        patch(
+            "cclaw.cron.parse_natural_language_schedule",
+            new_callable=AsyncMock,
+            return_value={
+                "type": "recurring",
+                "schedule": "0 9 * * *",
+                "message": "이메일 요약",
+                "name": "email-summary",
+            },
+        ),
+        patch("cclaw.cron.resolve_default_timezone", return_value="Asia/Seoul"),
+        patch("cclaw.cron.add_cron_job"),
+        patch(
+            "cclaw.cron.generate_unique_job_name",
+            return_value="email-summary",
+        ),
+        patch("cclaw.cron.next_run_time", return_value=None),
+    ):
+        await cron_handler.callback(mock_update, mock_context)
+
+    last_text = mock_update.message.reply_text.call_args_list[-1][0][0]
+    assert "email-summary" in last_text
+    assert "0 9 * * *" in last_text
+
+
+@pytest.mark.asyncio
+async def test_cron_handler_add_parse_failure(bot_path, bot_config, mock_update):
+    """cron add shows error when parsing fails."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    cron_handler = handlers[CRON_HANDLER_INDEX]
+
+    mock_context = MagicMock()
+    mock_context.args = ["add", "gibberish"]
+
+    with (
+        patch(
+            "cclaw.cron.parse_natural_language_schedule",
+            new_callable=AsyncMock,
+            side_effect=ValueError("Failed to parse"),
+        ),
+        patch("cclaw.cron.resolve_default_timezone", return_value="UTC"),
+    ):
+        await cron_handler.callback(mock_update, mock_context)
+
+    last_text = mock_update.message.reply_text.call_args_list[-1][0][0]
+    assert "Failed to parse" in last_text
+
+
+@pytest.mark.asyncio
+async def test_cron_handler_remove_success(bot_path, bot_config, mock_update):
+    """cron remove deletes a job."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    cron_handler = handlers[CRON_HANDLER_INDEX]
+
+    mock_context = MagicMock()
+    mock_context.args = ["remove", "my-job"]
+
+    with patch("cclaw.cron.remove_cron_job", return_value=True):
+        await cron_handler.callback(mock_update, mock_context)
+
+    text = mock_update.message.reply_text.call_args_list[-1][0][0]
+    assert "my-job" in text
+    assert "removed" in text
+
+
+@pytest.mark.asyncio
+async def test_cron_handler_remove_not_found(bot_path, bot_config, mock_update):
+    """cron remove shows error when job not found."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    cron_handler = handlers[CRON_HANDLER_INDEX]
+
+    mock_context = MagicMock()
+    mock_context.args = ["remove", "nonexistent"]
+
+    with patch("cclaw.cron.remove_cron_job", return_value=False):
+        await cron_handler.callback(mock_update, mock_context)
+
+    text = mock_update.message.reply_text.call_args_list[-1][0][0]
+    assert "not found" in text
+
+
+@pytest.mark.asyncio
+async def test_cron_handler_enable(bot_path, bot_config, mock_update):
+    """cron enable enables a job."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    cron_handler = handlers[CRON_HANDLER_INDEX]
+
+    mock_context = MagicMock()
+    mock_context.args = ["enable", "my-job"]
+
+    with patch("cclaw.cron.enable_cron_job", return_value=True):
+        await cron_handler.callback(mock_update, mock_context)
+
+    text = mock_update.message.reply_text.call_args_list[-1][0][0]
+    assert "my-job" in text
+    assert "enabled" in text
+
+
+@pytest.mark.asyncio
+async def test_cron_handler_disable(bot_path, bot_config, mock_update):
+    """cron disable disables a job."""
+    handlers = make_handlers("test-bot", bot_path, bot_config)
+    cron_handler = handlers[CRON_HANDLER_INDEX]
+
+    mock_context = MagicMock()
+    mock_context.args = ["disable", "my-job"]
+
+    with patch("cclaw.cron.disable_cron_job", return_value=True):
+        await cron_handler.callback(mock_update, mock_context)
+
+    text = mock_update.message.reply_text.call_args_list[-1][0][0]
+    assert "my-job" in text
+    assert "disabled" in text

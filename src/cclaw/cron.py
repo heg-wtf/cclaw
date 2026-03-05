@@ -140,6 +140,149 @@ def disable_cron_job(bot_name: str, job_name: str) -> bool:
     return False
 
 
+# --- Natural language parsing ---
+
+CRON_PARSE_PROMPT = (
+    "You are a cron schedule parser. "
+    "Parse the following natural language input into a cron job definition.\n"
+    "The input can be in ANY language (Korean, English, Japanese, Chinese, etc.).\n"
+    "\n"
+    "Current local time: {current_time}\n"
+    "Timezone: {timezone}\n"
+    "\n"
+    "Rules:\n"
+    '- Determine if this is "recurring" (repeating) or "oneshot" (one-time)\n'
+    "- For recurring: generate a standard cron expression (5 fields)\n"
+    "- For oneshot: generate an ISO 8601 datetime string in the given timezone\n"
+    "- Extract the task message (WHAT to do, not WHEN)\n"
+    "  - Keep the message in the ORIGINAL language of the input\n"
+    "- Generate a short kebab-case name (English, 2-3 words)\n"
+    "\n"
+    "Respond ONLY with JSON, no other text:\n"
+    '{{"type": "recurring or oneshot", '
+    '"schedule": "cron expression (recurring only)", '
+    '"at": "ISO datetime (oneshot only)", '
+    '"message": "task description in original language", '
+    '"name": "short-kebab-name-in-english"}}\n'
+    "\n"
+    "Input: {user_input}"
+)
+
+
+def resolve_default_timezone() -> str:
+    """Resolve the default timezone for cron job creation.
+
+    Priority: GLOBAL_MEMORY.md timezone -> system local -> UTC.
+    """
+    from cclaw.session import load_global_memory
+
+    global_memory = load_global_memory()
+    if global_memory:
+        for line in global_memory.splitlines():
+            lower_line = line.lower().strip()
+            if "timezone" in lower_line or "time zone" in lower_line:
+                # Extract timezone like "Asia/Seoul" from the line
+                for word in line.split():
+                    if "/" in word and len(word) > 3:
+                        stripped = word.strip(":`\"'(),")
+                        try:
+                            ZoneInfo(stripped)
+                            return stripped
+                        except (KeyError, ValueError):
+                            continue
+
+    import time
+
+    local_tz_name = time.tzname[0]
+    # Map common abbreviations to IANA names
+    tz_abbreviation_map = {
+        "KST": "Asia/Seoul",
+        "JST": "Asia/Tokyo",
+        "CST": "America/Chicago",
+        "EST": "America/New_York",
+        "PST": "America/Los_Angeles",
+        "CET": "Europe/Berlin",
+    }
+    if local_tz_name in tz_abbreviation_map:
+        return tz_abbreviation_map[local_tz_name]
+
+    return "UTC"
+
+
+def generate_unique_job_name(
+    bot_name: str,
+    desired_name: str,
+) -> str:
+    """Generate a unique job name, appending suffix if needed."""
+    existing_names = {j["name"] for j in list_cron_jobs(bot_name)}
+    if desired_name not in existing_names:
+        return desired_name
+
+    counter = 2
+    while f"{desired_name}-{counter}" in existing_names:
+        counter += 1
+    return f"{desired_name}-{counter}"
+
+
+async def parse_natural_language_schedule(
+    user_input: str,
+    timezone_name: str,
+) -> dict[str, Any]:
+    """Parse natural language into a cron job definition using Claude.
+
+    Returns a dict with keys: type, schedule/at, message, name.
+    Raises ValueError if parsing fails.
+    """
+    import json
+
+    from cclaw.claude_runner import run_claude
+
+    tz_info = ZoneInfo(timezone_name) if timezone_name != "UTC" else timezone.utc
+    current_time = datetime.now(tz_info).strftime("%Y-%m-%d %H:%M (%A)")
+
+    prompt = CRON_PARSE_PROMPT.format(
+        current_time=current_time,
+        timezone=timezone_name,
+        user_input=user_input,
+    )
+
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        response = await run_claude(
+            working_directory=temporary_directory,
+            message=prompt,
+            timeout=30,
+            model="haiku",
+        )
+
+    response = response.strip()
+    # Extract JSON from response (handle markdown code blocks)
+    if "```" in response:
+        json_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", response, re.DOTALL)
+        if json_match:
+            response = json_match.group(1).strip()
+
+    try:
+        result = json.loads(response)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"Failed to parse schedule: {error}") from error
+
+    if "type" not in result or "message" not in result or "name" not in result:
+        raise ValueError("Incomplete parsing result")
+
+    if result["type"] == "recurring" and "schedule" not in result:
+        raise ValueError("Missing schedule for recurring job")
+
+    if result["type"] == "oneshot" and "at" not in result:
+        raise ValueError("Missing 'at' for oneshot job")
+
+    if result["type"] == "recurring" and not validate_cron_schedule(result["schedule"]):
+        raise ValueError(f"Invalid cron expression: {result['schedule']}")
+
+    return result
+
+
 # --- Validation ---
 
 

@@ -75,10 +75,10 @@ pytest
 - `src/cclaw/onboarding.py` - Environment check, token validation, bot creation wizard
 - `src/cclaw/claude_runner.py` - `claude -p` subprocess execution (async, path resolution via `shutil.which`, process tracking + `cancel_all_processes()` for graceful shutdown, model selection, skill MCP/env injection, streaming output, `--resume`/`--session-id` session continuity)
 - `src/cclaw/session.py` - Session directory/conversation log/workspace management, Claude session ID management (`get`/`save`/`clear_claude_session_id`), daily conversation rotation (`conversation-YYMMDD.md`, legacy `conversation.md` fallback), bot-level memory CRUD (`load_bot_memory`/`save_bot_memory`/`clear_bot_memory`), global memory CRUD (`load_global_memory`/`save_global_memory`/`clear_global_memory`), `collect_session_chat_ids()` for proactive message fallback
-- `src/cclaw/handlers.py` - Telegram handler factory (slash commands + messages + file receive/send + model change (with version display) + process cancel + /skills unified management (list/attach/detach/builtins) + /cron management + /heartbeat management + /memory management + /compact token compaction + streaming response + /streaming toggle + session continuity (`_prepare_session_context`, `_call_with_resume_fallback`) + `set_bot_commands` command menu registration)
+- `src/cclaw/handlers.py` - Telegram handler factory (slash commands + messages + file receive/send + model change (with version display) + process cancel + /skills unified management (list/attach/detach/builtins) + /cron management (list/add natural language/run/remove/enable/disable) + /heartbeat management + /memory management + /compact token compaction + streaming response + /streaming toggle + session continuity (`_prepare_session_context`, `_call_with_resume_fallback`) + `set_bot_commands` command menu registration)
 - `src/cclaw/bot_manager.py` - Multi-bot polling, launchd daemon, per-bot error isolation, cron/heartbeat scheduler integration, graceful shutdown (`cancel_all_processes()` before `application.stop()`)
 - `src/cclaw/heartbeat.py` - Heartbeat periodic situation awareness (config CRUD, active hours check, HEARTBEAT.md management, HEARTBEAT_OK detection, session chat ID fallback for result delivery, scheduler loop)
-- `src/cclaw/cron.py` - Cron schedule automation (cron.yaml CRUD, croniter-based schedule matching, per-job timezone support via `resolve_job_timezone()`, one-shot support with auto-disable, session chat ID fallback for result delivery, scheduler loop)
+- `src/cclaw/cron.py` - Cron schedule automation (cron.yaml CRUD, croniter-based schedule matching, per-job timezone support via `resolve_job_timezone()`, one-shot support with auto-disable, session chat ID fallback for result delivery, scheduler loop, natural language parsing via `parse_natural_language_schedule()` using Claude haiku one-shot, `resolve_default_timezone()` from GLOBAL_MEMORY.md/system/UTC fallback, `generate_unique_job_name()` with conflict resolution)
 - `src/cclaw/skill.py` - Skill management (discovery/loading/creation/deletion/builtin installation, bot-skill linking, CLAUDE.md composition (global memory + memory instructions + Telegram formatting rules), MCP/env variable merging, builtin/custom origin detection)
 - `src/cclaw/builtin_skills/__init__.py` - Built-in skill registry (scans subdirectories for templates)
 - `src/cclaw/builtin_skills/imessage/` - iMessage built-in skill template (SKILL.md, skill.yaml)
@@ -114,6 +114,7 @@ pytest
 - Mock all Telegram API calls
 - Filesystem isolation via `tmp_path` + `monkeypatch`
 - Async tests with `pytest-asyncio`
+- **Evaluation tests** (`tests/evaluation/`): Real Claude API calls for quality assessment (excluded from CI via `--ignore=tests/evaluation`). Run manually: `uv run pytest tests/evaluation/ -v`
 
 ## Telegram Message Formatting
 

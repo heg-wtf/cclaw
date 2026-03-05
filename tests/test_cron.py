@@ -14,12 +14,15 @@ from cclaw.cron import (
     disable_cron_job,
     enable_cron_job,
     execute_cron_job,
+    generate_unique_job_name,
     get_cron_job,
     list_cron_jobs,
     load_cron_config,
     next_run_time,
+    parse_natural_language_schedule,
     parse_one_shot_time,
     remove_cron_job,
+    resolve_default_timezone,
     resolve_job_timezone,
     run_cron_scheduler,
     save_cron_config,
@@ -629,3 +632,198 @@ def test_add_cron_job_keeps_absolute_at_unchanged(bot_with_cron):
     saved_job = get_cron_job(bot_with_cron, "absolute-test")
     assert saved_job is not None
     assert saved_job["at"] == iso_time
+
+
+# --- resolve_default_timezone tests ---
+
+
+def test_resolve_default_timezone_from_global_memory(monkeypatch):
+    """resolve_default_timezone reads timezone from GLOBAL_MEMORY.md."""
+    monkeypatch.setattr(
+        "cclaw.session.load_global_memory",
+        lambda: "- Timezone: Asia/Seoul\n- Language: Korean",
+    )
+    assert resolve_default_timezone() == "Asia/Seoul"
+
+
+def test_resolve_default_timezone_no_global_memory(monkeypatch):
+    """resolve_default_timezone falls back when no global memory."""
+    monkeypatch.setattr("cclaw.session.load_global_memory", lambda: None)
+    result = resolve_default_timezone()
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+
+def test_resolve_default_timezone_no_timezone_in_memory(monkeypatch):
+    """resolve_default_timezone falls back when memory has no timezone."""
+    monkeypatch.setattr(
+        "cclaw.session.load_global_memory",
+        lambda: "- Language: Korean\n- Name: User",
+    )
+    result = resolve_default_timezone()
+    assert isinstance(result, str)
+
+
+# --- generate_unique_job_name tests ---
+
+
+def test_generate_unique_job_name_no_conflict(bot_with_cron):
+    """generate_unique_job_name returns the name as-is when no conflict."""
+    assert generate_unique_job_name(bot_with_cron, "my-job") == "my-job"
+
+
+def test_generate_unique_job_name_with_conflict(bot_with_cron):
+    """generate_unique_job_name appends suffix on conflict."""
+    add_cron_job(
+        bot_with_cron,
+        {
+            "name": "my-job",
+            "schedule": "0 9 * * *",
+            "message": "test",
+            "enabled": True,
+        },
+    )
+    assert generate_unique_job_name(bot_with_cron, "my-job") == "my-job-2"
+
+
+def test_generate_unique_job_name_multiple_conflicts(bot_with_cron):
+    """generate_unique_job_name increments suffix on multiple conflicts."""
+    for name in ["my-job", "my-job-2"]:
+        add_cron_job(
+            bot_with_cron,
+            {
+                "name": name,
+                "schedule": "0 9 * * *",
+                "message": "test",
+                "enabled": True,
+            },
+        )
+    assert generate_unique_job_name(bot_with_cron, "my-job") == "my-job-3"
+
+
+# --- parse_natural_language_schedule tests ---
+
+
+@pytest.mark.asyncio
+async def test_parse_natural_language_schedule_recurring():
+    """parse_natural_language_schedule parses recurring job."""
+    import json
+
+    mock_response = json.dumps(
+        {
+            "type": "recurring",
+            "schedule": "0 9 * * *",
+            "message": "이메일 요약해줘",
+            "name": "email-summary",
+        }
+    )
+    with patch(
+        "cclaw.claude_runner.run_claude",
+        new_callable=AsyncMock,
+        return_value=mock_response,
+    ):
+        result = await parse_natural_language_schedule(
+            "매일 아침 9시에 이메일 요약해줘",
+            "Asia/Seoul",
+        )
+    assert result["type"] == "recurring"
+    assert result["schedule"] == "0 9 * * *"
+    assert result["message"] == "이메일 요약해줘"
+    assert result["name"] == "email-summary"
+
+
+@pytest.mark.asyncio
+async def test_parse_natural_language_schedule_oneshot():
+    """parse_natural_language_schedule parses oneshot job."""
+    import json
+
+    mock_response = json.dumps(
+        {
+            "type": "oneshot",
+            "at": "2026-03-06T14:00:00",
+            "message": "보고서 확인",
+            "name": "report-check",
+        }
+    )
+    with patch(
+        "cclaw.claude_runner.run_claude",
+        new_callable=AsyncMock,
+        return_value=mock_response,
+    ):
+        result = await parse_natural_language_schedule(
+            "내일 오후 2시에 보고서 확인",
+            "Asia/Seoul",
+        )
+    assert result["type"] == "oneshot"
+    assert result["at"] == "2026-03-06T14:00:00"
+    assert result["message"] == "보고서 확인"
+
+
+@pytest.mark.asyncio
+async def test_parse_natural_language_schedule_json_in_code_block():
+    """parse_natural_language_schedule handles JSON in code block."""
+    import json
+
+    inner = json.dumps(
+        {
+            "type": "recurring",
+            "schedule": "0 9 * * *",
+            "message": "test",
+            "name": "test-job",
+        }
+    )
+    mock_response = f"```json\n{inner}\n```"
+    with patch(
+        "cclaw.claude_runner.run_claude",
+        new_callable=AsyncMock,
+        return_value=mock_response,
+    ):
+        result = await parse_natural_language_schedule(
+            "every day at 9am test",
+            "UTC",
+        )
+    assert result["type"] == "recurring"
+    assert result["schedule"] == "0 9 * * *"
+
+
+@pytest.mark.asyncio
+async def test_parse_natural_language_schedule_invalid_json():
+    """parse_natural_language_schedule raises ValueError on invalid JSON."""
+    with patch("cclaw.claude_runner.run_claude", new_callable=AsyncMock, return_value="not json"):
+        with pytest.raises(ValueError, match="Failed to parse"):
+            await parse_natural_language_schedule("gibberish", "UTC")
+
+
+@pytest.mark.asyncio
+async def test_parse_natural_language_schedule_missing_fields():
+    """parse_natural_language_schedule raises ValueError on incomplete."""
+    mock_response = '{"type": "recurring"}'
+    with patch(
+        "cclaw.claude_runner.run_claude",
+        new_callable=AsyncMock,
+        return_value=mock_response,
+    ):
+        with pytest.raises(ValueError, match="Incomplete"):
+            await parse_natural_language_schedule("test", "UTC")
+
+
+@pytest.mark.asyncio
+async def test_parse_natural_language_schedule_invalid_cron():
+    """parse_natural_language_schedule raises ValueError on bad cron."""
+    import json
+
+    mock_response = json.dumps(
+        {
+            "type": "recurring",
+            "schedule": "invalid",
+            "message": "test",
+            "name": "test",
+        }
+    )
+    with patch(
+        "cclaw.claude_runner.run_claude",
+        new_callable=AsyncMock,
+        return_value=mock_response,
+    ):
+        with pytest.raises(ValueError, match="Invalid cron"):
+            await parse_natural_language_schedule("test", "UTC")

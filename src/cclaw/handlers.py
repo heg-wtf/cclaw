@@ -934,13 +934,29 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
         if not await check_authorization(update):
             return
 
-        from cclaw.cron import execute_cron_job, get_cron_job, list_cron_jobs, next_run_time
+        from cclaw.cron import (
+            add_cron_job,
+            disable_cron_job,
+            enable_cron_job,
+            execute_cron_job,
+            generate_unique_job_name,
+            get_cron_job,
+            list_cron_jobs,
+            next_run_time,
+            parse_natural_language_schedule,
+            remove_cron_job,
+            resolve_default_timezone,
+        )
 
         if not context.args:
             text = (
                 "\u23f0 *Cron Commands:*\n\n"
                 "`/cron list` - Show cron jobs\n"
-                "`/cron run <name>` - Run a job now"
+                "`/cron add <description>` - Create a job\n"
+                "`/cron run <name>` - Run a job now\n"
+                "`/cron remove <name>` - Remove a job\n"
+                "`/cron enable <name>` - Enable a job\n"
+                "`/cron disable <name>` - Disable a job"
             )
             await update.effective_message.reply_text(text, parse_mode="Markdown")
             return
@@ -1005,9 +1021,126 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
             finally:
                 typing_task.cancel()
 
+        elif subcommand == "add":
+            if len(context.args) < 2:
+                await update.effective_message.reply_text(
+                    "Usage: `/cron add <description>`\n"
+                    "Example: `/cron add 매일 아침 9시에 이메일 요약해줘`",
+                    parse_mode="Markdown",
+                )
+                return
+
+            user_input = " ".join(context.args[1:])
+            await update.effective_message.reply_text("\u23f0 Parsing schedule...")
+
+            try:
+                timezone_name = resolve_default_timezone()
+                parsed = await parse_natural_language_schedule(
+                    user_input,
+                    timezone_name,
+                )
+            except (ValueError, RuntimeError) as error:
+                await update.effective_message.reply_text(
+                    f"Failed to parse: {error}\n\n"
+                    "Example: `/cron add 매일 아침 9시에 이메일 요약해줘`",
+                    parse_mode="Markdown",
+                )
+                return
+
+            job_name = generate_unique_job_name(bot_name, parsed["name"])
+
+            job: dict[str, Any] = {
+                "name": job_name,
+                "message": parsed["message"],
+                "timezone": timezone_name,
+                "enabled": True,
+            }
+
+            if parsed["type"] == "recurring":
+                job["schedule"] = parsed["schedule"]
+            else:
+                job["at"] = parsed["at"]
+                job["delete_after_run"] = True
+
+            try:
+                add_cron_job(bot_name, job)
+            except ValueError as error:
+                await update.effective_message.reply_text(f"Failed: {error}")
+                return
+
+            from cclaw.cron import next_run_time as compute_next_run
+
+            next_time = compute_next_run(job)
+            next_display = next_time.strftime("%m-%d %H:%M") if next_time else "-"
+
+            if parsed["type"] == "recurring":
+                schedule_line = f"Schedule: `{parsed['schedule']}` ({timezone_name})"
+            else:
+                schedule_line = f"Run at: {parsed['at']} ({timezone_name})"
+
+            await update.effective_message.reply_text(
+                f"\u23f0 *Cron job created:*\n\n"
+                f"  Name: `{job_name}`\n"
+                f"  {schedule_line}\n"
+                f"  Message: {parsed['message']}\n"
+                f"  Next: {next_display}",
+                parse_mode="Markdown",
+            )
+
+        elif subcommand == "remove":
+            if len(context.args) < 2:
+                await update.effective_message.reply_text(
+                    "Usage: `/cron remove <name>`",
+                    parse_mode="Markdown",
+                )
+                return
+
+            job_name = context.args[1]
+            if remove_cron_job(bot_name, job_name):
+                await update.effective_message.reply_text(
+                    f"\u23f0 Job `{job_name}` removed.",
+                    parse_mode="Markdown",
+                )
+            else:
+                await update.effective_message.reply_text(f"Job '{job_name}' not found.")
+
+        elif subcommand == "enable":
+            if len(context.args) < 2:
+                await update.effective_message.reply_text(
+                    "Usage: `/cron enable <name>`",
+                    parse_mode="Markdown",
+                )
+                return
+
+            job_name = context.args[1]
+            if enable_cron_job(bot_name, job_name):
+                await update.effective_message.reply_text(
+                    f"\u2705 Job `{job_name}` enabled.",
+                    parse_mode="Markdown",
+                )
+            else:
+                await update.effective_message.reply_text(f"Job '{job_name}' not found.")
+
+        elif subcommand == "disable":
+            if len(context.args) < 2:
+                await update.effective_message.reply_text(
+                    "Usage: `/cron disable <name>`",
+                    parse_mode="Markdown",
+                )
+                return
+
+            job_name = context.args[1]
+            if disable_cron_job(bot_name, job_name):
+                await update.effective_message.reply_text(
+                    f"\U0001f6d1 Job `{job_name}` disabled.",
+                    parse_mode="Markdown",
+                )
+            else:
+                await update.effective_message.reply_text(f"Job '{job_name}' not found.")
+
         else:
             await update.effective_message.reply_text(
-                "Unknown subcommand. Use: list, run",
+                "Unknown subcommand. Use: list, add, run, remove, enable, disable",
             )
 
     async def heartbeat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
