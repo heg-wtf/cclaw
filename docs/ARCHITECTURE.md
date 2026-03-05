@@ -95,6 +95,10 @@ Automatically runs Claude Code at scheduled times and sends results via Telegram
 - Isolated working directory: Claude Code runs in `cron_sessions/{job_name}/`
 - One-shot jobs: auto-deleted after execution when `delete_after_run=true`, auto-disabled when `delete_after_run=false`
 - Inherits bot's skills/model settings, overridable at job level
+- **Natural language creation**: `/cron add <description>` in Telegram parses any language (Korean, English, Japanese, etc.) into cron jobs via Claude haiku one-shot (`parse_natural_language_schedule()`)
+- **Timezone auto-detection**: `resolve_default_timezone()` reads from GLOBAL_MEMORY.md → system local timezone → UTC fallback
+- **Unique naming**: `generate_unique_job_name()` appends `-2`, `-3` suffix on conflict
+- **Full Telegram CRUD**: `/cron list|add|run|remove|enable|disable`
 
 ### 9. Heartbeat (Periodic Situation Awareness)
 
@@ -277,6 +281,13 @@ Receive -> Permission check -> Args branch
 ```
 Bot start -> Load cron.yaml -> asyncio.create_task(run_cron_scheduler) -> 30-second loop
   -> Match current time against schedule -> execute_cron_job -> inject global memory + bot memory -> run_claude -> Send results to allowed_users
+```
+
+### /cron add (Natural Language)
+```
+Receive "/cron add 매일 아침 9시 이메일 요약" -> resolve_default_timezone()
+  -> parse_natural_language_schedule() via claude -p (haiku) -> JSON {type, schedule/at, message, name}
+  -> generate_unique_job_name() -> add_cron_job() -> Reply with confirmation + next run time
 ```
 
 ### /cron run Command

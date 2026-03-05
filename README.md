@@ -133,7 +133,11 @@ cclaw skills setup <name>      # Activate (check requirements)
 | `/skills attach <name>` | Attach a skill |
 | `/skills detach <name>` | Detach a skill |
 | `/cron list` | List cron jobs |
+| `/cron add <description>` | Add cron job via natural language (any language) |
 | `/cron run <name>` | Run a cron job now |
+| `/cron remove <name>` | Remove a cron job |
+| `/cron enable <name>` | Enable a cron job |
+| `/cron disable <name>` | Disable a cron job |
 | `/heartbeat` | Heartbeat status |
 | `/heartbeat on` | Enable heartbeat |
 | `/heartbeat off` | Disable heartbeat |
@@ -272,7 +276,7 @@ cclaw/
 │   │   └── daiso/        # Daiso Mall skill (daiso-cli)
 │   ├── backup.py            # Encrypted backup (AES-256 zip)
 │   ├── token_compact.py    # Token compaction (compress MD files via Claude)
-│   ├── cron.py             # Cron schedule automation
+│   ├── cron.py             # Cron schedule automation (natural language parsing)
 │   ├── heartbeat.py        # Heartbeat (periodic situation awareness)
 │   └── utils.py            # Utilities
 └── tests/
@@ -314,9 +318,11 @@ Configuration and session data are stored in `~/.cclaw/`. Override the path with
 ## Testing
 
 ```bash
-uv run pytest
-# or
-pytest
+uv run pytest                # Unit tests (mocked, fast)
+uv run pytest -v             # Verbose
+
+# Evaluation tests (real Claude API, excluded from CI)
+uv run pytest tests/evaluation/ -v
 ```
 
 ## License
