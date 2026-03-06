@@ -38,6 +38,7 @@ Shared function that handles skill-related file setup for both subprocess and br
 - Writes `.mcp.json` to working directory (merged MCP configs from all attached skills)
 - Writes `.claude/settings.json` with `allowedTools` list
 - Collects environment variables from all attached skills
+- **QMD auto-injection**: When `shutil.which("qmd")` returns non-None, auto-appends QMD HTTP MCP server config and allowed tools regardless of skill attachment
 - Returns `(allowed_tools, environment_variables)` tuple
 - Used by `run_claude()`, `run_claude_streaming()`, `run_claude_with_bridge()`, `run_claude_streaming_with_bridge()`
 
@@ -737,6 +738,46 @@ Append Variation Selector-16 (`\uFE0F`) to force emoji presentation (Wide, 2 col
 ### Note
 
 Installed skills (`~/.cclaw/skills/`) may lack the `emoji` field. The `list_skills()` fallback in `skill.py` reads the emoji from the builtin template via `get_builtin_skill_path()`, so only the builtin template needs the fix.
+
+## QMD Auto-Injection (System-Wide)
+
+### Auto-Detect Mechanism
+
+QMD is auto-injected into all bots when `shutil.which("qmd")` returns a path. No skill installation or attachment needed — `npm install -g @tobilu/qmd` is the only prerequisite.
+
+Two injection points:
+1. **`_prepare_skill_config()`** in `claude_runner.py`: Injects `QMD_MCP_SERVER` (`localhost:8181/mcp`, HTTP type) and `QMD_ALLOWED_TOOLS` (6 tools) into every session's `.mcp.json` and `.claude/settings.json`
+2. **`compose_claude_md()`** in `skill.py`: Appends QMD SKILL.md instructions from `builtin_skills/qmd/SKILL.md`. Deduplicates if qmd is also attached as a regular skill
+
+### HTTP Daemon Lifecycle
+
+- `bot_manager.py` checks `shutil.which("qmd")` before starting bots
+- Calls `_start_qmd_daemon()`: runs `qmd mcp --http --daemon` (synchronous subprocess, QMD self-daemonizes)
+- Health check: TCP connect to `localhost:8181` with 2s timeout, retried up to 30 times with 1s sleep
+- On shutdown: `_stop_qmd_daemon()` runs `qmd mcp stop`
+- Also called from `stop_bots()` for the `cclaw stop` command
+
+### Conversation Collection
+
+`_ensure_qmd_conversations_collection()` runs on startup after daemon is ready:
+```
+qmd collection add ~/.cclaw/bots/ --name cclaw-conversations --mask "**/conversation-*.md"
+```
+This makes all bot conversation logs searchable via QMD.
+
+### Test Isolation
+
+`tests/conftest.py` has an autouse fixture that patches `shutil.which` to return `None` for `"qmd"`:
+
+```python
+@pytest.fixture(autouse=True)
+def disable_qmd_auto_inject(monkeypatch):
+    monkeypatch.setattr(shutil, "which", _which_without_qmd)
+```
+
+Patches at the `shutil` module level (not per-module reference) to ensure all code paths see the mock. QMD-specific tests in `test_qmd.py` override with explicit `patch()` calls.
+
+Note: `test_claude_runner.py`'s `mock_claude_path` fixture uses `side_effect` (not `return_value`) to return `/usr/local/bin/claude` only for `"claude"` and `None` for other commands. Using `return_value` would return the claude path for all `shutil.which()` calls including `"qmd"`, triggering QMD auto-injection.
 
 ## IME-Compatible CLI Input
 

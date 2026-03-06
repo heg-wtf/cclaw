@@ -141,11 +141,23 @@ Frequently used skills are bundled as templates inside the package, installable 
 - `install_builtin_skill()` copies template files to `~/.cclaw/skills/<name>/`
 - After installation: requirement check -> auto-activate on pass, stays inactive with guidance on fail
 - `skill.yaml`'s `install_hints` field provides installation instructions for missing tools
-- Built-in skills: iMessage (`imsg` CLI), Apple Reminders (`reminders-cli`), Naver Map (knowledge type, web URL based), Image Processing (`slimg` CLI), Best Price (knowledge type, web search based), Supabase (MCP type, DB/Storage/Edge Functions with no-deletion guardrails), Gmail (`gogcli`), Google Calendar (`gogcli`), Twitter/X (MCP type, tweet posting/search via `@enescinar/twitter-mcp`), Jira (MCP type, issue management via `mcp-atlassian`), Naver Search (`naver-cli`, 6-type search), Kakao Local (`kakao-cli`, address/coordinate/keyword search), DART (`dartcli`, corporate disclosure/finance/filings), Translate (`translatecli`, Gemini-powered text/transcript translation), Daiso (`daiso-cli`, Daiso Mall product search)
+- Built-in skills: iMessage (`imsg` CLI), Apple Reminders (`reminders-cli`), Naver Map (knowledge type, web URL based), Image Processing (`slimg` CLI), Best Price (knowledge type, web search based), Supabase (MCP type, DB/Storage/Edge Functions with no-deletion guardrails), Gmail (`gogcli`), Google Calendar (`gogcli`), Twitter/X (MCP type, tweet posting/search via `@enescinar/twitter-mcp`), Jira (MCP type, issue management via `mcp-atlassian`), Naver Search (`naver-cli`, 6-type search), Kakao Local (`kakao-cli`, address/coordinate/keyword search), DART (`dartcli`, corporate disclosure/finance/filings), Translate (`translatecli`, Gemini-powered text/transcript translation), Daiso (`daiso-cli`, Daiso Mall product search), QMD (MCP type, markdown knowledge search via HTTP daemon, auto-injected system-wide)
 - `cclaw skills` command shows all skills with origin type (builtin/custom), including uninstalled builtins
 - Telegram `/skills` handler also shows origin type (builtin/custom) and uninstalled builtins
 
-### 12. Session Continuity
+### 12. QMD Auto-Injection (System-Wide Knowledge Search)
+
+QMD (local markdown search engine) is automatically available to all bots when the `qmd` CLI is installed — no skill attachment or installation needed.
+
+- **Auto-detect**: `shutil.which("qmd")` checks if QMD CLI is available on the system
+- **MCP config injection**: `_prepare_skill_config()` in `claude_runner.py` auto-injects QMD HTTP MCP server config (`localhost:8181/mcp`) and allowed tools into every session, regardless of skill attachment
+- **CLAUDE.md injection**: `compose_claude_md()` in `skill.py` auto-appends QMD SKILL.md instructions from the builtin template. Deduplicates if qmd is also attached as a skill
+- **HTTP daemon**: `bot_manager.py` starts QMD daemon (`qmd mcp --http --daemon`) on `cclaw start` and stops it (`qmd mcp stop`) on shutdown. Self-managed by QMD — no Popen/pipe management needed
+- **Health check**: TCP connection to `localhost:8181` to verify daemon readiness (up to 30 retries with 1s sleep)
+- **Collection auto-setup**: `_ensure_qmd_conversations_collection()` registers `cclaw-conversations` collection pointing to `~/.cclaw/bots/` with `**/conversation-*.md` glob on startup
+- **Test isolation**: `tests/conftest.py` autouse fixture patches `shutil.which` to return `None` for `"qmd"`, preventing auto-injection in tests. QMD-specific tests in `test_qmd.py` override with explicit mocking
+
+### 13. Session Continuity
 
 Each message runs `claude -p` as a new process, but maintains conversation context.
 
@@ -159,7 +171,7 @@ Each message runs `claude -p` as a new process, but maintains conversation conte
 - `_call_with_resume_fallback()`: Handles fallback on resume failure
 - Cron and heartbeat: one-shot executions with global memory + bot memory injected into prompt
 
-### 13. Bot-Level Long-Term Memory
+### 14. Bot-Level Long-Term Memory
 
 When user requests "remember this", the bot saves to `MEMORY.md` and injects it into the prompt on new session bootstrap for persistent memory.
 
@@ -170,7 +182,7 @@ When user requests "remember this", the bot saves to `MEMORY.md` and injects it 
 - Management: Telegram `/memory` (show), `/memory clear` (reset), CLI `cclaw memory show|edit|clear`
 - CRUD functions in `session.py`: `memory_file_path()`, `load_bot_memory()`, `save_bot_memory()`, `clear_bot_memory()`
 
-### 14. Global Memory
+### 15. Global Memory
 
 Shared read-only memory accessible by all bots, managed via CLI only.
 
@@ -183,7 +195,7 @@ Shared read-only memory accessible by all bots, managed via CLI only.
 - Not editable via Telegram (no file path exposed, no Telegram command)
 - CRUD functions in `session.py`: `global_memory_file_path()`, `load_global_memory()`, `save_global_memory()`, `clear_global_memory()`
 
-### 15. Streaming Response
+### 16. Streaming Response
 
 Delivers Claude Code output to Telegram in real-time. User-toggleable on/off.
 
@@ -201,7 +213,7 @@ Delivers Claude Code output to Telegram in real-time. User-toggleable on/off.
   - `run_claude()`: Sends typing action every 4 seconds -> Markdown-to-HTML conversion on completion -> batch send
   - Same pattern as cron and heartbeat (Phase 3 approach)
 
-### 16. Token Compact
+### 17. Token Compact
 
 Compresses bot MD files (MEMORY.md, user-created SKILL.md, HEARTBEAT.md) via one-shot `claude -p` calls to reduce token costs.
 
@@ -213,7 +225,7 @@ Compresses bot MD files (MEMORY.md, user-created SKILL.md, HEARTBEAT.md) via one
 - **CLI**: `cclaw bot compact <name>` with `--yes/-y` skip confirmation
 - **Telegram**: `/compact` auto-saves on success
 
-### 17. Encrypted Backup
+### 18. Encrypted Backup
 
 Full backup of `~/.cclaw/` directory to an AES-256 encrypted zip file.
 

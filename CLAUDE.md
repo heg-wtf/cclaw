@@ -172,7 +172,7 @@ pytest
 
 - **Purpose**: Provides persistent QMD MCP search server, avoiding ML model reload per message
 - **Architecture**: `qmd mcp --http --daemon` runs on port 8181, Claude Code connects via `type: "http"` MCP config
-- **Lifecycle**: `bot_manager.py` calls `_start_qmd_daemon()` before polling (only if any bot uses qmd skill), `_stop_qmd_daemon()` on shutdown
+- **Lifecycle**: `bot_manager.py` calls `_start_qmd_daemon()` before polling (when `shutil.which("qmd")` is available), `_stop_qmd_daemon()` on shutdown
 - **Self-managed**: QMD has built-in daemon management (`--daemon` flag, `qmd mcp stop`), no Popen/pipe management needed
 - **Health check**: TCP connection to localhost:8181 to verify daemon is reachable
 - **Doctor**: `cclaw doctor` shows QMD CLI path, daemon status, collection count, document count
