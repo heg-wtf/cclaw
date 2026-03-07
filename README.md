@@ -263,7 +263,7 @@ cclaw/
 │   ├── bridge_data/        # Bridge server bundled with package (server.mjs, package.json)
 │   ├── session.py          # Session directory management
 │   ├── handlers.py         # Telegram handler factory
-│   ├── bot_manager.py      # Multi-bot lifecycle (compact + regenerate on start)
+│   ├── bot_manager.py      # Multi-bot lifecycle (regenerate CLAUDE.md on start)
 │   ├── skill.py            # Skill management (create/attach/install/MCP/CLAUDE.md composition)
 │   ├── builtin_skills/     # Built-in skill templates (imessage, reminders, ...)
 │   │   ├── __init__.py     # Built-in skill registry

@@ -48,11 +48,11 @@ uv run ruff check --fix . && uv run ruff format .  # Lint + format
 | `bridge.py` | Node.js bridge client (Unix socket JSONL), lifecycle start/stop, fallback to subprocess |
 | `session.py` | Session directories, conversation logs (`conversation-YYMMDD.md`), Claude session ID (`--resume`), memory CRUD (bot + global) |
 | `handlers.py` | Telegram handler factory: messages, files, slash commands, streaming, session continuity |
-| `bot_manager.py` | Multi-bot polling, startup compact + CLAUDE.md regeneration, bridge/QMD lifecycle, cron/heartbeat schedulers, graceful shutdown |
+| `bot_manager.py` | Multi-bot polling, CLAUDE.md regeneration on start, bridge/QMD lifecycle, cron/heartbeat schedulers, graceful shutdown |
 | `skill.py` | Skill discovery/linking, `compose_claude_md()` (merges personality + skills + memory + rules), MCP/env injection, QMD auto-injection |
 | `cron.py` | Cron scheduling (croniter), natural language parsing via Claude haiku, per-job timezone, one-shot support |
 | `heartbeat.py` | Periodic situation awareness, active hours check, HEARTBEAT_OK detection |
-| `token_compact.py` | Compress MEMORY.md/SKILL.md/HEARTBEAT.md via `claude -p` one-shot. Auto-runs on startup |
+| `token_compact.py` | Compress MEMORY.md/SKILL.md/HEARTBEAT.md via `claude -p` one-shot |
 | `backup.py` | AES-256 encrypted zip of `~/.cclaw/` |
 | `utils.py` | Message splitting, Markdown-to-HTML conversion, logging, IME-compatible CLI input |
 
@@ -88,9 +88,8 @@ This is the only way to inject system instructions into `claude -p`, which auto-
 ### Startup Sequence
 
 For each bot on `cclaw start`:
-1. Compact MD files (MEMORY.md, user SKILL.md, HEARTBEAT.md) via `claude -p`
-2. Regenerate CLAUDE.md (includes compacted content)
-3. Start bridge, QMD daemon, then polling
+1. Regenerate CLAUDE.md (picks up config/skill changes)
+2. Start bridge, QMD daemon, then polling
 
 ### Streaming
 

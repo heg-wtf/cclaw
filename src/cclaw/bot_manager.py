@@ -70,19 +70,7 @@ async def _run_bots(bot_names: list[str] | None = None) -> None:
                 console.print(f"[yellow]Skipping {name}: no token configured.[/yellow]")
                 continue
 
-            # Compact MD files then regenerate CLAUDE.md on every start
-            from cclaw.token_compact import (
-                collect_compact_targets,
-                run_compact,
-                save_compact_results,
-            )
-
-            targets = collect_compact_targets(name)
-            if targets:
-                console.print(f"  [cyan]COMPACT[/cyan] {name} ({len(targets)} target(s))")
-                results = await run_compact(name)
-                save_compact_results(results)
-
+            # Regenerate CLAUDE.md on every start
             from cclaw.skill import regenerate_bot_claude_md
 
             regenerate_bot_claude_md(name)

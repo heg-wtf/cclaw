@@ -260,7 +260,6 @@ Delivers Claude Code output to Telegram in real-time. User-toggleable on/off.
 Compresses bot MD files (MEMORY.md, user-created SKILL.md, HEARTBEAT.md) via one-shot `claude -p` calls to reduce token costs.
 
 - **Targets**: MEMORY.md, user-created SKILL.md (builtins excluded via `is_builtin_skill()`), HEARTBEAT.md
-- **Auto-compact on start**: `bot_manager.py` runs compact on all targets then regenerates CLAUDE.md for every bot at startup. Compact runs first so regenerated CLAUDE.md includes compacted skill content
 - **Execution**: Sequential per-target with error isolation — individual failures don't stop remaining targets
 - **Working directory**: Each compaction runs in a `tempfile.TemporaryDirectory()` (no session state needed)
 - **Token estimation**: `chars // 4` heuristic for relative before/after comparison
@@ -349,8 +348,8 @@ graph TD
     MODE -->|Yes| PLIST["Create launchd plist"]
     PLIST --> LOAD["launchctl load"]
 
-    FG --> COMPACT["compact + regenerate CLAUDE.md per bot"]
-    COMPACT --> BRIDGE["start_bridge()"]
+    FG --> REGEN["regenerate CLAUDE.md per bot"]
+    REGEN --> BRIDGE["start_bridge()"]
     BRIDGE --> QMD["_start_qmd_daemon()"]
     QMD --> POLL["start_polling() per bot"]
     POLL --> CRON["cron/heartbeat schedulers"]
