@@ -30,6 +30,12 @@ DEFAULT_ALLOWED_TOOLS = [
     "WebFetch",
     "WebSearch",
     "Bash",
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "Agent",
 ]
 
 # Tracks running processes per session key (e.g. "botname:chat_id")
