@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Clawhouse",
+  title: "ClawHouse",
   description: "cclaw dashboard",
 };
 
