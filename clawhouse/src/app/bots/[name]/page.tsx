@@ -9,9 +9,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { ModelBadge } from "@/components/status-badge";
+import { MemoryEditor } from "@/components/memory-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +44,11 @@ export default async function BotDetailPage({
           {bot.display_name || bot.telegram_botname || bot.name}
         </h1>
         <ModelBadge model={bot.model} />
+        <Link href={`/bots/${name}/edit`} className="ml-auto">
+          <Button variant="outline" size="sm">
+            Edit
+          </Button>
+        </Link>
       </div>
 
       <Tabs defaultValue="profile">
@@ -226,65 +233,59 @@ export default async function BotDetailPage({
           ) : (
             <div className="space-y-3">
               {sessions.map((session) => (
-                <Card key={session.chatId}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-mono">
-                        chat_{session.chatId}
-                      </CardTitle>
-                      {session.hasSessionId && (
-                        <Badge variant="outline" className="text-xs">
-                          Active Session
-                        </Badge>
+                <Link
+                  key={session.chatId}
+                  href={`/bots/${name}/conversations/${session.chatId}`}
+                >
+                  <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-mono">
+                          chat_{session.chatId}
+                        </CardTitle>
+                        {session.hasSessionId && (
+                          <Badge variant="outline" className="text-xs">
+                            Active Session
+                          </Badge>
+                        )}
+                      </div>
+                      {session.lastActivity && (
+                        <CardDescription className="text-xs">
+                          Last activity:{" "}
+                          {session.lastActivity.toLocaleDateString()}{" "}
+                          {session.lastActivity.toLocaleTimeString()}
+                        </CardDescription>
                       )}
-                    </div>
-                    {session.lastActivity && (
-                      <CardDescription className="text-xs">
-                        Last activity:{" "}
-                        {session.lastActivity.toLocaleDateString()}{" "}
-                        {session.lastActivity.toLocaleTimeString()}
-                      </CardDescription>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-1">
-                      {session.conversationFiles.map((file) => (
-                        <Badge
-                          key={file}
-                          variant="secondary"
-                          className="text-xs font-mono"
-                        >
-                          {file.replace("conversation-", "").replace(".md", "")}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-1">
+                        {session.conversationFiles.map((file) => (
+                          <Badge
+                            key={file}
+                            variant="secondary"
+                            className="text-xs font-mono"
+                          >
+                            {file
+                              .replace("conversation-", "")
+                              .replace(".md", "")}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="memory" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">MEMORY.md</CardTitle>
-              <CardDescription>
-                Bot long-term memory (read/written by Claude Code)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {memory ? (
-                <pre className="text-sm whitespace-pre-wrap bg-muted p-4 rounded-md">
-                  {memory}
-                </pre>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No memory content
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          <MemoryEditor
+            title="MEMORY.md"
+            description="Bot long-term memory (read/written by Claude Code)"
+            initialContent={memory}
+            apiEndpoint={`/api/bots/${name}/memory`}
+          />
         </TabsContent>
       </Tabs>
     </div>
