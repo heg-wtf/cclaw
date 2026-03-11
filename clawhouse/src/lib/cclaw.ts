@@ -2,8 +2,9 @@ import fs from "fs";
 import path from "path";
 import yaml from "js-yaml";
 
-const CCLAW_HOME =
-  process.env.CCLAW_HOME || path.join(process.env.HOME || "~", ".cclaw");
+function getCclawHome(): string {
+  return process.env.CCLAW_HOME || path.join(process.env.HOME || "~", ".cclaw");
+}
 
 export interface BotConfig {
   name: string;
@@ -77,7 +78,7 @@ export interface SessionInfo {
 }
 
 function cclawPath(...segments: string[]): string {
-  return path.join(CCLAW_HOME, ...segments);
+  return path.join(getCclawHome(), ...segments);
 }
 
 function readYaml<T>(filePath: string): T | null {
@@ -402,6 +403,81 @@ export function getSystemStatus(): SystemStatus {
   } catch {
     return { running: false, pid: null, uptime: null };
   }
+}
+
+// --- Disk Usage ---
+
+export interface DiskUsage {
+  totalBytes: number;
+  totalFormatted: string;
+  breakdown: { name: string; bytes: number; formatted: string }[];
+}
+
+function getDirectorySize(dirPath: string): number {
+  let total = 0;
+  try {
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        total += getDirectorySize(fullPath);
+      } else if (entry.isFile()) {
+        try {
+          total += fs.statSync(fullPath).size;
+        } catch {
+          // skip inaccessible files
+        }
+      }
+    }
+  } catch {
+    // skip inaccessible directories
+  }
+  return total;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+export function getDiskUsage(): DiskUsage {
+  const breakdown: { name: string; bytes: number; formatted: string }[] = [];
+
+  try {
+    const entries = fs.readdirSync(getCclawHome(), { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(getCclawHome(), entry.name);
+      let bytes = 0;
+      if (entry.isDirectory()) {
+        bytes = getDirectorySize(fullPath);
+      } else if (entry.isFile()) {
+        try {
+          bytes = fs.statSync(fullPath).size;
+        } catch {
+          continue;
+        }
+      }
+      breakdown.push({
+        name: entry.name,
+        bytes,
+        formatted: formatBytes(bytes),
+      });
+    }
+  } catch {
+    // ~/.cclaw not found
+  }
+
+  breakdown.sort((a, b) => b.bytes - a.bytes);
+  const totalBytes = breakdown.reduce((sum, item) => sum + item.bytes, 0);
+
+  return {
+    totalBytes,
+    totalFormatted: formatBytes(totalBytes),
+    breakdown,
+  };
 }
 
 // --- Skill Usage ---

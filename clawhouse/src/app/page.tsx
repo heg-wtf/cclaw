@@ -6,6 +6,7 @@ import {
   getSystemStatus,
   getConfig,
   listSkills,
+  getDiskUsage,
 } from "@/lib/cclaw";
 import {
   Card,
@@ -31,6 +32,7 @@ export default function DashboardPage() {
     (sum, bot) => sum + getCronJobs(bot.name).length,
     0,
   );
+  const diskUsage = getDiskUsage();
 
   return (
     <div className="space-y-6">
@@ -42,7 +44,7 @@ export default function DashboardPage() {
         <LiveStatus initialRunning={status.running} />
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Bots</CardDescription>
@@ -69,7 +71,47 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
         </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Disk Usage</CardDescription>
+            <CardTitle className="text-lg">
+              {diskUsage.totalFormatted}
+            </CardTitle>
+          </CardHeader>
+        </Card>
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">~/.cclaw Disk Breakdown</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {diskUsage.breakdown.slice(0, 10).map((item) => {
+              const percentage =
+                diskUsage.totalBytes > 0
+                  ? (item.bytes / diskUsage.totalBytes) * 100
+                  : 0;
+              return (
+                <div key={item.name} className="flex items-center gap-3">
+                  <span className="text-sm w-40 truncate font-mono">
+                    {item.name}
+                  </span>
+                  <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full"
+                      style={{ width: `${Math.max(percentage, 0.5)}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-muted-foreground w-20 text-right">
+                    {item.formatted}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       <Separator />
 
