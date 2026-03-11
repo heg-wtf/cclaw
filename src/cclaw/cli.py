@@ -46,6 +46,8 @@ global_memory_app = typer.Typer(help="Global memory management (shared across al
 app.add_typer(global_memory_app, name="global-memory")
 heartbeat_app = typer.Typer(help="Heartbeat management")
 app.add_typer(heartbeat_app, name="heartbeat")
+dashboard_app = typer.Typer(help="ClawHouse web dashboard")
+app.add_typer(dashboard_app, name="dashboard")
 
 
 @app.command()
@@ -150,11 +152,73 @@ def backup() -> None:
     console.print("  Encryption: AES-256")
 
 
-@app.command()
-def dashboard(
-    port: int = typer.Option(3847, help="Port to run dashboard on"),
+DASHBOARD_PID_FILE_NAME = "clawhouse.pid"
+DASHBOARD_DEFAULT_PORT = 3847
+
+
+def _dashboard_pid_file() -> Path:
+    from cclaw.config import cclaw_home
+
+    return cclaw_home() / DASHBOARD_PID_FILE_NAME
+
+
+def _find_clawhouse_directory() -> Path | None:
+    """Find ClawHouse directory: cwd → bundled package data → source-relative."""
+    candidates = [
+        Path.cwd() / "clawhouse",
+        Path(__file__).resolve().parent / "clawhouse_data",
+        Path(__file__).resolve().parent.parent.parent / "clawhouse",
+    ]
+    return next((c for c in candidates if c.exists()), None)
+
+
+def _ensure_node_modules(clawhouse_directory: Path) -> None:
+    """Install npm dependencies if not present."""
+    import subprocess
+
+    from rich.console import Console
+
+    node_modules = clawhouse_directory / "node_modules"
+    if not node_modules.exists():
+        console = Console()
+        console.print("[yellow]Installing dependencies...[/yellow]")
+        subprocess.run(["npm", "install"], cwd=clawhouse_directory, check=True)
+
+
+def _is_dashboard_running() -> tuple[bool, int | None]:
+    """Check if dashboard is running. Returns (running, pid)."""
+    pid_file = _dashboard_pid_file()
+    if not pid_file.exists():
+        return False, None
+    try:
+        pid = int(pid_file.read_text().strip())
+        import os
+
+        os.kill(pid, 0)
+        return True, pid
+    except (ValueError, ProcessLookupError, PermissionError):
+        pid_file.unlink(missing_ok=True)
+        return False, None
+
+
+def _get_dashboard_port() -> int | None:
+    """Read port from pid file (second line, if present)."""
+    pid_file = _dashboard_pid_file()
+    if not pid_file.exists():
+        return None
+    try:
+        lines = pid_file.read_text().strip().splitlines()
+        return int(lines[1]) if len(lines) > 1 else DASHBOARD_DEFAULT_PORT
+    except (ValueError, IndexError):
+        return DASHBOARD_DEFAULT_PORT
+
+
+@dashboard_app.command("start")
+def dashboard_start(
+    port: int = typer.Option(DASHBOARD_DEFAULT_PORT, help="Port to run dashboard on"),
+    daemon: bool = typer.Option(False, help="Run as background process"),
 ) -> None:
-    """Launch Clawhouse web dashboard."""
+    """Start ClawHouse web dashboard."""
     import subprocess
     import sys
 
@@ -162,35 +226,114 @@ def dashboard(
 
     console = Console()
 
-    # Try: cwd (repo root) → bundled package data → source-relative fallback
-    candidates = [
-        Path.cwd() / "clawhouse",
-        Path(__file__).resolve().parent / "clawhouse_data",
-        Path(__file__).resolve().parent.parent.parent / "clawhouse",
-    ]
-    clawhouse_directory = next((c for c in candidates if c.exists()), None)
+    running, existing_pid = _is_dashboard_running()
+    if running:
+        existing_port = _get_dashboard_port()
+        message = "[yellow]ClawHouse is already running"
+        message += f" (PID {existing_pid}, port {existing_port})[/yellow]"
+        console.print(message)
+        raise typer.Exit(0)
 
+    clawhouse_directory = _find_clawhouse_directory()
     if clawhouse_directory is None:
         console.print("[red]ClawHouse directory not found.[/red]")
         console.print("[dim]Run this command from the cclaw repo root,[/dim]")
         console.print("[dim]or reinstall cclaw to bundle ClawHouse.[/dim]")
         raise typer.Exit(1)
 
-    node_modules = clawhouse_directory / "node_modules"
-    if not node_modules.exists():
-        console.print("[yellow]Installing dependencies...[/yellow]")
-        subprocess.run(["npm", "install"], cwd=clawhouse_directory, check=True)
+    _ensure_node_modules(clawhouse_directory)
 
-    console.print(f"[green]Starting ClawHouse on http://localhost:{port}[/green]")
-    try:
-        subprocess.run(
+    if daemon:
+        process = subprocess.Popen(
             ["npx", "next", "dev", "--port", str(port)],
             cwd=clawhouse_directory,
-            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
         )
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Dashboard stopped.[/yellow]")
-        sys.exit(0)
+        pid_file = _dashboard_pid_file()
+        pid_file.write_text(f"{process.pid}\n{port}\n")
+        console.print(f"[green]ClawHouse started on http://localhost:{port}[/green]")
+        console.print(f"  PID:  {process.pid}")
+        console.print("  Stop: cclaw dashboard stop")
+    else:
+        pid_file = _dashboard_pid_file()
+        pid_file.write_text(f"{sys.maxsize}\n{port}\n")
+        console.print(f"[green]Starting ClawHouse on http://localhost:{port}[/green]")
+        try:
+            subprocess.run(
+                ["npx", "next", "dev", "--port", str(port)],
+                cwd=clawhouse_directory,
+                check=True,
+            )
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Dashboard stopped.[/yellow]")
+        finally:
+            pid_file.unlink(missing_ok=True)
+            sys.exit(0)
+
+
+@dashboard_app.command("stop")
+def dashboard_stop() -> None:
+    """Stop ClawHouse web dashboard."""
+    import signal
+
+    from rich.console import Console
+
+    console = Console()
+
+    running, pid = _is_dashboard_running()
+    if not running:
+        console.print("[yellow]ClawHouse is not running.[/yellow]")
+        _dashboard_pid_file().unlink(missing_ok=True)
+        raise typer.Exit(0)
+
+    try:
+        import os
+
+        os.killpg(os.getpgid(pid), signal.SIGTERM)
+    except (ProcessLookupError, PermissionError):
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            pass
+
+    _dashboard_pid_file().unlink(missing_ok=True)
+    console.print(f"[green]ClawHouse stopped (PID {pid})[/green]")
+
+
+@dashboard_app.command("restart")
+def dashboard_restart(
+    port: int = typer.Option(DASHBOARD_DEFAULT_PORT, help="Port to run dashboard on"),
+    daemon: bool = typer.Option(False, help="Run as background process"),
+) -> None:
+    """Restart ClawHouse web dashboard."""
+    import time
+
+    running, _ = _is_dashboard_running()
+    if running:
+        dashboard_stop()
+        time.sleep(1)
+    dashboard_start(port=port, daemon=daemon)
+
+
+@dashboard_app.command("status")
+def dashboard_status() -> None:
+    """Show ClawHouse dashboard status."""
+    from rich.console import Console
+
+    console = Console()
+
+    running, pid = _is_dashboard_running()
+    port = _get_dashboard_port()
+
+    if running:
+        console.print("[green]ClawHouse is running[/green]")
+        console.print(f"  PID:  {pid}")
+        console.print(f"  Port: {port}")
+        console.print(f"  URL:  http://localhost:{port}")
+    else:
+        console.print("[yellow]ClawHouse is not running.[/yellow]")
 
 
 @bot_app.command("add")

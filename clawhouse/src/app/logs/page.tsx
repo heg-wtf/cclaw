@@ -33,14 +33,24 @@ export default function LogsPage() {
 
   useEffect(() => {
     if (!selectedFile) return;
-    setLoading(true);
-    fetch(`/api/logs?file=${selectedFile}&limit=1000`)
+    let cancelled = false;
+    const controller = new AbortController();
+    fetch(`/api/logs?file=${selectedFile}&limit=1000`, {
+      signal: controller.signal,
+    })
       .then((r) => r.json())
       .then((data) => {
-        setLines(data.lines || []);
-        setTotalLines(data.totalLines || 0);
+        if (!cancelled) {
+          setLines(data.lines || []);
+          setTotalLines(data.totalLines || 0);
+          setLoading(false);
+        }
       })
-      .finally(() => setLoading(false));
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [selectedFile]);
 
   const filteredLines = filter

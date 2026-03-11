@@ -20,7 +20,6 @@ export default function ConversationPage() {
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [content, setContent] = useState<string>("");
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetch(`/api/bots/${name}`)
@@ -43,11 +42,20 @@ export default function ConversationPage() {
 
   useEffect(() => {
     if (!selectedDate) return;
-    setLoading(true);
-    fetch(`/api/bots/${name}/conversations/${chatId}/${selectedDate}`)
+    let cancelled = false;
+    const controller = new AbortController();
+    fetch(`/api/bots/${name}/conversations/${chatId}/${selectedDate}`, {
+      signal: controller.signal,
+    })
       .then((r) => r.json())
-      .then((data) => setContent(data.content || ""))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!cancelled) setContent(data.content || "");
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [name, chatId, selectedDate]);
 
   const conversationFiles =
@@ -96,9 +104,7 @@ export default function ConversationPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading...</p>
-          ) : content ? (
+          {content ? (
             <ScrollArea className="h-[600px]">
               <pre className="text-sm whitespace-pre-wrap">{content}</pre>
             </ScrollArea>

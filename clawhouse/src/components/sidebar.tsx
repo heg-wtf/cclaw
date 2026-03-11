@@ -26,11 +26,12 @@ export function Sidebar() {
       .catch(() => {});
   }, []);
 
-  // Auto-expand when navigating into a section
-  useEffect(() => {
-    if (pathname.startsWith("/bots")) setBotsOpen(true);
-    if (pathname.startsWith("/skills")) setSkillsOpen(true);
-  }, [pathname]);
+  const botsInPath = pathname.startsWith("/bots");
+  const skillsInPath = pathname.startsWith("/skills");
+
+  // Auto-expand when navigating into a section (derived from pathname)
+  if (botsInPath && !botsOpen) setBotsOpen(true);
+  if (skillsInPath && !skillsOpen) setSkillsOpen(true);
 
   const botsActive = pathname.startsWith("/bots");
   const skillsActive = pathname.startsWith("/skills");

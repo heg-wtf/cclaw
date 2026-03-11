@@ -173,6 +173,7 @@ export function updateBot(name: string, updates: Partial<BotConfig>): void {
   const current = readYaml<Record<string, unknown>>(botYamlPath);
   if (!current) return;
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { name: _name, ...rest } = updates;
   const merged = { ...current, ...rest };
   writeYaml(botYamlPath, merged);
