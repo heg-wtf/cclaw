@@ -1,11 +1,11 @@
-# Clawhouse: cclaw Web Dashboard
+# ClawHouse: cclaw Web Dashboard
 
 > Plan created: 2026-03-11
 > Branch: `feature/clawhouse`
 
 ## Overview
 
-Clawhouse is a web-based dashboard for managing `~/.cclaw/` configuration, bots, skills, cron jobs, sessions, and logs. Designed for **general users** who shouldn't need to open a terminal or text editor to manage their cclaw setup.
+ClawHouse is a web-based dashboard for managing `~/.cclaw/` configuration, bots, skills, cron jobs, sessions, and logs. Designed for **general users** who shouldn't need to open a terminal or text editor to manage their cclaw setup.
 
 ## Problem
 
@@ -243,58 +243,64 @@ PUT    /api/global-memory             # Write GLOBAL_MEMORY.md
 ```
 clawhouse/
 ├── package.json
-├── next.config.js
+├── next.config.ts
 ├── tsconfig.json
-├── tailwind.config.js
-├── postcss.config.js
+├── postcss.config.mjs
 │
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx              # Root layout (sidebar nav)
-│   │   ├── page.tsx                # Dashboard home
+│   │   ├── layout.tsx              # Root layout (sidebar + theme)
+│   │   ├── page.tsx                # Dashboard home (stats, disk usage, bot cards)
+│   │   ├── globals.css             # Tailwind CSS
+│   │   ├── favicon.ico             # cclaw logo favicon
 │   │   ├── bots/
-│   │   │   ├── page.tsx            # Bot list (redirect to home)
 │   │   │   └── [name]/
-│   │   │       ├── page.tsx        # Bot detail
-│   │   │       └── cron/
-│   │   │           └── page.tsx    # Cron management
+│   │   │       ├── page.tsx        # Bot detail (tabs: profile, cron, sessions, memory)
+│   │   │       ├── edit/
+│   │   │       │   └── page.tsx    # Bot config editor
+│   │   │       └── conversations/
+│   │   │           └── [chatId]/
+│   │   │               └── page.tsx  # Conversation viewer
 │   │   ├── skills/
-│   │   │   ├── page.tsx            # Skill list
-│   │   │   └── [name]/
-│   │   │       └── page.tsx        # Skill detail
+│   │   │   ├── page.tsx            # Redirect to /skills/builtin
+│   │   │   ├── builtin/
+│   │   │   │   └── page.tsx        # Built-in skills
+│   │   │   └── custom/
+│   │   │       └── page.tsx        # Custom skills
 │   │   ├── settings/
-│   │   │   └── page.tsx            # Global settings
+│   │   │   └── page.tsx            # Global settings + memory editor
 │   │   ├── logs/
-│   │   │   └── page.tsx            # Log viewer
-│   │   └── conversations/
-│   │       └── page.tsx            # Conversation browser
+│   │   │   └── page.tsx            # Log viewer with filter
+│   │   └── api/                    # API routes (10 endpoints)
+│   │       ├── bots/route.ts
+│   │       ├── bots/[name]/route.ts
+│   │       ├── bots/[name]/memory/route.ts
+│   │       ├── bots/[name]/cron/route.ts
+│   │       ├── bots/[name]/conversations/[chatId]/[date]/route.ts
+│   │       ├── config/route.ts
+│   │       ├── global-memory/route.ts
+│   │       ├── logs/route.ts
+│   │       ├── skills/route.ts
+│   │       └── status/route.ts
 │   │
 │   ├── components/
-│   │   ├── ui/                     # shadcn/ui components
-│   │   ├── bot-card.tsx
-│   │   ├── cron-editor.tsx
-│   │   ├── conversation-viewer.tsx
-│   │   ├── log-viewer.tsx
-│   │   ├── markdown-editor.tsx
-│   │   ├── memory-editor.tsx
-│   │   ├── sidebar.tsx
-│   │   └── status-badge.tsx
+│   │   ├── ui/                     # shadcn/ui (14 components)
+│   │   ├── sidebar.tsx             # Collapsible nav (dynamic bot list)
+│   │   ├── cron-editor.tsx         # Cron CRUD
+│   │   ├── memory-editor.tsx       # Markdown editor
+│   │   ├── settings-editor.tsx     # Config editor
+│   │   ├── skill-card.tsx          # Skill display card
+│   │   ├── live-status.tsx         # Polling status badge
+│   │   ├── status-badge.tsx        # Static badges (model, type)
+│   │   ├── theme-provider.tsx      # next-themes wrapper
+│   │   └── theme-toggle.tsx        # Dark/light toggle
 │   │
-│   ├── lib/
-│   │   ├── cclaw.ts                # ~/.cclaw filesystem reader/writer
-│   │   ├── yaml.ts                 # YAML parse/serialize helpers
-│   │   ├── cron.ts                 # Cron expression utilities
-│   │   └── markdown.ts             # Markdown rendering
-│   │
-│   └── api/                        # Next.js API routes (or app/api/)
-│       ├── config/route.ts
-│       ├── bots/route.ts
-│       ├── skills/route.ts
-│       ├── logs/route.ts
-│       └── status/route.ts
+│   └── lib/
+│       ├── cclaw.ts                # ~/.cclaw filesystem reader/writer
+│       └── utils.ts                # Tailwind merge utility
 │
 └── public/
-    └── favicon.ico
+    └── logo.png                    # cclaw logo
 ```
 
 ## Implementation Phases
@@ -325,6 +331,10 @@ clawhouse/
 - [x] Real-time status updates (10s polling)
 - [ ] Responsive mobile layout
 - [x] Dark/light theme (next-themes, system default)
+- [x] Collapsible sidebar menus (Bots, Skills)
+- [x] Dynamic bot list in sidebar
+- [x] Disk usage display on dashboard
+- [x] Custom favicon (cclaw logo)
 - [ ] Search across conversations and logs
 - [ ] Export/backup functionality
 
