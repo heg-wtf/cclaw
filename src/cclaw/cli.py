@@ -161,10 +161,17 @@ def dashboard(
     from rich.console import Console
 
     console = Console()
-    clawhouse_directory = Path(__file__).resolve().parent.parent.parent / "clawhouse"
 
-    if not clawhouse_directory.exists():
-        console.print("[red]Clawhouse directory not found.[/red]")
+    # Try cwd first (user running from repo root), then source-relative fallback
+    candidates = [
+        Path.cwd() / "clawhouse",
+        Path(__file__).resolve().parent.parent.parent / "clawhouse",
+    ]
+    clawhouse_directory = next((c for c in candidates if c.exists()), None)
+
+    if clawhouse_directory is None:
+        console.print("[red]ClawHouse directory not found.[/red]")
+        console.print("[dim]Run this command from the cclaw repo root.[/dim]")
         raise typer.Exit(1)
 
     node_modules = clawhouse_directory / "node_modules"
@@ -172,7 +179,7 @@ def dashboard(
         console.print("[yellow]Installing dependencies...[/yellow]")
         subprocess.run(["npm", "install"], cwd=clawhouse_directory, check=True)
 
-    console.print(f"[green]Starting Clawhouse on http://localhost:{port}[/green]")
+    console.print(f"[green]Starting ClawHouse on http://localhost:{port}[/green]")
     try:
         subprocess.run(
             ["npx", "next", "dev", "--port", str(port)],
