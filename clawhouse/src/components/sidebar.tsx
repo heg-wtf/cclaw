@@ -3,25 +3,29 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const navigation = [
-  { name: "Dashboard", href: "/", icon: "🏠" },
-  {
-    name: "Skills",
-    icon: "🔧",
-    children: [
-      { name: "Built-in", href: "/skills/builtin" },
-      { name: "Custom", href: "/skills/custom" },
-    ],
-  },
-  { name: "Settings", href: "/settings", icon: "⚙️" },
-  { name: "Logs", href: "/logs", icon: "📋" },
-];
+interface BotSummary {
+  name: string;
+  display_name: string;
+  telegram_botname: string;
+}
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [bots, setBots] = useState<BotSummary[]>([]);
+
+  useEffect(() => {
+    fetch("/api/bots")
+      .then((r) => r.json())
+      .then((data) => setBots(data))
+      .catch(() => {});
+  }, []);
+
+  const botsActive = pathname.startsWith("/bots");
+  const skillsActive = pathname.startsWith("/skills");
 
   return (
     <aside className="flex h-screen w-56 flex-col border-r bg-muted/30">
@@ -31,60 +35,113 @@ export function Sidebar() {
           <span>Clawhouse</span>
         </Link>
       </div>
-      <nav className="flex-1 space-y-1 p-3">
-        {navigation.map((item) => {
-          if ("children" in item && item.children) {
-            const isActive = pathname.startsWith("/skills");
-            return (
-              <div key={item.name}>
-                <div
-                  className={cn(
-                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm",
-                    isActive
-                      ? "text-foreground font-medium"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  <span>{item.icon}</span>
-                  <span>{item.name}</span>
-                </div>
-                <div className="ml-8 space-y-0.5">
-                  {item.children.map((child) => (
-                    <Link
-                      key={child.href}
-                      href={child.href}
-                      className={cn(
-                        "block rounded-md px-3 py-1.5 text-sm transition-colors",
-                        pathname === child.href
-                          ? "bg-accent text-accent-foreground font-medium"
-                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-                      )}
-                    >
-                      {child.name}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            );
-          }
+      <nav className="flex-1 space-y-1 overflow-auto p-3">
+        <Link
+          href="/"
+          className={cn(
+            "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+            pathname === "/"
+              ? "bg-accent text-accent-foreground font-medium"
+              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+          )}
+        >
+          <span>🏠</span>
+          <span>Dashboard</span>
+        </Link>
 
-          const href = "href" in item ? item.href : "/";
-          return (
+        <div>
+          <div
+            className={cn(
+              "flex items-center gap-2 rounded-md px-3 py-2 text-sm",
+              botsActive
+                ? "text-foreground font-medium"
+                : "text-muted-foreground",
+            )}
+          >
+            <span>🤖</span>
+            <span>Bots</span>
+          </div>
+          <div className="ml-8 space-y-0.5">
+            {bots.map((bot) => (
+              <Link
+                key={bot.name}
+                href={`/bots/${bot.name}`}
+                className={cn(
+                  "block rounded-md px-3 py-1.5 text-sm transition-colors truncate",
+                  pathname.startsWith(`/bots/${bot.name}`)
+                    ? "bg-accent text-accent-foreground font-medium"
+                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                )}
+              >
+                {bot.display_name || bot.telegram_botname || bot.name}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div
+            className={cn(
+              "flex items-center gap-2 rounded-md px-3 py-2 text-sm",
+              skillsActive
+                ? "text-foreground font-medium"
+                : "text-muted-foreground",
+            )}
+          >
+            <span>🔧</span>
+            <span>Skills</span>
+          </div>
+          <div className="ml-8 space-y-0.5">
             <Link
-              key={href}
-              href={href}
+              href="/skills/builtin"
               className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
-                pathname === href
+                "block rounded-md px-3 py-1.5 text-sm transition-colors",
+                pathname === "/skills/builtin"
                   ? "bg-accent text-accent-foreground font-medium"
                   : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
               )}
             >
-              <span>{item.icon}</span>
-              <span>{item.name}</span>
+              Built-in
             </Link>
-          );
-        })}
+            <Link
+              href="/skills/custom"
+              className={cn(
+                "block rounded-md px-3 py-1.5 text-sm transition-colors",
+                pathname === "/skills/custom"
+                  ? "bg-accent text-accent-foreground font-medium"
+                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+              )}
+            >
+              Custom
+            </Link>
+          </div>
+        </div>
+
+        <Link
+          href="/settings"
+          className={cn(
+            "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+            pathname === "/settings"
+              ? "bg-accent text-accent-foreground font-medium"
+              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+          )}
+        >
+          <span>⚙️</span>
+          <span>Settings</span>
+        </Link>
+
+        <Link
+          href="/logs"
+          className={cn(
+            "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+            pathname === "/logs"
+              ? "bg-accent text-accent-foreground font-medium"
+              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+          )}
+        >
+          <span>📋</span>
+          <span>Logs</span>
+        </Link>
       </nav>
       <div className="border-t p-3 flex items-center justify-between">
         <span className="text-xs text-muted-foreground">cclaw dashboard</span>
