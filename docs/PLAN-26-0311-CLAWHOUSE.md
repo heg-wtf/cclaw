@@ -350,8 +350,12 @@ clawhouse/
 
 ```bash
 # Via cclaw CLI (recommended)
-cclaw dashboard
-cclaw dashboard --port 8080
+cclaw dashboard start              # Foreground (port 3847)
+cclaw dashboard start --daemon     # Background
+cclaw dashboard start --port 8080  # Custom port
+cclaw dashboard stop               # Stop
+cclaw dashboard restart             # Restart
+cclaw dashboard status             # Show status
 
 # Or directly
 cd clawhouse && npx next dev --port 3847

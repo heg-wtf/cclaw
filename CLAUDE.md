@@ -160,7 +160,9 @@ For each bot on `cclaw start`:
 - Reads/writes `~/.cclaw/` directly via `lib/cclaw.ts` (no database)
 - Server components for data pages, client components for editors
 - API routes in `src/app/api/` as thin wrappers over `lib/cclaw.ts`
-- `cclaw dashboard` CLI command spawns the dev server on port 3847
+- `cclaw dashboard start/stop/restart/status` subcommands, PID file at `~/.cclaw/clawhouse.pid`
+- `--daemon` for background mode, `--port` for custom port (default 3847)
+- Bundled in wheel via `force-include` (clawhouse_data/), works after `pip install`
 - Skills split: `BUILTIN_SKILL_NAMES` Set in `lib/cclaw.ts` classifies built-in vs custom
 - See **[docs/PLAN-26-0311-CLAWHOUSE.md](docs/PLAN-26-0311-CLAWHOUSE.md)** for full plan and implementation status
 
