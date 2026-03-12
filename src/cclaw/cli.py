@@ -48,6 +48,8 @@ heartbeat_app = typer.Typer(help="Heartbeat management")
 app.add_typer(heartbeat_app, name="heartbeat")
 dashboard_app = typer.Typer(help="ClawHouse web dashboard")
 app.add_typer(dashboard_app, name="dashboard")
+group_app = typer.Typer(help="Group management for multi-bot collaboration")
+app.add_typer(group_app, name="group")
 
 
 @app.command()
@@ -1617,3 +1619,144 @@ def heartbeat_edit(bot: str = typer.Argument(help="Bot name")) -> None:
 
     editor = os.environ.get("EDITOR", "vi")
     subprocess.run([editor, str(heartbeat_md_path)])
+
+
+# --- Group commands ---
+
+
+@group_app.command("create")
+def group_create(
+    name: str = typer.Argument(help="Group name"),
+    orchestrator: str = typer.Option(..., "--orchestrator", "-o", help="Orchestrator bot name"),
+    members: str = typer.Option(..., "--members", "-m", help="Comma-separated member bot names"),
+) -> None:
+    """Create a new group for multi-bot collaboration."""
+    from rich.console import Console
+
+    from cclaw.group import create_group
+
+    console = Console()
+    member_list = [m.strip() for m in members.split(",") if m.strip()]
+
+    if not member_list:
+        console.print("[red]At least one member is required.[/red]")
+        raise typer.Exit(1)
+
+    try:
+        create_group(name=name, orchestrator=orchestrator, members=member_list)
+    except ValueError as error:
+        console.print(f"[red]{error}[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Group '{name}' created.[/green]")
+    console.print(f"  Orchestrator: [cyan]{orchestrator}[/cyan]")
+    console.print(f"  Members: [cyan]{', '.join(member_list)}[/cyan]")
+    console.print(
+        f"\nNext: Add bots to a Telegram group, then run [green]/bind {name}[/green] in the group."
+    )
+
+
+@group_app.command("list")
+def group_list() -> None:
+    """List all groups."""
+    from rich.console import Console
+    from rich.table import Table
+
+    from cclaw.group import list_groups
+
+    console = Console()
+    groups = list_groups()
+
+    if not groups:
+        console.print("[yellow]No groups configured. Run 'cclaw group create'.[/yellow]")
+        return
+
+    table = Table(title="Groups")
+    table.add_column("Name", style="cyan")
+    table.add_column("Orchestrator", style="magenta")
+    table.add_column("Members", style="white")
+    table.add_column("Telegram", style="dim")
+
+    for group_config in groups:
+        chat_id = group_config.get("telegram_chat_id")
+        telegram_status = f"bound ({chat_id})" if chat_id else "not bound"
+        table.add_row(
+            group_config["name"],
+            group_config["orchestrator"],
+            ", ".join(group_config.get("members", [])),
+            telegram_status,
+        )
+
+    console.print(table)
+
+
+@group_app.command("show")
+def group_show(name: str = typer.Argument(help="Group name")) -> None:
+    """Show group details."""
+    from rich.console import Console
+
+    from cclaw.config import load_bot_config
+    from cclaw.group import list_workspace_files, load_group_config
+
+    console = Console()
+    group_config = load_group_config(name)
+
+    if not group_config:
+        console.print(f"[red]Group '{name}' not found.[/red]")
+        raise typer.Exit(1)
+
+    chat_id = group_config.get("telegram_chat_id")
+    telegram_status = f"{chat_id} (bound)" if chat_id else "not bound"
+
+    console.print(f"[bold]Name:[/bold] [cyan]{group_config['name']}[/cyan]")
+
+    orchestrator_name = group_config["orchestrator"]
+    orchestrator_config = load_bot_config(orchestrator_name)
+    orchestrator_username = ""
+    if orchestrator_config:
+        orchestrator_username = f" ({orchestrator_config.get('telegram_username', '')})"
+    console.print(
+        f"[bold]Orchestrator:[/bold] [magenta]{orchestrator_name}{orchestrator_username}[/magenta]"
+    )
+
+    member_parts: list[str] = []
+    for member_name in group_config.get("members", []):
+        member_config = load_bot_config(member_name)
+        if member_config:
+            username = member_config.get("telegram_username", "")
+            member_parts.append(f"{member_name} ({username})")
+        else:
+            member_parts.append(member_name)
+    console.print(f"[bold]Members:[/bold] {', '.join(member_parts)}")
+
+    console.print(f"[bold]Telegram:[/bold] {telegram_status}")
+
+    workspace_files = list_workspace_files(name)
+    console.print(f"[bold]Workspace:[/bold] {len(workspace_files)} files")
+
+
+@group_app.command("delete")
+def group_delete(name: str = typer.Argument(help="Group name")) -> None:
+    """Delete a group and all its data."""
+    from rich.console import Console
+
+    from cclaw.group import delete_group, load_group_config
+
+    console = Console()
+
+    if not load_group_config(name):
+        console.print(f"[red]Group '{name}' not found.[/red]")
+        raise typer.Exit(1)
+
+    confirmed = typer.confirm(f"Delete group '{name}'? This will remove all group data.")
+    if not confirmed:
+        console.print("[yellow]Cancelled.[/yellow]")
+        return
+
+    try:
+        delete_group(name)
+    except ValueError as error:
+        console.print(f"[red]{error}[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Group '{name}' deleted.[/green]")
