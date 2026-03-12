@@ -953,12 +953,8 @@ async def test_concurrent_bots_same_message(temp_cclaw_home):
 
     with patch("cclaw.handlers.run_claude_with_bridge", mock_claude):
         await asyncio.gather(
-            dev_lead_handlers[MESSAGE_HANDLER_INDEX].callback(
-                update_dev, MagicMock()
-            ),
-            coder_handlers[MESSAGE_HANDLER_INDEX].callback(
-                update_coder, MagicMock()
-            ),
+            dev_lead_handlers[MESSAGE_HANDLER_INDEX].callback(update_dev, MagicMock()),
+            coder_handlers[MESSAGE_HANDLER_INDEX].callback(update_coder, MagicMock()),
         )
 
     # Only orchestrator should have called Claude (once)
