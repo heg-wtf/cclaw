@@ -192,7 +192,7 @@ Multi-bot collaboration via Telegram groups using an orchestrator pattern:
 
 Read these docs when working on related areas. They contain critical implementation details not duplicated here.
 
-- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** -- System architecture, module dependency graph, Mermaid flow diagrams (message processing, cron, heartbeat, shutdown), bot.yaml schema, all 19 design decisions with rationale
-- **[docs/TECHNICAL-NOTES.md](docs/TECHNICAL-NOTES.md)** -- Deep implementation details per feature: Claude Code execution modes, bridge protocol/lifecycle, streaming event parsing, skill MCP config merging, cron scheduler behavior, session continuity (bootstrap/resume/fallback), memory save/load mechanism, QMD auto-injection, IME input handling, emoji width fixes
-- **[docs/SECURITY.md](docs/SECURITY.md)** -- Security audit: 33 findings (path traversal, token storage, rate limiting, env var injection, workspace limits). Check before adding file handling, user input, or subprocess code
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** -- System architecture, module dependency graph, Mermaid flow diagrams (message processing, cron, heartbeat, group routing, shutdown), bot.yaml schema, all 20 design decisions with rationale
+- **[docs/TECHNICAL-NOTES.md](docs/TECHNICAL-NOTES.md)** -- Deep implementation details per feature: Claude Code execution modes, bridge protocol/lifecycle, streaming event parsing, skill MCP config merging, cron scheduler behavior, session continuity (bootstrap/resume/fallback), memory save/load mechanism, QMD auto-injection, group collaboration (orchestrator pattern, auth bypass, shared conversation), IME input handling, emoji width fixes
+- **[docs/SECURITY.md](docs/SECURITY.md)** -- Security audit: 35 findings (path traversal, token storage, rate limiting, env var injection, workspace limits). Check before adding file handling, user input, or subprocess code
 - **[docs/PLAN-26-0313-GROUP-MISSION.md](docs/PLAN-26-0313-GROUP-MISSION.md)** -- Group collaboration implementation plan: orchestrator pattern, shared conversation/workspace, CLAUDE.md composition, group-aware handlers

@@ -4,7 +4,7 @@ Last audited: 2026-02-25
 
 ## Summary
 
-Total issues found: 33 (Critical: 5, High: 4, Medium: 5, Low/Info: 19)
+Total issues found: 35 (Critical: 5, High: 4, Medium: 5, Low/Info: 21)
 
 ## Critical
 
@@ -171,11 +171,25 @@ Total issues found: 33 (Critical: 5, High: 4, Medium: 5, Low/Info: 19)
 - Regex in `parse_one_shot_time` not anchored for multiline (`cron.py:161`)
 - No max retry limit on `_call_with_resume_fallback` (`handlers.py`)
 
+### 34. Group Mode Authorization Bypass for Bots
+
+- **File**: `src/cclaw/handlers.py` (message_handler)
+- **Status**: By design
+- **Description**: In group mode, bot senders (`is_bot == True`) skip `allowed_users` authorization. This enables orchestrator-to-member @mention delegation. A malicious bot added to the Telegram group (but not in the group config) could send messages that bypass authorization, though `_should_handle_group_message()` filters by role and only processes messages from known group members.
+- **Mitigation**: Validate that the sending bot's username matches a known group member before skipping authorization.
+
+### 35. Shared Conversation Log Accessible to All Group Members
+
+- **File**: `src/cclaw/group.py` (log_to_shared_conversation)
+- **Status**: By design
+- **Description**: All bots in a group read the full shared conversation log. A compromised member bot could exfiltrate conversation history from other members' delegated tasks.
+- **Mitigation**: Accept as inherent to shared context model. Limit sensitive data to bot-specific memory (MEMORY.md) rather than group conversation.
+
 ## Positive Findings
 
 - All YAML loading uses `yaml.safe_load()` (no arbitrary code execution)
 - Subprocess execution uses `create_subprocess_exec` (no `shell=True`)
-- `allowed_users` permission check on all handlers
+- `allowed_users` permission check on all handlers (group mode: human users only, bots bypass by design)
 - Process tracking with proper cleanup on shutdown (`cancel_all_processes`)
 - Skill `allowed_tools` provides hard permission boundary in Claude Code `-p` mode
 
