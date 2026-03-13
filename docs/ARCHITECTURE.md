@@ -8,9 +8,11 @@ graph LR
     PTB <--> H[handlers.py]
     H <--> CR[claude_runner.py]
     H <--> S[session.py]
+    H <--> G[group.py]
     CR <--> SK[skill.py]
     S <--> BOTS[~/.cclaw/bots/]
     SK <--> SKILLS[~/.cclaw/skills/]
+    G <--> GROUPS[~/.cclaw/groups/]
 ```
 
 ### Claude Code Execution Paths
@@ -277,6 +279,20 @@ Full backup of `~/.cclaw/` directory to an AES-256 encrypted zip file.
 - Excludes runtime artifacts: `cclaw.pid`, `__pycache__/`
 - Same-day backup prompts for overwrite confirmation
 
+### 20. Group Collaboration (Orchestrator Pattern)
+
+Multi-bot collaboration via Telegram groups using an orchestrator-member pattern.
+
+- **One orchestrator per group**: Receives user messages, decomposes into tasks, delegates via @mention
+- **Members**: Only respond to @mention from bots, execute tasks, report back via @mention to orchestrator
+- **Authorization bypass**: Bot senders skip `allowed_users` check in group mode so bot-to-bot delegation works
+- **Shared conversation log**: All messages (user, bot inputs, Claude responses) logged to date-based files (`groups/<name>/conversation/YYMMDD.md`)
+- **Shared workspace**: Persistent file workspace across all group members, preserved on `/reset`
+- **CLAUDE.md injection**: `compose_group_claude_md()` injects team roster + rules for orchestrator, role context + shared conversation history for members
+- **Data model**: `groups/<name>/group.yaml` stores name, orchestrator, members list, telegram_chat_id
+- **CLI**: `cclaw group create/list/show/delete/status`
+- **Telegram**: `/bind <group>`, `/unbind` to associate chat with group config
+
 ## Module Dependencies
 
 ```mermaid
@@ -289,6 +305,7 @@ graph TD
     CLI --> BAK[backup.py]
     CLI --> TC[token_compact.py]
     CLI --> SK[skill.py]
+    CLI --> GR[group.py]
 
     OB --> CFG[config.py]
     OB --> BR
@@ -307,6 +324,7 @@ graph TD
     HA --> BS[builtin_skills]
     HA --> TC
     HA --> SE[session.py]
+    HA --> GR
     HA --> CFG
     HA --> UT[utils.py]
 
@@ -330,6 +348,9 @@ graph TD
 
     SK --> CFG
     SK --> BS
+    SK --> GR
+
+    GR --> CFG
 
     CFG -.->|lazy import| SK
 
@@ -337,6 +358,7 @@ graph TD
     style BM fill:#36c,color:#fff
     style HA fill:#f90,color:#fff
     style CR fill:#f90,color:#fff
+    style GR fill:#2d6,color:#fff
 ```
 
 ## Process Management
@@ -451,4 +473,24 @@ graph TD
     OK -->|No| SEND[Send to allowed_users]
     LOG --> LOOP
     SEND --> LOOP
+```
+
+### Group Message Routing
+
+```mermaid
+graph TD
+    RCV[Receive Message] --> BIND{"find_group_by_chat_id()"}
+    BIND -->|Not bound| AUTH1[check_authorization]
+    AUTH1 --> DM["_process_message() (DM mode)"]
+
+    BIND -->|Bound| BOT{sender_is_bot?}
+    BOT -->|Yes| SKIP[Skip authorization]
+    BOT -->|No| AUTH2[check_authorization]
+    AUTH2 --> LOG
+    SKIP --> LOG[log_to_shared_conversation]
+    LOG --> SHOULD{"_should_handle_group_message()"}
+    SHOULD -->|No| IGNORE[Return]
+    SHOULD -->|Yes| PROC["_process_message()"]
+    PROC --> RESP[Claude response]
+    RESP --> LOGR[log_to_shared_conversation response]
 ```

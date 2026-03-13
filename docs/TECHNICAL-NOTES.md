@@ -785,6 +785,58 @@ Patches at the `shutil` module level (not per-module reference) to ensure all co
 
 Note: `test_claude_runner.py`'s `mock_claude_path` fixture uses `side_effect` (not `return_value`) to return `/usr/local/bin/claude` only for `"claude"` and `None` for other commands. Using `return_value` would return the claude path for all `shutil.which()` calls including `"qmd"`, triggering QMD auto-injection.
 
+## Group Collaboration
+
+### Orchestrator Pattern
+
+Each group has one orchestrator and zero or more members. The orchestrator receives user messages and bot reports; members only respond to @mentions from bots.
+
+### Message Routing (`_should_handle_group_message`)
+
+Role-based filtering in `handlers.py`:
+
+- **Orchestrator**: Handles user messages (`not is_bot`) and member bot @mentions (bot message mentioning orchestrator's username)
+- **Member**: Only handles messages from bots that @mention the member's username
+- **Self-message**: All bots ignore their own messages (sender user_id == bot.id)
+
+### Authorization Bypass for Bots
+
+When `allowed_users` is configured, bot-to-bot @mention delegation would fail because bot user IDs aren't in the allowlist. Solution: in `message_handler`, group binding is checked **before** authorization. If the sender is a bot (`is_bot == True`) in a bound group, authorization is skipped entirely. Human users are still checked against `allowed_users`.
+
+### Shared Conversation Log
+
+All group messages are logged to `groups/<name>/conversation/YYMMDD.md` (UTC date):
+
+- **User input**: Logged in `message_handler` before `_should_handle_group_message`
+- **Claude response**: Logged in `_process_message` after `log_conversation`, via `find_group_by_chat_id` check
+- **Deduplication**: Each bot process that receives the same group update writes the incoming message. Since each bot only writes its own Claude response (not other bots'), response logs are not duplicated.
+- **Format**: `[HH:MM:SS] sender: content` where sender is "user" or "@bot_name"
+
+### Shared Workspace
+
+`groups/<name>/workspace/` is a flat directory shared by all group members. Bots write outputs here for inter-bot collaboration. The workspace is **preserved** on `/reset` (only conversation and sessions are cleared).
+
+### CLAUDE.md Group Context Injection
+
+`compose_group_claude_md()` in `skill.py` generates role-specific CLAUDE.md:
+
+- **Orchestrator**: Team roster (member names, usernames, roles), delegation rules (use @mention), synthesis instructions
+- **Member**: Own role context, shared conversation history (recent messages for context continuity)
+
+The group CLAUDE.md is written to each bot's session directory via `ensure_session()` when `find_group_by_chat_id()` returns a group config.
+
+### Session Reset in Groups
+
+`/reset` from orchestrator:
+1. Clears all bots' sessions (orchestrator + members) for this chat
+2. Clears shared conversation log
+3. Preserves shared workspace
+4. Members' `/reset` is ignored (only orchestrator can reset)
+
+### Session CLAUDE.md After Unbind
+
+When `/unbind` removes a group binding, existing session CLAUDE.md files retain stale group context. This is resolved on next message: `ensure_session()` regenerates CLAUDE.md from the current bot's `CLAUDE.md` (which no longer contains group context after the binding is removed).
+
 ## IME-Compatible CLI Input
 
 ### Problem
