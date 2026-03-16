@@ -186,26 +186,87 @@
     }
     .install-box .copied-toast.show { opacity: 1; }
 
-    /* Diagram */
-    .diagram {
+    /* Diagram Visual */
+    .diagram-visual {
       margin: 4rem auto 0;
       max-width: 640px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 2rem;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.75rem;
-      line-height: 1.8;
-      color: var(--text-secondary);
-      text-align: left;
-      overflow-x: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
     }
-    .diagram .c-accent { color: var(--accent); }
-    .diagram .c-green { color: var(--green); }
-    .diagram .c-purple { color: var(--purple); }
-    .diagram .c-orange { color: var(--orange); }
-    .diagram .c-pink { color: var(--pink); }
+    .diag-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      width: 100%;
+      justify-content: center;
+    }
+    .diag-arrow {
+      color: var(--text-tertiary);
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+    .diag-box {
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      font-size: 0.85rem;
+    }
+    .diag-telegram {
+      background: rgba(88, 166, 255, 0.06);
+      border: 1px solid rgba(88, 166, 255, 0.2);
+      min-width: 140px;
+    }
+    .diag-cclaw {
+      background: rgba(63, 185, 80, 0.06);
+      border: 1px solid rgba(63, 185, 80, 0.2);
+      flex: 1;
+    }
+    .diag-dashboard {
+      background: rgba(247, 120, 186, 0.06);
+      border: 1px solid rgba(247, 120, 186, 0.2);
+      text-align: center;
+    }
+    .diag-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 0.75rem;
+    }
+    .diag-telegram .diag-label { color: var(--accent); }
+    .diag-cclaw .diag-label { color: var(--green); }
+    .diag-dashboard .diag-label { color: var(--pink); }
+    .diag-item {
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      line-height: 1.9;
+    }
+    .diag-inner {
+      margin-top: 0.75rem;
+      padding: 0.6rem 0.85rem;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.03);
+      border: 1px dashed var(--border);
+      font-size: 0.8rem;
+      line-height: 1.7;
+    }
+    .diag-connector {
+      color: var(--text-tertiary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1rem;
+      line-height: 1.8;
+      text-align: center;
+    }
+    .c-purple { color: var(--purple); }
+    .c-orange { color: var(--orange); }
+    @media (max-width: 640px) {
+      .diag-row { flex-direction: column; gap: 0.5rem; }
+      .diag-arrow { transform: rotate(90deg); }
+      .diag-telegram { min-width: unset; width: 100%; }
+    }
 
     /* Features */
     .features { padding: 5rem 0; }
@@ -432,26 +493,34 @@
         </svg>
       </div>
 
-      <div class="diagram">
-<pre>
-<span class="c-accent">┌── Telegram ──┐</span>     <span class="c-green">┌── cclaw ──────────────────────┐</span>
-<span class="c-accent">│              │</span>     <span class="c-green">│                               │</span>
-<span class="c-accent">│  💬 Chat     │</span>────▶<span class="c-green">│  🤖 Multi-Bot Manager         │</span>
-<span class="c-accent">│  📎 Files    │</span>◀────<span class="c-green">│  📁 File-Based Sessions       │</span>
-<span class="c-accent">│  📷 Photos   │</span>     <span class="c-green">│  🧩 Skill System              │</span>
-<span class="c-accent">│              │</span>     <span class="c-green">│  ⏰ Cron Automation           │</span>
-<span class="c-accent">└──────────────┘</span>     <span class="c-green">│  💓 Heartbeat                 │</span>
-                     <span class="c-green">│  👥 Group Collaboration       │</span>
-                     <span class="c-green">│                               │</span>
-                     <span class="c-green">│  ┌───────────────────────┐   │</span>
-                     <span class="c-green">│  │ <span class="c-purple">Claude Code (SDK Pool)</span> │   │</span>
-                     <span class="c-green">│  │ <span class="c-orange">Persistent Sessions</span>   │   │</span>
-                     <span class="c-green">│  └───────────────────────┘   │</span>
-                     <span class="c-green">└───────────────────────────────┘</span>
-                                    │
-                     <span class="c-pink">┌── ClawHouse Dashboard ──┐</span>
-                     <span class="c-pink">│  🖥 Web UI (port 3847)   │</span>
-                     <span class="c-pink">└──────────────────────────┘</span></pre>
+      <div class="diagram-visual">
+        <div class="diag-row">
+          <div class="diag-box diag-telegram">
+            <div class="diag-label">Telegram</div>
+            <div class="diag-item">💬 Chat</div>
+            <div class="diag-item">📎 Files</div>
+            <div class="diag-item">📷 Photos</div>
+          </div>
+          <div class="diag-arrow">⟷</div>
+          <div class="diag-box diag-cclaw">
+            <div class="diag-label">cclaw</div>
+            <div class="diag-item">🤖 Multi-Bot Manager</div>
+            <div class="diag-item">📁 File-Based Sessions</div>
+            <div class="diag-item">🧩 Skill System</div>
+            <div class="diag-item">⏰ Cron Automation</div>
+            <div class="diag-item">💓 Heartbeat</div>
+            <div class="diag-item">👥 Group Collaboration</div>
+            <div class="diag-inner">
+              <span class="c-purple">Claude Code (SDK Pool)</span><br>
+              <span class="c-orange">Persistent Sessions</span>
+            </div>
+          </div>
+        </div>
+        <div class="diag-connector">│</div>
+        <div class="diag-box diag-dashboard">
+          <div class="diag-label">ClawHouse Dashboard</div>
+          <div class="diag-item">🖥 Web UI (port 3847)</div>
+        </div>
       </div>
     </div>
   </section>
