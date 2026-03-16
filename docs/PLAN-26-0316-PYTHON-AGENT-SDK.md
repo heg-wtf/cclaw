@@ -173,19 +173,189 @@ class SDKClientPool:
 | ClaudeSDKClient 세션이 오래 유지되면 메모리 누수 | 일정 시간/메시지 수 후 세션 재생성 |
 | claude-agent-sdk 패키지가 아직 불안정할 수 있음 | subprocess fallback을 항상 유지 |
 
-## 검증 항목
+## 테스트 케이스
 
-- [ ] `uv run pytest` 전체 통과
+### tests/test_sdk_client.py (신규)
+
+기존 `test_bridge.py`의 14개 테스트를 SDK client 기반으로 대체한다.
+
+#### SDK Client Pool 수명주기
+
+| 테스트 | 설명 |
+|---|---|
+| `test_get_or_create_new_session` | 새 session_key로 ClaudeSDKClient 생성 확인 |
+| `test_get_or_create_existing_session` | 같은 session_key로 기존 client 재사용 확인 |
+| `test_close_session` | 특정 세션 종료 후 pool에서 제거 확인 |
+| `test_close_all_sessions` | 모든 세션 종료, pool 비어있는지 확인 |
+| `test_close_nonexistent_session` | 없는 세션 종료 시 에러 없이 no-op |
+
+#### SDK Query (non-streaming)
+
+| 테스트 | 설명 |
+|---|---|
+| `test_sdk_query_success` | 정상 쿼리 → 응답 텍스트 반환 |
+| `test_sdk_query_with_options` | model, cwd, permission_mode, allowed_tools 옵션 전달 확인 |
+| `test_sdk_query_session_continuity` | 같은 client에서 connect() → query() 후속 메시지, 컨텍스트 유지 |
+| `test_sdk_query_timeout` | 타임아웃 시 TimeoutError 발생 |
+| `test_sdk_query_sdk_not_installed` | claude-agent-sdk 미설치 시 ImportError → fallback 신호 |
+
+#### SDK Query (streaming)
+
+| 테스트 | 설명 |
+|---|---|
+| `test_sdk_query_streaming_text_chunks` | 스트리밍 중 on_text_chunk 콜백 호출 확인 |
+| `test_sdk_query_streaming_final_result` | 스트리밍 완료 후 최종 텍스트 반환 |
+| `test_sdk_query_streaming_callback_error` | 콜백 에러 시 스트리밍 중단 없이 계속 |
+
+#### SDK Interrupt
+
+| 테스트 | 설명 |
+|---|---|
+| `test_sdk_interrupt` | client.interrupt() 호출 시 실행 중인 쿼리 중단 |
+| `test_sdk_interrupt_no_running_query` | 실행 중인 쿼리 없을 때 interrupt() no-op |
+
+#### SDK Error Handling
+
+| 테스트 | 설명 |
+|---|---|
+| `test_sdk_query_runtime_error` | SDK RuntimeError → RuntimeError 전파 |
+| `test_sdk_query_connection_error` | SDK 연결 실패 → ConnectionError |
+
+### tests/test_claude_runner.py (수정)
+
+기존 bridge wrapper 테스트 4개를 SDK wrapper로 교체한다.
+
+| 기존 테스트 | 변경 후 | 설명 |
+|---|---|---|
+| `test_run_with_bridge_success` | `test_run_with_sdk_success` | SDK client 사용 시 정상 응답 반환 |
+| `test_run_with_bridge_fallback_when_not_running` | `test_run_with_sdk_fallback_when_unavailable` | SDK 사용 불가 시 subprocess fallback |
+| `test_run_with_bridge_error_falls_back` | `test_run_with_sdk_error_falls_back` | SDK 에러 시 subprocess fallback |
+| `test_run_with_bridge_no_session_key_skips_bridge` | `test_run_with_sdk_no_session_key` | session_key 없으면 subprocess 직접 사용 |
+
+추가 테스트:
+
+| 테스트 | 설명 |
+|---|---|
+| `test_run_with_sdk_streaming_success` | SDK 스트리밍 쿼리 정상 동작 |
+| `test_run_with_sdk_streaming_fallback` | SDK 스트리밍 실패 시 subprocess 스트리밍으로 fallback |
+| `test_run_with_sdk_session_reuse` | 동일 session_key로 재호출 시 기존 세션 재사용 |
+
+### tests/test_bot_manager.py (수정)
+
+| 기존 테스트 | 변경 후 | 설명 |
+|---|---|---|
+| bridge 시작 성공/실패 | `test_startup_sdk_client_pool_initialized` | 시작 시 SDKClientPool 초기화 확인 |
+| bridge 종료 | `test_shutdown_sdk_client_pool_closed` | 종료 시 close_all() 호출 확인 |
+| (신규) | `test_startup_without_sdk_falls_back` | SDK 미설치 시 subprocess 모드로 시작, 경고 출력 |
+
+### tests/test_bridge.py → 삭제
+
+기존 14개 테스트 전부 `test_sdk_client.py`로 대체. 파일 삭제.
+
+### tests/evaluation/test_sdk_live.py (신규, CI 제외)
+
+실제 Claude API를 호출하는 평가 테스트. `--ignore=tests/evaluation`으로 CI에서 제외.
+
+| 테스트 | 설명 |
+|---|---|
+| `test_live_sdk_query_simple` | 간단한 질문 → 응답 수신 확인 |
+| `test_live_sdk_session_continuity` | connect → query → query, 3번째 메시지에서 첫 번째 컨텍스트 기억 확인 |
+| `test_live_sdk_streaming` | 스트리밍 모드에서 chunk 수신 확인 |
+| `test_live_sdk_interrupt` | 긴 작업 중 interrupt → 중단 확인 |
+| `test_live_sdk_with_tools` | allowed_tools 설정 후 도구 사용 응답 확인 |
+
+## 검증 방법
+
+### 자동화 검증 (CI)
+
+```bash
+# 1. 린트 & 포맷
+uv run ruff check . && uv run ruff format --check .
+
+# 2. 단위 테스트 (SDK mock)
+uv run pytest tests/ --ignore=tests/evaluation -v
+
+# 3. 커버리지 확인 (sdk_client.py, claude_runner.py 90% 이상)
+uv run pytest tests/ --ignore=tests/evaluation --cov=cclaw.sdk_client --cov=cclaw.claude_runner --cov-fail-under=90
+```
+
+### 수동 검증 (로컬)
+
+#### 기본 동작
+
+```bash
+# 1. SDK 의존성 설치 확인
+uv sync
+python -c "from claude_agent_sdk import ClaudeSDKClient; print('OK')"
+
+# 2. 봇 시작 (SDK 모드)
+cclaw start
+# → "[green]SDK[/green] Python Agent SDK" 로그 확인
+# → bridge 관련 로그 없음 확인
+
+# 3. Telegram에서 메시지 전송 → 응답 수신
+# 4. 후속 메시지 전송 → 이전 컨텍스트 기억 확인
+```
+
+#### 세션 연속성
+
+```
+사용자: "내 이름은 철수야"
+봇: (응답)
+사용자: "내 이름이 뭐라고 했지?"
+봇: "철수" 포함 응답 확인
+```
+
+#### 스트리밍
+
+```
+사용자: 긴 응답 유도 메시지 전송
+→ Telegram에서 sendMessageDraft로 점진적 업데이트 확인
+→ 최종 메시지 정상 완료 확인
+```
+
+#### Fallback
+
+```bash
+# SDK 강제 비활성화 후 subprocess fallback 확인
+pip uninstall claude-agent-sdk
+cclaw start
+# → "[yellow]SDK[/yellow] Not available, using subprocess fallback" 로그 확인
+# → Telegram 메시지 정상 응답 확인
+```
+
+#### 인터럽트
+
+```
+사용자: 긴 작업 요청
+사용자: /cancel
+→ 실행 중단, "취소됨" 응답 확인
+→ 다음 메시지 정상 처리 확인
+```
+
+#### Node.js 미설치 환경
+
+```bash
+# Node.js 없는 환경에서 cclaw start
+# → bridge 시작 시도 없음
+# → SDK 또는 subprocess로 정상 동작
+```
+
+### 회귀 테스트 체크리스트
+
+- [ ] `uv run pytest` 전체 통과 (test_bridge.py 삭제, test_sdk_client.py 추가)
 - [ ] `uv run ruff check . && uv run ruff format .` 통과
 - [ ] 단일 봇 메시지 송수신 정상
 - [ ] 세션 연속성 (후속 메시지에서 이전 컨텍스트 기억)
 - [ ] 스트리밍 응답 정상
 - [ ] `/cancel` 인터럽트 정상
 - [ ] `/reset` 세션 초기화 정상
-- [ ] Cron/Heartbeat 정상 동작
+- [ ] Cron job 정상 동작
+- [ ] Heartbeat 정상 동작
 - [ ] Group collaboration 정상 동작
 - [ ] SDK 불가 시 subprocess fallback 정상
 - [ ] Node.js 미설치 환경에서 정상 동작
+- [ ] `bridge.py`, `bridge/`, `bridge_data/` 잔여 import 없음
 
 ## 의존성 변경
 
