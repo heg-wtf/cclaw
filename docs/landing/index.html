@@ -310,6 +310,7 @@
       line-height: 2;
       overflow-x: auto;
     }
+    .cli-block pre { margin: 0; font-family: inherit; font-size: inherit; line-height: inherit; }
     .cli-block .comment { color: var(--text-tertiary); }
     .cli-block .prompt { color: var(--green); }
     .cli-block .flag { color: var(--orange); }
@@ -538,7 +539,7 @@
     <div class="container">
       <h2>CLI First</h2>
       <p class="subtitle">Everything from onboarding to deployment, in the terminal.</p>
-      <div class="cli-block">
+      <div class="cli-block"><pre>
 <span class="comment"># Setup</span>
 <span class="prompt">$</span> <span class="cmd">cclaw</span> init
 <span class="prompt">$</span> <span class="cmd">cclaw</span> bot add
@@ -556,7 +557,7 @@
 <span class="prompt">$</span> <span class="cmd">cclaw</span> heartbeat enable my-bot
 
 <span class="comment"># Dashboard</span>
-<span class="prompt">$</span> <span class="cmd">cclaw</span> dashboard start <span class="flag">--daemon</span>
+<span class="prompt">$</span> <span class="cmd">cclaw</span> dashboard start <span class="flag">--daemon</span></pre>
       </div>
     </div>
   </section>
