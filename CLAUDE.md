@@ -189,7 +189,10 @@ Multi-bot collaboration via Telegram groups using an orchestrator pattern:
 - Log management: view, filter, delete (single/bulk/by-age), daemon log truncate
 - Settings: timezone/language Select dropdowns, Home directory with Finder open link, bot paths as relative links
 - `PathLink` component: clickable paths that open Finder via `/api/open-finder`
-- Skills split: `BUILTIN_SKILL_NAMES` Set in `lib/cclaw.ts` classifies built-in vs custom
+- Skills: built-in (read-only) vs custom (full CRUD: add/edit/delete), classified by `isBuiltin` flag from API
+- Session management: per-session delete in bot detail, per-conversation-file delete in conversation viewer
+- Memory editor: markdown rendering in view mode (react-markdown + @tailwindcss/typography), raw edit mode
+- Sidebar: collapsible Bots/Skills sections, theme toggle with emoji icon
 - See **[docs/PLAN-26-0311-CLAWHOUSE.md](docs/PLAN-26-0311-CLAWHOUSE.md)** for full plan and implementation status
 
 ## Essential References

@@ -352,12 +352,12 @@ cd clawhouse && npx next dev --port 3847
 | Feature | Description |
 |---------|-------------|
 | Dashboard | Bot cards, quick stats, disk usage, system status |
-| Bot Detail | Profile, cron jobs, sessions, memory editor |
+| Bot Detail | Profile, cron editor (recurring/one-shot), session management (delete), memory editor (markdown view) |
 | Bot Editor | Edit bot.yaml fields (model, skills, personality, heartbeat) |
-| Skills | Built-in / Custom split, skill cards with usage info |
-| Settings | Global config editor, global memory editor |
-| Logs | Date picker, text filter, paginated viewer |
-| Conversations | Per-chat conversation viewer with date navigation |
+| Skills | Built-in (read-only) / Custom (add, edit, delete), skill cards with usage info |
+| Settings | Timezone/language Select dropdowns, Home directory with Finder open, global memory editor |
+| Logs | Date picker, text filter, delete (single/bulk/by-age), daemon log truncate |
+| Conversations | Per-chat conversation viewer with date navigation, individual file delete |
 
 **Tech Stack**: Next.js 16 + shadcn/ui + Tailwind CSS + js-yaml. Reads `~/.cclaw/` directly (no database).
 
@@ -393,10 +393,6 @@ Configuration and session data are stored in `~/.cclaw/`. Override the path with
 │       ├── group.yaml            # Group config (orchestrator, members, chat_id)
 │       ├── conversation/         # Shared conversation logs (YYMMDD.md)
 │       └── workspace/            # Shared workspace (persistent across resets)
-├── bridge/
-│   ├── server.mjs            # Bridge server (auto-copied from package data)
-│   ├── package.json          # NPM package (@anthropic-ai/claude-agent-sdk)
-│   └── node_modules/         # NPM dependencies (auto-installed)
 ├── skills/
 │   └── <skill-name>/
 │       ├── SKILL.md          # Skill instructions (required)
