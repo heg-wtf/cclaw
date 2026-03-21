@@ -115,9 +115,9 @@ export function SettingsEditor({
               <Label>Timezone</Label>
               <Select
                 value={config.timezone}
-                onValueChange={(value: string) =>
-                  setConfig({ ...config, timezone: value })
-                }
+                onValueChange={(value) => {
+                  if (value) setConfig({ ...config, timezone: value });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -135,9 +135,9 @@ export function SettingsEditor({
               <Label>Language</Label>
               <Select
                 value={config.language}
-                onValueChange={(value: string) =>
-                  setConfig({ ...config, language: value })
-                }
+                onValueChange={(value) => {
+                  if (value) setConfig({ ...config, language: value });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
