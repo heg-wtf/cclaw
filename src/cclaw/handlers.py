@@ -1060,7 +1060,7 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
 
         if not context.args:
             from cclaw.builtin_skills import list_builtin_skills
-            from cclaw.skill import bots_using_skill, list_skills
+            from cclaw.skill import list_skills
 
             installed_skills = list_skills()
             installed_names = {skill["name"] for skill in installed_skills}
@@ -1074,21 +1074,34 @@ def make_handlers(bot_name: str, bot_path: Path, bot_config: dict[str, Any]) -> 
                 return
 
             builtin_names = {skill["name"] for skill in builtin_skills}
+            my_skills = set(attached_skills) if attached_skills else set()
 
-            lines = ["\U0001f9e9 *All Skills:*\n"]
+            my_attached = []
+            available = []
+            not_installed = []
             for skill in installed_skills:
                 type_display = "builtin" if skill["name"] in builtin_names else "custom"
-                if skill["status"] == "active":
-                    status_icon = "\u2705"
+                if skill["name"] in my_skills:
+                    my_attached.append(f"\u2705 `{skill['name']}` ({type_display})")
                 else:
-                    status_icon = "\U0001f6d1"
-                connected_bots = bots_using_skill(skill["name"])
-                attached_label = f" \u2190 {', '.join(connected_bots)}" if connected_bots else ""
-                lines.append(f"{status_icon} `{skill['name']}` ({type_display}){attached_label}")
+                    available.append(f"\u2796 `{skill['name']}` ({type_display})")
 
             for skill in not_installed_builtins:
-                lines.append(f"\U0001f4e6 `{skill['name']}` (builtin, not installed)")
+                not_installed.append(f"\U0001f4e6 `{skill['name']}` (builtin)")
 
+            lines = ["\U0001f9e9 *Used Skills:*\n"]
+            if my_attached:
+                lines.extend(my_attached)
+            else:
+                lines.append("No skills attached.")
+            if available:
+                lines.append("")
+                lines.append("\U0001f4cb *Available:*\n")
+                lines.extend(available)
+            if not_installed:
+                lines.append("")
+                lines.append("\U0001f4e6 *Not Installed:*\n")
+                lines.extend(not_installed)
             lines.append("")
             lines.append("`/skills attach <name>` | `/skills detach <name>`")
 

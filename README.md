@@ -164,7 +164,7 @@ cclaw group delete dev_team     # Delete a group
 | `/streaming on/off` | Toggle streaming mode |
 | `/memory` | Show bot memory |
 | `/memory clear` | Clear bot memory |
-| `/skills` | List all skills (installed + available builtins) |
+| `/skills` | Show bot's used, available, and not-installed skills |
 | `/skills attach <name>` | Attach a skill |
 | `/skills detach <name>` | Detach a skill |
 | `/cron list` | List cron jobs |

@@ -342,7 +342,8 @@ async def test_skills_handler_empty(bot_path, bot_config, mock_update):
 
 @pytest.mark.asyncio
 async def test_skills_handler_lists_all(bot_path, bot_config, mock_update):
-    """Skills handler lists all skills including unattached ones."""
+    """Skills handler shows bot's own attached and available skills."""
+    bot_config["skills"] = ["attached-skill"]
     handlers = make_handlers("test-bot", bot_path, bot_config)
     skills_handler = handlers[12]
 
@@ -356,15 +357,16 @@ async def test_skills_handler_lists_all(bot_path, bot_config, mock_update):
 
     with (
         patch("cclaw.skill.list_skills", return_value=mock_skills),
-        patch("cclaw.skill.bots_using_skill", side_effect=[["test-bot"], []]),
         patch("cclaw.builtin_skills.list_builtin_skills", return_value=[]),
     ):
         await skills_handler.callback(mock_update, mock_context)
 
     call_text = mock_update.message.reply_text.call_args[0][0]
+    assert "Used Skills" in call_text
     assert "attached-skill" in call_text
+    assert "\u2705" in call_text  # attached skill has checkmark
     assert "unattached-skill" in call_text
-    assert "All Skills" in call_text
+    assert "Available" in call_text
 
 
 @pytest.mark.asyncio
