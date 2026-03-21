@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 
 interface SessionData {
   chatId: string;
@@ -17,7 +18,7 @@ export default function ConversationPage() {
   const name = params.name as string;
   const chatId = params.chatId as string;
 
-  const [sessions, setSessions] = useState<SessionData[]>([]);
+  const [conversationFiles, setConversationFiles] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [content, setContent] = useState<string>("");
 
@@ -29,8 +30,8 @@ export default function ConversationPage() {
           (s: SessionData) => s.chatId === chatId,
         );
         if (session) {
-          setSessions([session]);
           const files = session.conversationFiles as string[];
+          setConversationFiles(files);
           if (files.length > 0) {
             const latest = files[files.length - 1];
             const date = latest.replace("conversation-", "").replace(".md", "");
@@ -58,8 +59,25 @@ export default function ConversationPage() {
     };
   }, [name, chatId, selectedDate]);
 
-  const conversationFiles =
-    sessions.length > 0 ? sessions[0].conversationFiles : [];
+  const handleDeleteConversation = async (date: string) => {
+    if (!window.confirm(`Delete conversation-${date}.md?`)) return;
+    await fetch(`/api/bots/${name}/conversations/${chatId}/${date}`, {
+      method: "DELETE",
+    });
+    const updated = conversationFiles.filter(
+      (f) => f !== `conversation-${date}.md`,
+    );
+    setConversationFiles(updated);
+    if (date === selectedDate) {
+      if (updated.length > 0) {
+        const latest = updated[updated.length - 1];
+        setSelectedDate(latest.replace("conversation-", "").replace(".md", ""));
+      } else {
+        setSelectedDate("");
+        setContent("");
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -81,18 +99,26 @@ export default function ConversationPage() {
         <h1 className="text-lg font-bold">chat_{chatId}</h1>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
         {conversationFiles.map((file: string) => {
           const date = file.replace("conversation-", "").replace(".md", "");
           return (
-            <Badge
-              key={date}
-              variant={date === selectedDate ? "default" : "outline"}
-              className="cursor-pointer"
-              onClick={() => setSelectedDate(date)}
-            >
-              {date}
-            </Badge>
+            <div key={date} className="flex items-center gap-0.5">
+              <Badge
+                variant={date === selectedDate ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => setSelectedDate(date)}
+              >
+                {date}
+              </Badge>
+              <button
+                onClick={() => handleDeleteConversation(date)}
+                className="text-muted-foreground hover:text-destructive text-xs px-1"
+                title={`Delete conversation-${date}.md`}
+              >
+                x
+              </button>
+            </div>
           );
         })}
       </div>
