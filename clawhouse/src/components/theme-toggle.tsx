@@ -2,7 +2,6 @@
 
 import { useTheme } from "next-themes";
 import { useSyncExternalStore } from "react";
-import { Button } from "@/components/ui/button";
 
 function useHydrated() {
   return useSyncExternalStore(
@@ -19,13 +18,18 @@ export function ThemeToggle() {
   if (!mounted) return null;
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
+    <button
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="text-xs"
+      className="relative inline-flex h-7 w-14 items-center rounded-full bg-muted transition-colors"
+      title={theme === "dark" ? "Switch to light" : "Switch to dark"}
     >
-      {theme === "dark" ? "Light" : "Dark"}
-    </Button>
+      <span
+        className={`inline-flex h-5 w-5 items-center justify-center rounded-full bg-background shadow transition-transform text-xs ${
+          theme === "dark" ? "translate-x-8" : "translate-x-1"
+        }`}
+      >
+        {theme === "dark" ? "🌙" : "☀️"}
+      </span>
+    </button>
   );
 }

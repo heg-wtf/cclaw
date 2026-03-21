@@ -185,6 +185,10 @@ Multi-bot collaboration via Telegram groups using an orchestrator pattern:
 - `cclaw status` includes dashboard info (local + network URL)
 - `--daemon` for background mode, `--port` for custom port (default 3847)
 - Bundled in wheel via `force-include` (clawhouse_data/), works after `pip install`
+- Cron editor: inline view/edit toggle in bot detail, supports recurring + one-shot jobs, skills picker
+- Log management: view, filter, delete (single/bulk/by-age), daemon log truncate
+- Settings: timezone/language Select dropdowns, Home directory with Finder open link, bot paths as relative links
+- `PathLink` component: clickable paths that open Finder via `/api/open-finder`
 - Skills split: `BUILTIN_SKILL_NAMES` Set in `lib/cclaw.ts` classifies built-in vs custom
 - See **[docs/PLAN-26-0311-CLAWHOUSE.md](docs/PLAN-26-0311-CLAWHOUSE.md)** for full plan and implementation status
 

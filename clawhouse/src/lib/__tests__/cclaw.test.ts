@@ -25,6 +25,7 @@ import {
   getSystemStatus,
   getDiskUsage,
   getSkillUsageByBots,
+  deleteLogFiles,
 } from "../cclaw";
 
 let testHome: string;
@@ -270,6 +271,52 @@ describe("getCronJobs / updateCronJobs", () => {
     expect(jobs).toHaveLength(1);
     expect(jobs[0].name).toBe("daily");
   });
+
+  it("reads one-shot cron jobs with at and delete_after_run fields", () => {
+    setupBasicConfig();
+    writeYamlFile(path.join(testHome, "bots", "testbot", "cron.yaml"), {
+      jobs: [
+        {
+          name: "one-shot-task",
+          enabled: true,
+          at: "2026-03-25T15:00:00",
+          message: "Run once",
+          delete_after_run: true,
+        },
+        {
+          name: "recurring-with-skills",
+          enabled: true,
+          schedule: "0 9 * * *",
+          message: "Daily check",
+          skills: ["imessage", "gmail"],
+        },
+      ],
+    });
+    const jobs = getCronJobs("testbot");
+    expect(jobs).toHaveLength(2);
+    expect(jobs[0].at).toBe("2026-03-25T15:00:00");
+    expect(jobs[0].delete_after_run).toBe(true);
+    expect(jobs[0].schedule).toBeUndefined();
+    expect(jobs[1].skills).toEqual(["imessage", "gmail"]);
+    expect(jobs[1].at).toBeUndefined();
+  });
+
+  it("writes one-shot cron jobs preserving at and delete_after_run", () => {
+    setupBasicConfig();
+    updateCronJobs("testbot", [
+      {
+        name: "reminder",
+        enabled: true,
+        message: "Remind me",
+        at: "2026-04-01T10:00:00",
+        delete_after_run: true,
+      },
+    ]);
+    const jobs = getCronJobs("testbot");
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].at).toBe("2026-04-01T10:00:00");
+    expect(jobs[0].delete_after_run).toBe(true);
+  });
 });
 
 // --- Skills ---
@@ -499,6 +546,38 @@ describe("getLogContent", () => {
     const page = getLogContent("cclaw-260310.log", 1, 2);
     expect(page.lines).toEqual(["line2", "line3"]);
     expect(page.totalLines).toBe(5);
+  });
+});
+
+describe("deleteLogFiles", () => {
+  it("deletes specified log files", () => {
+    const logsDir = path.join(testHome, "logs");
+    writeFile(path.join(logsDir, "cclaw-260308.log"), "log1");
+    writeFile(path.join(logsDir, "cclaw-260309.log"), "log2");
+    writeFile(path.join(logsDir, "cclaw-260310.log"), "log3");
+
+    const deleted = deleteLogFiles(["cclaw-260308.log", "cclaw-260309.log"]);
+    expect(deleted).toBe(2);
+    expect(listLogFiles()).toEqual(["cclaw-260310.log"]);
+  });
+
+  it("ignores nonexistent files", () => {
+    const deleted = deleteLogFiles(["cclaw-999999.log"]);
+    expect(deleted).toBe(0);
+  });
+
+  it("rejects invalid filenames", () => {
+    const logsDir = path.join(testHome, "logs");
+    writeFile(path.join(logsDir, "cclaw-260308.log"), "log1");
+    writeFile(path.join(logsDir, "other.txt"), "not a log");
+
+    const deleted = deleteLogFiles([
+      "../config.yaml",
+      "other.txt",
+      "cclaw-260308.log",
+    ]);
+    expect(deleted).toBe(1);
+    expect(fs.existsSync(path.join(logsDir, "other.txt"))).toBe(true);
   });
 });
 

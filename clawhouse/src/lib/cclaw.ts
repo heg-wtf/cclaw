@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import yaml from "js-yaml";
 
-function getCclawHome(): string {
+export function getCclawHome(): string {
   return process.env.CCLAW_HOME || path.join(process.env.HOME || "~", ".cclaw");
 }
 
@@ -34,11 +34,13 @@ export interface BotConfig {
 export interface CronJob {
   name: string;
   enabled: boolean;
-  schedule: string;
+  schedule?: string;
   message: string;
   timezone?: string;
   model?: string;
   skills?: string[];
+  at?: string;
+  delete_after_run?: boolean;
 }
 
 export interface SkillConfig {
@@ -386,6 +388,59 @@ export function getLogContent(
   } catch {
     return { lines: [], totalLines: 0 };
   }
+}
+
+function isValidLogFilename(filename: string): boolean {
+  return /^cclaw-\d{6}\.log$/.test(filename);
+}
+
+export function deleteLogFiles(filenames: string[]): number {
+  let deleted = 0;
+  for (const filename of filenames) {
+    if (!isValidLogFilename(filename)) continue;
+    const logPath = cclawPath("logs", filename);
+    try {
+      fs.unlinkSync(logPath);
+      deleted++;
+    } catch {
+      // file already gone
+    }
+  }
+  return deleted;
+}
+
+const DAEMON_LOG_FILES = ["daemon-stdout.log", "daemon-stderr.log"];
+
+export interface DaemonLogInfo {
+  name: string;
+  size: number;
+  exists: boolean;
+}
+
+export function getDaemonLogInfo(): DaemonLogInfo[] {
+  return DAEMON_LOG_FILES.map((name) => {
+    const logPath = cclawPath("logs", name);
+    try {
+      const stat = fs.statSync(logPath);
+      return { name, size: stat.size, exists: true };
+    } catch {
+      return { name, size: 0, exists: false };
+    }
+  });
+}
+
+export function truncateDaemonLogs(): number {
+  let truncated = 0;
+  for (const name of DAEMON_LOG_FILES) {
+    const logPath = cclawPath("logs", name);
+    try {
+      fs.writeFileSync(logPath, "");
+      truncated++;
+    } catch {
+      // file doesn't exist
+    }
+  }
+  return truncated;
 }
 
 // --- System Status ---

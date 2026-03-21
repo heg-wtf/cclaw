@@ -13,6 +13,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+const TIMEZONES = [
+  { value: "Asia/Seoul", label: "Asia/Seoul" },
+  { value: "Asia/Tokyo", label: "Asia/Tokyo" },
+  { value: "Asia/Shanghai", label: "Asia/Shanghai" },
+  { value: "Asia/Singapore", label: "Asia/Singapore" },
+  { value: "Asia/Kolkata", label: "Asia/Kolkata" },
+  { value: "Asia/Dubai", label: "Asia/Dubai" },
+  { value: "Europe/London", label: "Europe/London" },
+  { value: "Europe/Paris", label: "Europe/Paris" },
+  { value: "Europe/Berlin", label: "Europe/Berlin" },
+  { value: "America/New_York", label: "America/New_York" },
+  { value: "America/Chicago", label: "America/Chicago" },
+  { value: "America/Denver", label: "America/Denver" },
+  { value: "America/Los_Angeles", label: "America/Los_Angeles" },
+  { value: "America/Sao_Paulo", label: "America/Sao_Paulo" },
+  { value: "Australia/Sydney", label: "Australia/Sydney" },
+  { value: "Pacific/Auckland", label: "Pacific/Auckland" },
+  { value: "UTC", label: "UTC" },
+];
+
+const LANGUAGES = [
+  { value: "Korean", label: "Korean" },
+  { value: "English", label: "English" },
+  { value: "Japanese", label: "Japanese" },
+  { value: "Chinese", label: "Chinese" },
+];
+
 interface GlobalConfig {
   bots: { name: string; path: string }[];
   timezone: string;
@@ -86,21 +113,43 @@ export function SettingsEditor({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Timezone</Label>
-              <Input
+              <Select
                 value={config.timezone}
-                onChange={(e) =>
-                  setConfig({ ...config, timezone: e.target.value })
+                onValueChange={(value: string) =>
+                  setConfig({ ...config, timezone: value })
                 }
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIMEZONES.map((timezone) => (
+                    <SelectItem key={timezone.value} value={timezone.value}>
+                      {timezone.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Language</Label>
-              <Input
+              <Select
                 value={config.language}
-                onChange={(e) =>
-                  setConfig({ ...config, language: e.target.value })
+                onValueChange={(value: string) =>
+                  setConfig({ ...config, language: value })
                 }
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LANGUAGES.map((language) => (
+                    <SelectItem key={language.value} value={language.value}>
+                      {language.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Log Level</Label>

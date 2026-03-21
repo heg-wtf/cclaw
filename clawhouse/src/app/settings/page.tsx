@@ -1,4 +1,4 @@
-import { getConfig, getGlobalMemory } from "@/lib/cclaw";
+import { getConfig, getGlobalMemory, getCclawHome } from "@/lib/cclaw";
 import {
   Card,
   CardContent,
@@ -8,12 +8,14 @@ import {
 } from "@/components/ui/card";
 import { MemoryEditor } from "@/components/memory-editor";
 import { SettingsEditor } from "@/components/settings-editor";
+import { PathLink } from "@/components/path-link";
 
 export const dynamic = "force-dynamic";
 
 export default function SettingsPage() {
   const config = getConfig();
   const globalMemory = getGlobalMemory();
+  const cclawHome = getCclawHome();
 
   if (!config) {
     return <p className="text-muted-foreground">Config not found</p>;
@@ -30,6 +32,15 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-sm">Home</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PathLink path={cclawHome} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-sm">Registered Bots</CardTitle>
           <CardDescription className="text-xs">
             {config.bots.length} bots in config.yaml
@@ -37,14 +48,20 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2 text-sm">
-            {config.bots.map((bot) => (
-              <div key={bot.name} className="flex justify-between items-center">
-                <span className="font-medium">{bot.name}</span>
-                <span className="text-xs text-muted-foreground font-mono truncate max-w-[200px]">
-                  {bot.path}
-                </span>
-              </div>
-            ))}
+            {config.bots.map((bot) => {
+              const relativePath = bot.path.startsWith(cclawHome)
+                ? bot.path.slice(cclawHome.length + 1)
+                : bot.path;
+              return (
+                <div
+                  key={bot.name}
+                  className="flex justify-between items-center"
+                >
+                  <span className="font-medium">{bot.name}</span>
+                  <PathLink path={bot.path} displayPath={relativePath} />
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

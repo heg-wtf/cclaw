@@ -26,12 +26,11 @@ export function Sidebar() {
       .catch(() => {});
   }, []);
 
-  const botsInPath = pathname.startsWith("/bots");
-  const skillsInPath = pathname.startsWith("/skills");
-
-  // Auto-expand when navigating into a section (derived from pathname)
-  if (botsInPath && !botsOpen) setBotsOpen(true);
-  if (skillsInPath && !skillsOpen) setSkillsOpen(true);
+  // Auto-expand on first navigation into a section
+  useEffect(() => {
+    if (pathname.startsWith("/bots")) setBotsOpen(true);
+    if (pathname.startsWith("/skills")) setSkillsOpen(true);
+  }, []);
 
   const botsActive = pathname.startsWith("/bots");
   const skillsActive = pathname.startsWith("/skills");
@@ -174,8 +173,7 @@ export function Sidebar() {
           <span>Logs</span>
         </Link>
       </nav>
-      <div className="border-t p-3 flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">cclaw dashboard</span>
+      <div className="border-t p-3 flex justify-end">
         <ThemeToggle />
       </div>
     </aside>

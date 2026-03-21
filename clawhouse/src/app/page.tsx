@@ -59,7 +59,7 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Cron Jobs</CardDescription>
+            <CardDescription>Cron</CardDescription>
             <CardTitle className="text-3xl">{totalCronJobs}</CardTitle>
           </CardHeader>
         </Card>

@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getBot, getCronJobs, getBotSessions, getBotMemory } from "@/lib/cclaw";
+import {
+  getBot,
+  getCronJobs,
+  getBotSessions,
+  getBotMemory,
+  listSkills,
+} from "@/lib/cclaw";
 import {
   Card,
   CardContent,
@@ -13,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModelBadge } from "@/components/status-badge";
 import { MemoryEditor } from "@/components/memory-editor";
+import { CronEditor } from "@/components/cron-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +35,7 @@ export default async function BotDetailPage({
   const cronJobs = getCronJobs(name);
   const sessions = getBotSessions(name);
   const memory = getBotMemory(name);
+  const availableSkillNames = listSkills().map((skill) => skill.name);
 
   return (
     <div className="space-y-6">
@@ -54,7 +62,7 @@ export default async function BotDetailPage({
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="cron">
-            Cron Jobs{cronJobs.length > 0 && ` (${cronJobs.length})`}
+            Cron{cronJobs.length > 0 && ` (${cronJobs.length})`}
           </TabsTrigger>
           <TabsTrigger value="sessions">
             Sessions{sessions.length > 0 && ` (${sessions.length})`}
@@ -176,54 +184,11 @@ export default async function BotDetailPage({
         </TabsContent>
 
         <TabsContent value="cron" className="mt-4">
-          {cronJobs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No cron jobs configured
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {cronJobs.map((job) => (
-                <Card key={job.name}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm">{job.name}</CardTitle>
-                      <Badge
-                        variant={job.enabled ? "default" : "secondary"}
-                        className="text-xs"
-                      >
-                        {job.enabled ? "Active" : "Disabled"}
-                      </Badge>
-                    </div>
-                    <CardDescription className="font-mono text-xs">
-                      {job.schedule}
-                      {job.timezone && ` (${job.timezone})`}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm">{job.message}</p>
-                    {job.model && (
-                      <Badge variant="outline" className="text-xs mt-2">
-                        {job.model}
-                      </Badge>
-                    )}
-                    {job.skills && job.skills.length > 0 && (
-                      <div className="flex gap-1 mt-2">
-                        {job.skills.map((s) => (
-                          <Badge
-                            key={s}
-                            variant="secondary"
-                            className="text-xs"
-                          >
-                            {s}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          <CronEditor
+            botName={name}
+            initialJobs={cronJobs}
+            availableSkills={availableSkillNames}
+          />
         </TabsContent>
 
         <TabsContent value="sessions" className="mt-4">

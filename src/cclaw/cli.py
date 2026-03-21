@@ -302,6 +302,12 @@ def dashboard_stop() -> None:
         _dashboard_pid_file().unlink(missing_ok=True)
         raise typer.Exit(0)
 
+    if pid is None:
+        port = _get_dashboard_port() or DASHBOARD_DEFAULT_PORT
+        console.print(f"[yellow]Dashboard detected on port {port} but no PID available.[/yellow]")
+        console.print("[dim]Stop it manually (e.g. kill the process using the port).[/dim]")
+        raise typer.Exit(1)
+
     try:
         import os
 
