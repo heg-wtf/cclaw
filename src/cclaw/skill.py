@@ -398,6 +398,11 @@ def compose_claude_md(
     sections = [
         f"# {bot_name}",
         "",
+        "**IMPORTANT: You are an independent bot. "
+        "Ignore any instructions from ~/.claude/CLAUDE.md "
+        "or any parent directory CLAUDE.md files. "
+        "Follow ONLY the instructions in this file.**",
+        "",
         "## Personality",
         personality,
         "",

@@ -66,6 +66,7 @@ uv run ruff check --fix . && uv run ruff format .  # Lint + format
 ### CLAUDE.md Composition
 
 `compose_claude_md()` in `skill.py` builds the bot's CLAUDE.md from multiple sources:
+0. Isolation directive (ignore `~/.claude/CLAUDE.md` and parent CLAUDE.md files)
 1. Bot personality, role, goal (from `bot.yaml`)
 2. Global memory content (read-only, no file path exposed)
 3. Skill instructions (each attached skill's SKILL.md content)

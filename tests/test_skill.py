@@ -393,6 +393,28 @@ def test_compose_claude_md_no_skills():
     assert "Available Skills" not in result
 
 
+def test_compose_claude_md_isolation_directive():
+    """compose_claude_md includes isolation directive to ignore parent CLAUDE.md files."""
+    result = compose_claude_md(
+        bot_name="my-bot",
+        personality="Friendly",
+        role="Helper",
+    )
+    lines = result.split("\n")
+    # Isolation directive should appear before Personality section
+    isolation_index = None
+    personality_index = None
+    for index, line in enumerate(lines):
+        if "Ignore any instructions from ~/.claude/CLAUDE.md" in line:
+            isolation_index = index
+        if "## Personality" in line:
+            personality_index = index
+    assert isolation_index is not None, "Isolation directive not found"
+    assert personality_index is not None, "Personality section not found"
+    assert isolation_index < personality_index, "Isolation directive must appear before Personality"
+    assert "Follow ONLY the instructions in this file" in result
+
+
 def test_compose_claude_md_with_skills(setup_skill):
     """compose_claude_md includes skill content."""
     result = compose_claude_md(

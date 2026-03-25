@@ -48,7 +48,7 @@ wheels = [
 
 [[package]]
 name = "cclaw"
-version = "2026.3.20"
+version = "2026.3.21"
 source = { editable = "." }
 dependencies = [
     { name = "claude-agent-sdk" },
