@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from cclaw.claude_runner import run_claude_one_shot
+from abyss.claude_runner import run_claude_one_shot
 
 # --- Test fixtures ---
 

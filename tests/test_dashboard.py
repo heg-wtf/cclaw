@@ -10,7 +10,7 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from cclaw.cli import (
+from abyss.cli import (
     DASHBOARD_DEFAULT_PORT,
     _get_dashboard_port,
     _is_dashboard_running,
@@ -22,11 +22,11 @@ runner = CliRunner()
 
 
 @pytest.fixture()
-def temp_cclaw_home(tmp_path, monkeypatch):
-    """Set CCLAW_HOME to a temporary directory."""
-    home = tmp_path / ".cclaw"
+def temp_abyss_home(tmp_path, monkeypatch):
+    """Set ABYSS_HOME to a temporary directory."""
+    home = tmp_path / ".abyss"
     home.mkdir()
-    monkeypatch.setenv("CCLAW_HOME", str(home))
+    monkeypatch.setenv("ABYSS_HOME", str(home))
 
     config = {
         "bots": [{"name": "testbot", "path": str(home / "bots" / "testbot")}],
@@ -78,9 +78,9 @@ def test_is_port_in_use_with_free_port():
 # --- _is_dashboard_running ---
 
 
-def test_is_dashboard_running_with_valid_pid_file(temp_cclaw_home):
+def test_is_dashboard_running_with_valid_pid_file(temp_abyss_home):
     """Should detect running dashboard from pid file."""
-    pid_file = temp_cclaw_home / "clawhouse.pid"
+    pid_file = temp_abyss_home / "abysscope.pid"
     pid_file.write_text(f"{os.getpid()}\n3847\n")
 
     running, pid = _is_dashboard_running()
@@ -88,12 +88,12 @@ def test_is_dashboard_running_with_valid_pid_file(temp_cclaw_home):
     assert pid == os.getpid()
 
 
-def test_is_dashboard_running_with_stale_pid_file(temp_cclaw_home):
+def test_is_dashboard_running_with_stale_pid_file(temp_abyss_home):
     """Stale pid file with dead process should be cleaned up."""
-    pid_file = temp_cclaw_home / "clawhouse.pid"
+    pid_file = temp_abyss_home / "abysscope.pid"
     pid_file.write_text("999999\n3847\n")
 
-    with patch("cclaw.cli._is_port_in_use", return_value=False):
+    with patch("abyss.cli._is_port_in_use", return_value=False):
         running, pid = _is_dashboard_running()
 
     assert running is False
@@ -101,30 +101,30 @@ def test_is_dashboard_running_with_stale_pid_file(temp_cclaw_home):
     assert not pid_file.exists()
 
 
-def test_is_dashboard_running_no_pid_file_port_in_use(temp_cclaw_home):
+def test_is_dashboard_running_no_pid_file_port_in_use(temp_abyss_home):
     """Should detect dashboard via port fallback when no pid file exists."""
-    with patch("cclaw.cli._is_port_in_use", return_value=True):
+    with patch("abyss.cli._is_port_in_use", return_value=True):
         running, pid = _is_dashboard_running()
 
     assert running is True
     assert pid is None
 
 
-def test_is_dashboard_running_no_pid_file_port_free(temp_cclaw_home):
+def test_is_dashboard_running_no_pid_file_port_free(temp_abyss_home):
     """Should report not running when no pid file and port is free."""
-    with patch("cclaw.cli._is_port_in_use", return_value=False):
+    with patch("abyss.cli._is_port_in_use", return_value=False):
         running, pid = _is_dashboard_running()
 
     assert running is False
     assert pid is None
 
 
-def test_is_dashboard_running_stale_pid_but_port_in_use(temp_cclaw_home):
+def test_is_dashboard_running_stale_pid_but_port_in_use(temp_abyss_home):
     """Stale pid file but port in use should detect via port fallback."""
-    pid_file = temp_cclaw_home / "clawhouse.pid"
+    pid_file = temp_abyss_home / "abysscope.pid"
     pid_file.write_text("999999\n3847\n")
 
-    with patch("cclaw.cli._is_port_in_use", return_value=True):
+    with patch("abyss.cli._is_port_in_use", return_value=True):
         running, pid = _is_dashboard_running()
 
     assert running is True
@@ -134,23 +134,23 @@ def test_is_dashboard_running_stale_pid_but_port_in_use(temp_cclaw_home):
 # --- _get_dashboard_port ---
 
 
-def test_get_dashboard_port_with_port_in_file(temp_cclaw_home):
+def test_get_dashboard_port_with_port_in_file(temp_abyss_home):
     """Should read port from second line of pid file."""
-    pid_file = temp_cclaw_home / "clawhouse.pid"
+    pid_file = temp_abyss_home / "abysscope.pid"
     pid_file.write_text(f"{os.getpid()}\n4000\n")
 
     assert _get_dashboard_port() == 4000
 
 
-def test_get_dashboard_port_single_line(temp_cclaw_home):
+def test_get_dashboard_port_single_line(temp_abyss_home):
     """Should return default port when pid file has only one line."""
-    pid_file = temp_cclaw_home / "clawhouse.pid"
+    pid_file = temp_abyss_home / "abysscope.pid"
     pid_file.write_text(f"{os.getpid()}\n")
 
     assert _get_dashboard_port() == DASHBOARD_DEFAULT_PORT
 
 
-def test_get_dashboard_port_no_file(temp_cclaw_home):
+def test_get_dashboard_port_no_file(temp_abyss_home):
     """Should return None when no pid file exists."""
     assert _get_dashboard_port() is None
 
@@ -158,9 +158,9 @@ def test_get_dashboard_port_no_file(temp_cclaw_home):
 # --- dashboard status CLI command ---
 
 
-def test_dashboard_status_running_with_pid(temp_cclaw_home):
+def test_dashboard_status_running_with_pid(temp_abyss_home):
     """CLI should show PID, port, and URL when pid file exists."""
-    pid_file = temp_cclaw_home / "clawhouse.pid"
+    pid_file = temp_abyss_home / "abysscope.pid"
     pid_file.write_text(f"{os.getpid()}\n3847\n")
 
     result = runner.invoke(app, ["dashboard", "status"])
@@ -171,10 +171,10 @@ def test_dashboard_status_running_with_pid(temp_cclaw_home):
     assert "http://localhost:3847" in result.output
 
 
-def test_dashboard_status_running_without_pid(temp_cclaw_home):
+def test_dashboard_status_running_without_pid(temp_abyss_home):
     """CLI should show port and URL even without PID (port fallback)."""
-    with patch("cclaw.cli._is_dashboard_running", return_value=(True, None)):
-        with patch("cclaw.cli._get_dashboard_port", return_value=None):
+    with patch("abyss.cli._is_dashboard_running", return_value=(True, None)):
+        with patch("abyss.cli._get_dashboard_port", return_value=None):
             result = runner.invoke(app, ["dashboard", "status"])
 
     assert result.exit_code == 0
@@ -183,9 +183,9 @@ def test_dashboard_status_running_without_pid(temp_cclaw_home):
     assert "http://localhost:3847" in result.output
 
 
-def test_dashboard_status_not_running(temp_cclaw_home):
+def test_dashboard_status_not_running(temp_abyss_home):
     """CLI should show not running message."""
-    with patch("cclaw.cli._is_dashboard_running", return_value=(False, None)):
+    with patch("abyss.cli._is_dashboard_running", return_value=(False, None)):
         result = runner.invoke(app, ["dashboard", "status"])
 
     assert result.exit_code == 0
@@ -195,11 +195,11 @@ def test_dashboard_status_not_running(temp_cclaw_home):
 # --- bot_manager _show_dashboard_status ---
 
 
-def test_show_dashboard_status_with_pid_file(temp_cclaw_home, capsys):
+def test_show_dashboard_status_with_pid_file(temp_abyss_home, capsys):
     """Should show dashboard info with PID when pid file exists."""
-    from cclaw.bot_manager import _show_dashboard_status
+    from abyss.bot_manager import _show_dashboard_status
 
-    pid_file = temp_cclaw_home / "clawhouse.pid"
+    pid_file = temp_abyss_home / "abysscope.pid"
     pid_file.write_text(f"{os.getpid()}\n3847\n")
 
     _show_dashboard_status()
@@ -207,23 +207,23 @@ def test_show_dashboard_status_with_pid_file(temp_cclaw_home, capsys):
     assert "running" in captured.out.lower() or "Dashboard" in captured.out
 
 
-def test_show_dashboard_status_port_fallback(temp_cclaw_home, capsys):
+def test_show_dashboard_status_port_fallback(temp_abyss_home, capsys):
     """Should detect dashboard via port when no pid file."""
-    from cclaw.bot_manager import _show_dashboard_status
+    from abyss.bot_manager import _show_dashboard_status
 
-    with patch("cclaw.bot_manager._is_port_in_use", return_value=True):
-        with patch("cclaw.bot_manager._get_local_ip", return_value="192.168.1.100"):
+    with patch("abyss.bot_manager._is_port_in_use", return_value=True):
+        with patch("abyss.bot_manager._get_local_ip", return_value="192.168.1.100"):
             _show_dashboard_status()
 
     captured = capsys.readouterr()
     assert "running" in captured.out.lower() or "Dashboard" in captured.out
 
 
-def test_show_dashboard_status_not_running(temp_cclaw_home, capsys):
+def test_show_dashboard_status_not_running(temp_abyss_home, capsys):
     """Should show not running when no pid file and port is free."""
-    from cclaw.bot_manager import _show_dashboard_status
+    from abyss.bot_manager import _show_dashboard_status
 
-    with patch("cclaw.bot_manager._is_port_in_use", return_value=False):
+    with patch("abyss.bot_manager._is_port_in_use", return_value=False):
         _show_dashboard_status()
 
     captured = capsys.readouterr()
@@ -235,7 +235,7 @@ def test_show_dashboard_status_not_running(temp_cclaw_home, capsys):
 
 def test_get_local_ip_returns_valid_ip():
     """Should return a valid IP address string."""
-    from cclaw.bot_manager import _get_local_ip
+    from abyss.bot_manager import _get_local_ip
 
     ip_address = _get_local_ip()
     parts = ip_address.split(".")
@@ -245,7 +245,7 @@ def test_get_local_ip_returns_valid_ip():
 
 def test_get_local_ip_fallback_on_error():
     """Should return 127.0.0.1 when socket fails."""
-    from cclaw.bot_manager import _get_local_ip
+    from abyss.bot_manager import _get_local_ip
 
     with patch("socket.socket") as mock_socket:
         mock_socket.return_value.__enter__ = lambda s: s

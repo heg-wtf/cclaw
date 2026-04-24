@@ -5,7 +5,7 @@ A skill that generates Naver Map web URLs to provide clickable place search and 
 ## Installation
 
 ```bash
-cclaw skills install naver-map
+abyss skills install naver-map
 ```
 
 ## Usage

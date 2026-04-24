@@ -1,6 +1,6 @@
 # iMessage Skill Guide
 
-A guide to installing and using the built-in iMessage skill for cclaw.
+A guide to installing and using the built-in iMessage skill for abyss.
 
 ## Overview
 
@@ -42,7 +42,7 @@ imsg requires **Full Disk Access** to read the message database.
 
 1. Open **System Settings** > **Privacy & Security** > **Full Disk Access**
 2. Add your terminal app (Terminal.app, iTerm2, etc.) and enable it
-3. If running cclaw as a daemon, the shell used by `launchd` also needs permission
+3. If running abyss as a daemon, the shell used by `launchd` also needs permission
 
 > Without permission, `imsg chats` will return empty results or errors.
 
@@ -51,15 +51,15 @@ imsg requires **Full Disk Access** to read the message database.
 ### 1. Install the Built-in Skill
 
 ```bash
-cclaw skills install imessage
+abyss skills install imessage
 ```
 
-This creates `SKILL.md` and `skill.yaml` in `~/.cclaw/skills/imessage/`.
+This creates `SKILL.md` and `skill.yaml` in `~/.abyss/skills/imessage/`.
 
 ### 2. Setup (Activate)
 
 ```bash
-cclaw skills setup imessage
+abyss skills setup imessage
 ```
 
 This automatically checks if `imsg` is available in your PATH. If requirements are met, the skill status changes to `active`.
@@ -79,7 +79,7 @@ Or via Telegram:
 ### 4. Verify
 
 ```bash
-cclaw skills
+abyss skills
 ```
 
 Expected output:
@@ -182,7 +182,7 @@ Session continuity is essential for multi-turn interactions like iMessage:
 ### imsg command not found
 
 ```
-cclaw skills setup imessage
+abyss skills setup imessage
 # Error: required command 'imsg' not found
 ```
 
@@ -211,10 +211,10 @@ The bot responds with "Please approve in terminal":
 **Solution**: Verify that `Bash(imsg:*)` is included in `allowed_tools` in skill.yaml.
 
 ```bash
-cat ~/.cclaw/skills/imessage/skill.yaml
+cat ~/.abyss/skills/imessage/skill.yaml
 ```
 
-If `allowed_tools` is present, re-activate with `cclaw skills setup imessage`.
+If `allowed_tools` is present, re-activate with `abyss skills setup imessage`.
 
 ### Context lost (multi-turn failure)
 

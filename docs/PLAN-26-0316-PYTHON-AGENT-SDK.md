@@ -6,7 +6,7 @@
 
 ## 배경
 
-cclaw은 Claude Code와 통신하기 위해 두 가지 경로를 사용한다:
+abyss은 Claude Code와 통신하기 위해 두 가지 경로를 사용한다:
 
 1. **subprocess** — `claude -p` 프로세스를 매번 스폰
 2. **Node.js bridge** — `@anthropic-ai/claude-agent-sdk`의 v1 `query()`를 호출하는 상주 Node.js 프로세스 (Unix socket JSONL)
@@ -65,22 +65,22 @@ async with ClaudeSDKClient(options=ClaudeAgentOptions(...)) as client:
 
 | 파일 | 설명 |
 |---|---|
-| `src/cclaw/bridge.py` | Bridge client (420줄) |
+| `src/abyss/bridge.py` | Bridge client (420줄) |
 | `bridge/server.mjs` | Node.js bridge 서버 (249줄) |
 | `bridge/package.json` | npm 의존성 |
-| `src/cclaw/bridge_data/server.mjs` | 패키지 번들용 복사본 |
-| `src/cclaw/bridge_data/package.json` | 패키지 번들용 복사본 |
+| `src/abyss/bridge_data/server.mjs` | 패키지 번들용 복사본 |
+| `src/abyss/bridge_data/package.json` | 패키지 번들용 복사본 |
 | `tests/test_bridge.py` | Bridge 테스트 |
 
 ### 수정 대상
 
 | 파일 | 변경 내용 |
 |---|---|
-| `src/cclaw/claude_runner.py` | `run_claude_with_bridge()`, `run_claude_streaming_with_bridge()` → SDK client 호출로 교체 |
-| `src/cclaw/bot_manager.py` | bridge 시작/종료 로직 제거, SDK client 수명주기로 교체 |
-| `src/cclaw/handlers.py` | import 경로 변경 (함수 시그니처는 유지) |
-| `src/cclaw/onboarding.py` | bridge health check 제거 |
-| `src/cclaw/cli.py` | bridge 관련 서브커맨드 정리 |
+| `src/abyss/claude_runner.py` | `run_claude_with_bridge()`, `run_claude_streaming_with_bridge()` → SDK client 호출로 교체 |
+| `src/abyss/bot_manager.py` | bridge 시작/종료 로직 제거, SDK client 수명주기로 교체 |
+| `src/abyss/handlers.py` | import 경로 변경 (함수 시그니처는 유지) |
+| `src/abyss/onboarding.py` | bridge health check 제거 |
+| `src/abyss/cli.py` | bridge 관련 서브커맨드 정리 |
 | `pyproject.toml` | `claude-agent-sdk` 의존성 추가, bridge 관련 force-include 제거 |
 | `tests/test_claude_runner.py` | bridge mock → SDK mock으로 교체 |
 | `tests/test_bot_manager.py` | bridge 시작/종료 mock 교체 |
@@ -90,7 +90,7 @@ async with ClaudeSDKClient(options=ClaudeAgentOptions(...)) as client:
 ### Phase 1: SDK 통합 모듈 생성
 
 1. `pyproject.toml`에 `claude-agent-sdk` 의존성 추가
-2. `src/cclaw/sdk_client.py` 신규 생성 — Python SDK 래퍼
+2. `src/abyss/sdk_client.py` 신규 생성 — Python SDK 래퍼
    - `SDKClientPool`: 봇별 `ClaudeSDKClient` 인스턴스 관리
    - `sdk_query()`: `bridge_query()` 대체 (non-streaming)
    - `sdk_query_streaming()`: `bridge_query_streaming()` 대체 (streaming)
@@ -276,7 +276,7 @@ uv run ruff check . && uv run ruff format --check .
 uv run pytest tests/ --ignore=tests/evaluation -v
 
 # 3. 커버리지 확인 (sdk_client.py, claude_runner.py 90% 이상)
-uv run pytest tests/ --ignore=tests/evaluation --cov=cclaw.sdk_client --cov=cclaw.claude_runner --cov-fail-under=90
+uv run pytest tests/ --ignore=tests/evaluation --cov=abyss.sdk_client --cov=abyss.claude_runner --cov-fail-under=90
 ```
 
 ### 수동 검증 (로컬)
@@ -289,7 +289,7 @@ uv sync
 python -c "from claude_agent_sdk import ClaudeSDKClient; print('OK')"
 
 # 2. 봇 시작 (SDK 모드)
-cclaw start
+abyss start
 # → "[green]SDK[/green] Python Agent SDK" 로그 확인
 # → bridge 관련 로그 없음 확인
 
@@ -319,7 +319,7 @@ cclaw start
 ```bash
 # SDK 강제 비활성화 후 subprocess fallback 확인
 pip uninstall claude-agent-sdk
-cclaw start
+abyss start
 # → "[yellow]SDK[/yellow] Not available, using subprocess fallback" 로그 확인
 # → Telegram 메시지 정상 응답 확인
 ```
@@ -336,7 +336,7 @@ cclaw start
 #### Node.js 미설치 환경
 
 ```bash
-# Node.js 없는 환경에서 cclaw start
+# Node.js 없는 환경에서 abyss start
 # → bridge 시작 시도 없음
 # → SDK 또는 subprocess로 정상 동작
 ```

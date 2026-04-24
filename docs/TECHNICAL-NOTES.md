@@ -1,13 +1,13 @@
 # Technical Notes
 
-## CCLAW_HOME Environment Variable
+## ABYSS_HOME Environment Variable
 
-The runtime data path defaults to `~/.cclaw/` and can be changed via the `CCLAW_HOME` environment variable.
-In tests, isolation is achieved via `monkeypatch.setenv("CCLAW_HOME", str(tmp_path))`.
+The runtime data path defaults to `~/.abyss/` and can be changed via the `ABYSS_HOME` environment variable.
+In tests, isolation is achieved via `monkeypatch.setenv("ABYSS_HOME", str(tmp_path))`.
 
 ## Path Management Principles
 
-All paths use absolute paths. The `bot_directory(name)` function in `config.py` returns the absolute path `cclaw_home() / "bots" / name`, and other modules access bot directories through this function. Absolute paths are also stored in bot entries in `config.yaml`. Avoid relative paths and use `pathlib.Path` for path composition.
+All paths use absolute paths. The `bot_directory(name)` function in `config.py` returns the absolute path `abyss_home() / "bots" / name`, and other modules access bot directories through this function. Absolute paths are also stored in bot entries in `config.yaml`. Avoid relative paths and use `pathlib.Path` for path composition.
 
 ## Telegram Message Limit
 
@@ -101,7 +101,7 @@ Subprocess fallback (identical to pre-pool behavior)
 
 `setup_logging()` in `utils.py` configures two handlers on the root logger:
 
-- **FileHandler**: Writes to `~/.cclaw/logs/cclaw-YYMMDD.log` with full format (`%(asctime)s [%(name)s] %(levelname)s: %(message)s`)
+- **FileHandler**: Writes to `~/.abyss/logs/abyss-YYMMDD.log` with full format (`%(asctime)s [%(name)s] %(levelname)s: %(message)s`)
 - **RichHandler**: Colorized console output via `rich.logging.RichHandler` (tracebacks enabled, show_path disabled)
 
 Key detail: `logging.basicConfig()` is called with `force=True` to ensure it replaces any pre-existing handlers. Without `force=True`, if any library (e.g., `httpx`, `telegram`) configures logging before `setup_logging()` is called, `basicConfig()` would be a no-op and all logs would bypass RichHandler.
@@ -115,7 +115,7 @@ Key detail: `logging.basicConfig()` is called with `force=True` to ensure it rep
 - Stored in `bot.yaml`'s `model` field. Runtime changeable via Telegram `/model` command.
 - Runtime changes reflected via `nonlocal current_model` in handler closure.
 - Model changes are immediately saved to bot.yaml via `save_bot_config()`.
-- Also changeable via CLI `cclaw bot model <name> [model]`.
+- Also changeable via CLI `abyss bot model <name> [model]`.
 
 ## Process Tracking (/cancel)
 
@@ -154,9 +154,9 @@ Command to send workspace files via Telegram.
 
 ## launchd Daemon
 
-`cclaw start --daemon` creates `~/Library/LaunchAgents/com.cclaw.daemon.plist` and runs `launchctl load`.
+`abyss start --daemon` creates `~/Library/LaunchAgents/com.abyss.daemon.plist` and runs `launchctl load`.
 `KeepAlive` is enabled so the process auto-restarts on termination.
-`cclaw stop` runs `launchctl unload` then deletes the plist.
+`abyss stop` runs `launchctl unload` then deletes the plist.
 
 ## Bot Error Isolation
 
@@ -179,11 +179,11 @@ For proactive messages (cron results, heartbeat notifications), `allowed_users` 
 
 ## Daemon Auto-Restart on Bot Creation
 
-When a new bot is created via `cclaw init` or `cclaw bot add` while the daemon is already running, the daemon is automatically restarted to pick up the new bot. This ensures the new bot's Telegram polling and command menu are registered immediately.
+When a new bot is created via `abyss init` or `abyss bot add` while the daemon is already running, the daemon is automatically restarted to pick up the new bot. This ensures the new bot's Telegram polling and command menu are registered immediately.
 
 - `_is_daemon_running()` in `onboarding.py` checks if the launchd plist file exists
 - `_restart_daemon()` calls `stop_bots()` then `start_bots(daemon=True)`
-- If the daemon is not running, a message is shown: "Start the bot: cclaw start"
+- If the daemon is not running, a message is shown: "Start the bot: abyss start"
 - If restart fails, a manual restart command is displayed as fallback
 
 ## Telegram Command Menu
@@ -217,7 +217,7 @@ Claude's Markdown responses are converted to Telegram HTML before sending (`util
 - Default constant: `DEFAULT_STREAMING = False` in `config.py`
 - Runtime changes reflected via `nonlocal streaming_enabled` in handler closure.
 - Runtime toggle via Telegram `/streaming on|off`, immediately saved via `save_bot_config()`.
-- Also changeable via CLI `cclaw bot streaming <name> [on|off]`.
+- Also changeable via CLI `abyss bot streaming <name> [on|off]`.
 - `message_handler` and `file_handler` call `_send_streaming_response()` or `_send_non_streaming_response()` based on `streaming_enabled`.
 - Non-streaming mode: typing action every 4 seconds + `run_claude()` + Markdown->HTML conversion + split send (restored Phase 3 pattern).
 
@@ -262,10 +262,10 @@ Photos use the largest size (`photo[-1]`).
 
 Skills are classified by origin:
 
-- **Built-in** (`builtin`): Pre-packaged with cclaw in `src/cclaw/builtin_skills/`. Installable via `cclaw skills install <name>`.
-- **Custom** (`custom`): User-created via `cclaw skills add`. Can be markdown-only or tool-based.
+- **Built-in** (`builtin`): Pre-packaged with abyss in `src/abyss/builtin_skills/`. Installable via `abyss skills install <name>`.
+- **Custom** (`custom`): User-created via `abyss skills add`. Can be markdown-only or tool-based.
 
-Internally, `skill.yaml` has a `type` field (cli/mcp/browser/None) for tool configuration, but the display (CLI `cclaw skills` and Telegram `/skills`) shows origin-based classification (builtin/custom).
+Internally, `skill.yaml` has a `type` field (cli/mcp/browser/None) for tool configuration, but the display (CLI `abyss skills` and Telegram `/skills`) shows origin-based classification (builtin/custom).
 
 ### CLAUDE.md Composition
 
@@ -277,7 +277,7 @@ On bot start, `regenerate_bot_claude_md()` reflects the latest skill state.
 ### Circular Reference Resolution
 
 Bidirectional dependency exists between `config.py` and `skill.py`.
-Resolved via lazy import: `from cclaw.skill import compose_claude_md` inside `save_bot_config()` in `config.py`.
+Resolved via lazy import: `from abyss.skill import compose_claude_md` inside `save_bot_config()` in `config.py`.
 
 ### MCP Skills
 
@@ -294,13 +294,13 @@ When any skill defines `allowed_tools`, the `--allowedTools` flag activates a wh
 ### CLI Skill Environment Variables
 
 CLI skills store values in `skill.yaml`'s `environment_variable_values`.
-Environment variable values are collected during `cclaw skills setup`.
+Environment variable values are collected during `abyss skills setup`.
 During `run_claude()`, `collect_skill_environment_variables()` gathers them
 and injects into the subprocess `env` parameter.
 
 ### Skill Setup with Unconfigured Environment Variables
 
-`cclaw skills setup` normally skips already-active skills. However, if a skill is active but has unconfigured environment variables (empty values), setup re-enters the environment variable prompt. This handles the case where `cclaw skills install` auto-activates an MCP skill (no `required_commands` failure) before environment variables are set.
+`abyss skills setup` normally skips already-active skills. However, if a skill is active but has unconfigured environment variables (empty values), setup re-enters the environment variable prompt. This handles the case where `abyss skills install` auto-activates an MCP skill (no `required_commands` failure) before environment variables are set.
 
 ### Session CLAUDE.md Propagation
 
@@ -360,7 +360,7 @@ jobs:
 
 ### Working Directory Isolation
 
-- Each job runs in `~/.cclaw/bots/{name}/cron_sessions/{job_name}/`
+- Each job runs in `~/.abyss/bots/{name}/cron_sessions/{job_name}/`
 - Bot's CLAUDE.md is copied so Claude Code recognizes bot context
 - Completely isolated from regular sessions, no interference between cron jobs
 
@@ -374,7 +374,7 @@ jobs:
 ### Cron Job Message Editing
 
 - Only the `message` field is editable. Name and schedule require remove + add.
-- **CLI**: `cclaw cron edit <bot> <job>` opens `$EDITOR` (via `click.edit()`) pre-filled with current message. Save and close to apply; empty or unchanged content cancels.
+- **CLI**: `abyss cron edit <bot> <job>` opens `$EDITOR` (via `click.edit()`) pre-filled with current message. Save and close to apply; empty or unchanged content cancels.
 - **Telegram**: `/cron edit <name>` sends current message with `ForceReply` markup. User's next message becomes the new content.
 - **ForceReply state**: `pending_cron_edits: dict[int, str]` (chat_id -> job_name) in handler closure. `message_handler` checks this dict before normal message processing — if a pending edit exists for the chat, it processes the reply as a cron edit and returns early.
 - `edit_cron_job_message()` in `cron.py` follows the same pattern as `enable_cron_job`/`disable_cron_job`: load config, find job by name, update field, save.
@@ -390,8 +390,8 @@ Uninstalled built-in skills are also listed at the bottom via `list_builtin_skil
 
 ### Built-in Skills
 
-The `src/cclaw/builtin_skills/` package contains skill templates.
-`install_builtin_skill()` copies template files to `~/.cclaw/skills/<name>/` via `shutil.copy2`.
+The `src/abyss/builtin_skills/` package contains skill templates.
+`install_builtin_skill()` copies template files to `~/.abyss/skills/<name>/` via `shutil.copy2`.
 The `install_hints` field (dict) in `skill.yaml` provides installation guidance for missing tools.
 `check_skill_requirements()` reads `install_hints` and includes `Install: <hint>` format in error messages.
 
@@ -474,7 +474,7 @@ so `/reset` and `/resetall` also delete the session ID.
 
 ### Storage Location
 
-`~/.cclaw/bots/<name>/MEMORY.md` — Bot-level file shared across all chat sessions.
+`~/.abyss/bots/<name>/MEMORY.md` — Bot-level file shared across all chat sessions.
 
 ### Save Mechanism
 
@@ -497,7 +497,7 @@ When `bot_path` parameter is passed to `compose_claude_md()`, a Memory section i
 
 ### Storage Location
 
-`~/.cclaw/GLOBAL_MEMORY.md` — Root-level file shared across all bots (read-only for bots).
+`~/.abyss/GLOBAL_MEMORY.md` — Root-level file shared across all bots (read-only for bots).
 
 ### CRUD Functions
 
@@ -515,7 +515,7 @@ Global memory is injected at four points:
 
 ### CLI Management
 
-`cclaw global-memory show|edit|clear`. After `edit` or `clear`, `_regenerate_all_bots_claude_md()` iterates all bots and regenerates CLAUDE.md + propagates to all sessions via `update_session_claude_md()`.
+`abyss global-memory show|edit|clear`. After `edit` or `clear`, `_regenerate_all_bots_claude_md()` iterates all bots and regenerates CLAUDE.md + propagates to all sessions via `update_session_claude_md()`.
 
 ## macOS Contacts Lookup (osascript)
 
@@ -562,7 +562,7 @@ If all above methods fail, adding Terminal.app to **System Settings > Privacy & 
 
 ### Daemon Mode Note
 
-When running via `cclaw start --daemon`, the shell used by `launchd` also needs the same permissions.
+When running via `abyss start --daemon`, the shell used by `launchd` also needs the same permissions.
 
 ## Heartbeat (Periodic Situation Awareness)
 
@@ -598,11 +598,11 @@ Runtime enable/disable via Telegram `/heartbeat on`/`off` takes effect from the 
 ### HEARTBEAT.md Creation Timing
 
 On bot creation (`onboarding.py`), only the `heartbeat` config is added to bot.yaml; HEARTBEAT.md is not created.
-HEARTBEAT.md is auto-generated from default template when `cclaw heartbeat enable` or Telegram `/heartbeat on` is executed and the file doesn't exist.
+HEARTBEAT.md is auto-generated from default template when `abyss heartbeat enable` or Telegram `/heartbeat on` is executed and the file doesn't exist.
 
 ### Working Directory
 
-Claude Code runs in `~/.cclaw/bots/{name}/heartbeat_sessions/`.
+Claude Code runs in `~/.abyss/bots/{name}/heartbeat_sessions/`.
 Bot's CLAUDE.md is copied and a workspace/ subdirectory is created.
 Same isolation pattern as cron_sessions/.
 
@@ -626,7 +626,7 @@ The Supabase skill uses two complementary defense layers to prevent data deletio
 The Supabase MCP server requires `SUPABASE_ACCESS_TOKEN`. This flows through the skill system:
 
 1. `skill.yaml` declares `environment_variables: [SUPABASE_ACCESS_TOKEN]`
-2. `cclaw skills setup supabase` prompts the user and stores the value in `environment_variable_values`
+2. `abyss skills setup supabase` prompts the user and stores the value in `environment_variable_values`
 3. `collect_skill_environment_variables()` reads the stored value during `run_claude()`
 4. The value is injected into the subprocess `env` parameter
 5. The MCP server (started by Claude Code) inherits the environment variable
@@ -641,13 +641,13 @@ Each builtin skill has an `emoji` field in its `skill.yaml` (e.g., `"\U0001F4AC"
 
 ### Builtin Fallback
 
-Already-installed skills (copied to `~/.cclaw/skills/`) may lack the `emoji` field if installed before it was added. `list_skills()` in `skill.py` falls back to the builtin template's emoji via `get_builtin_skill_path()` when the installed config has no emoji.
+Already-installed skills (copied to `~/.abyss/skills/`) may lack the `emoji` field if installed before it was added. `list_skills()` in `skill.py` falls back to the builtin template's emoji via `get_builtin_skill_path()` when the installed config has no emoji.
 
 ## Twitter/X MCP Skill
 
 ### MCP Server Environment Variable Mapping
 
-The `@enescinar/twitter-mcp` package expects generic env var names (`API_KEY`, `API_SECRET_KEY`, `ACCESS_TOKEN`, `ACCESS_TOKEN_SECRET`). To avoid namespace collision with other skills, cclaw uses `TWITTER_`-prefixed names in `skill.yaml`:
+The `@enescinar/twitter-mcp` package expects generic env var names (`API_KEY`, `API_SECRET_KEY`, `ACCESS_TOKEN`, `ACCESS_TOKEN_SECRET`). To avoid namespace collision with other skills, abyss uses `TWITTER_`-prefixed names in `skill.yaml`:
 
 - `TWITTER_API_KEY`
 - `TWITTER_API_SECRET_KEY`
@@ -684,12 +684,12 @@ Free tier: 500 posts/month (~16 per day). The skill instructs Claude to inform u
 
 ### MCP Server
 
-The Jira skill uses `sooperset/mcp-atlassian` (Python package) via `uvx`. Unlike the Twitter skill, no `/bin/sh -c` wrapper is needed because the package natively reads `JIRA_`-prefixed environment variables (`JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`), which matches the cclaw skill convention.
+The Jira skill uses `sooperset/mcp-atlassian` (Python package) via `uvx`. Unlike the Twitter skill, no `/bin/sh -c` wrapper is needed because the package natively reads `JIRA_`-prefixed environment variables (`JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`), which matches the abyss skill convention.
 
 ### Environment Variable Flow
 
 1. `skill.yaml` declares `environment_variables: [JIRA_URL, JIRA_USERNAME, JIRA_API_TOKEN]`
-2. `cclaw skills setup jira` prompts the user and stores values in `environment_variable_values`
+2. `abyss skills setup jira` prompts the user and stores values in `environment_variable_values`
 3. `collect_skill_environment_variables()` reads stored values during `run_claude()`
 4. Values are injected into the subprocess `env` parameter
 5. The MCP server (started by Claude Code via `uvx mcp-atlassian`) inherits the environment variables
@@ -708,9 +708,9 @@ Only 5 tools are auto-approved: `jira_search`, `jira_get_issue`, `jira_create_is
 
 `collect_compact_targets()` collects three types of files:
 
-1. **MEMORY.md** (`~/.cclaw/bots/<name>/MEMORY.md`): Bot long-term memory that grows over time
+1. **MEMORY.md** (`~/.abyss/bots/<name>/MEMORY.md`): Bot long-term memory that grows over time
 2. **User-created SKILL.md**: Skills attached to the bot, excluding builtins (`is_builtin_skill()` check). Builtin skills are already compressed at build time
-3. **HEARTBEAT.md** (`~/.cclaw/bots/<name>/heartbeat_sessions/HEARTBEAT.md`): Periodic check checklist
+3. **HEARTBEAT.md** (`~/.abyss/bots/<name>/heartbeat_sessions/HEARTBEAT.md`): Periodic check checklist
 
 Empty files (whitespace-only) are skipped.
 
@@ -744,19 +744,19 @@ Password is read via `getpass.getpass()` which masks terminal input. Confirmed t
 
 ### File Collection
 
-`collect_backup_files()` walks `~/.cclaw/` via `Path.rglob("*")`. Two exclusion rules:
-- `cclaw.pid`: Runtime artifact, meaningless after process ends
+`collect_backup_files()` walks `~/.abyss/` via `Path.rglob("*")`. Two exclusion rules:
+- `abyss.pid`: Runtime artifact, meaningless after process ends
 - `__pycache__/`: Python bytecode cache, regenerated automatically
 
 ### Output
 
-Backup file is written to the current working directory as `YYMMDD-cclaw.zip`. Same-day re-runs prompt for overwrite via `typer.confirm()`.
+Backup file is written to the current working directory as `YYMMDD-abyss.zip`. Same-day re-runs prompt for overwrite via `typer.confirm()`.
 
 ## Emoji Width Consistency (Variation Selector-16)
 
 ### Problem
 
-Some emojis in skill.yaml have Unicode `east_asian_width=N` (Narrow), rendering as 1 terminal column instead of 2. This breaks column alignment in Rich tables (e.g., `cclaw skills` list).
+Some emojis in skill.yaml have Unicode `east_asian_width=N` (Narrow), rendering as 1 terminal column instead of 2. This breaks column alignment in Rich tables (e.g., `abyss skills` list).
 
 Affected emojis: `\U0001F5BC` (image), `\U0001F5FA` (naver-map), `\U0001F5C4` (supabase).
 
@@ -768,7 +768,7 @@ Append Variation Selector-16 (`\uFE0F`) to force emoji presentation (Wide, 2 col
 
 ### Note
 
-Installed skills (`~/.cclaw/skills/`) may lack the `emoji` field. The `list_skills()` fallback in `skill.py` reads the emoji from the builtin template via `get_builtin_skill_path()`, so only the builtin template needs the fix.
+Installed skills (`~/.abyss/skills/`) may lack the `emoji` field. The `list_skills()` fallback in `skill.py` reads the emoji from the builtin template via `get_builtin_skill_path()`, so only the builtin template needs the fix.
 
 ## QMD Auto-Injection (System-Wide)
 
@@ -786,13 +786,13 @@ Two injection points:
 - Calls `_start_qmd_daemon()`: runs `qmd mcp --http --daemon` (synchronous subprocess, QMD self-daemonizes)
 - Health check: TCP connect to `localhost:8181` with 2s timeout, retried up to 30 times with 1s sleep
 - On shutdown: `_stop_qmd_daemon()` runs `qmd mcp stop`
-- Also called from `stop_bots()` for the `cclaw stop` command
+- Also called from `stop_bots()` for the `abyss stop` command
 
 ### Conversation Collection
 
 `_ensure_qmd_conversations_collection()` runs on startup after daemon is ready:
 ```
-qmd collection add ~/.cclaw/bots/ --name cclaw-conversations --mask "**/conversation-*.md"
+qmd collection add ~/.abyss/bots/ --name abyss-conversations --mask "**/conversation-*.md"
 ```
 This makes all bot conversation logs searchable via QMD.
 

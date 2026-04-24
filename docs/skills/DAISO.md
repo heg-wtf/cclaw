@@ -1,6 +1,6 @@
 # Daiso Skill Guide
 
-A guide to installing and using the built-in Daiso skill for cclaw.
+A guide to installing and using the built-in Daiso skill for abyss.
 
 ## Overview
 
@@ -34,13 +34,13 @@ daiso --help
 ### 1. Install the Built-in Skill
 
 ```bash
-cclaw skills install daiso
+abyss skills install daiso
 ```
 
 ### 2. Setup (Activate)
 
 ```bash
-cclaw skills setup daiso
+abyss skills setup daiso
 ```
 
 No environment variables required. Setup checks that the `daiso` command is available.
@@ -55,7 +55,7 @@ Via Telegram:
 ### 4. Verify
 
 ```bash
-cclaw skills
+abyss skills
 ```
 
 ## Usage

@@ -30,33 +30,33 @@ jobs:
       - run: uv sync
       - run: uv run pytest -v
 
-  clawhouse-lint:
+  abysscope-lint:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: clawhouse
+        working-directory: abysscope
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: clawhouse/package-lock.json
+          cache-dependency-path: abysscope/package-lock.json
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm run lint
 
-  clawhouse-test:
+  abysscope-test:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: clawhouse
+        working-directory: abysscope
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: clawhouse/package-lock.json
+          cache-dependency-path: abysscope/package-lock.json
       - run: npm ci
       - run: npm test

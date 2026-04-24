@@ -1,4 +1,4 @@
-"""Tests for cclaw.heartbeat module."""
+"""Tests for abyss.heartbeat module."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 import yaml
 
-from cclaw.heartbeat import (
+from abyss.heartbeat import (
     default_heartbeat_content,
     disable_heartbeat,
     enable_heartbeat,
@@ -25,17 +25,17 @@ from cclaw.heartbeat import (
 
 
 @pytest.fixture
-def temp_cclaw_home(tmp_path, monkeypatch):
-    """Set CCLAW_HOME to a temporary directory."""
-    home = tmp_path / ".cclaw"
-    monkeypatch.setenv("CCLAW_HOME", str(home))
+def temp_abyss_home(tmp_path, monkeypatch):
+    """Set ABYSS_HOME to a temporary directory."""
+    home = tmp_path / ".abyss"
+    monkeypatch.setenv("ABYSS_HOME", str(home))
     return home
 
 
 @pytest.fixture
-def bot_with_config(temp_cclaw_home):
+def bot_with_config(temp_abyss_home):
     """Create a bot directory with bot.yaml and CLAUDE.md."""
-    bot_directory = temp_cclaw_home / "bots" / "test-bot"
+    bot_directory = temp_abyss_home / "bots" / "test-bot"
     bot_directory.mkdir(parents=True)
     (bot_directory / "sessions").mkdir()
     (bot_directory / "CLAUDE.md").write_text("# test-bot\n")
@@ -72,7 +72,7 @@ def test_get_heartbeat_config(bot_with_config):
     assert config["active_hours"]["end"] == "23:00"
 
 
-def test_get_heartbeat_config_missing_bot(temp_cclaw_home):
+def test_get_heartbeat_config_missing_bot(temp_abyss_home):
     """get_heartbeat_config returns defaults for missing bot."""
     config = get_heartbeat_config("nonexistent")
     assert config["enabled"] is False
@@ -107,7 +107,7 @@ def test_enable_heartbeat(bot_with_config):
     assert (directory / "HEARTBEAT.md").exists()
 
 
-def test_enable_heartbeat_missing_bot(temp_cclaw_home):
+def test_enable_heartbeat_missing_bot(temp_abyss_home):
     """enable_heartbeat returns False for missing bot."""
     result = enable_heartbeat("nonexistent")
     assert result is False
@@ -123,7 +123,7 @@ def test_disable_heartbeat(bot_with_config):
     assert config["enabled"] is False
 
 
-def test_disable_heartbeat_missing_bot(temp_cclaw_home):
+def test_disable_heartbeat_missing_bot(temp_abyss_home):
     """disable_heartbeat returns False for missing bot."""
     result = disable_heartbeat("nonexistent")
     assert result is False
@@ -180,7 +180,7 @@ def test_is_within_active_hours_overnight_outside():
 # --- Session directory tests ---
 
 
-def test_heartbeat_session_directory(bot_with_config, temp_cclaw_home):
+def test_heartbeat_session_directory(bot_with_config, temp_abyss_home):
     """heartbeat_session_directory creates and returns correct path."""
     directory = heartbeat_session_directory(bot_with_config)
     assert directory.exists()
@@ -194,7 +194,7 @@ def test_heartbeat_session_directory(bot_with_config, temp_cclaw_home):
     assert (directory / "workspace").exists()
 
 
-def test_heartbeat_session_directory_preserves_existing(bot_with_config, temp_cclaw_home):
+def test_heartbeat_session_directory_preserves_existing(bot_with_config, temp_abyss_home):
     """heartbeat_session_directory doesn't overwrite existing CLAUDE.md."""
     directory = heartbeat_session_directory(bot_with_config)
     custom_content = "# Custom content"
@@ -248,7 +248,7 @@ async def test_execute_heartbeat_ok_no_notification(bot_with_config):
     send_mock = AsyncMock()
 
     with patch(
-        "cclaw.claude_runner.run_claude",
+        "abyss.claude_runner.run_claude",
         new_callable=AsyncMock,
         return_value="All clear. HEARTBEAT_OK",
     ):
@@ -275,7 +275,7 @@ async def test_execute_heartbeat_sends_notification(bot_with_config):
     send_mock = AsyncMock()
 
     with patch(
-        "cclaw.claude_runner.run_claude",
+        "abyss.claude_runner.run_claude",
         new_callable=AsyncMock,
         return_value="You have pending tasks in workspace/",
     ):
@@ -306,7 +306,7 @@ async def test_execute_heartbeat_no_allowed_users_no_sessions(bot_with_config):
     send_mock = AsyncMock()
 
     with patch(
-        "cclaw.claude_runner.run_claude",
+        "abyss.claude_runner.run_claude",
         new_callable=AsyncMock,
         return_value="Something to report",
     ):
@@ -321,12 +321,12 @@ async def test_execute_heartbeat_no_allowed_users_no_sessions(bot_with_config):
 
 
 @pytest.mark.asyncio
-async def test_execute_heartbeat_fallback_to_session_chat_ids(bot_with_config, temp_cclaw_home):
+async def test_execute_heartbeat_fallback_to_session_chat_ids(bot_with_config, temp_abyss_home):
     """execute_heartbeat falls back to session chat IDs when allowed_users is empty."""
     save_heartbeat_markdown(bot_with_config, default_heartbeat_content())
 
     # Create session directories to simulate past conversations
-    bot_path = temp_cclaw_home / "bots" / bot_with_config
+    bot_path = temp_abyss_home / "bots" / bot_with_config
     sessions_directory = bot_path / "sessions"
     sessions_directory.mkdir(parents=True, exist_ok=True)
     (sessions_directory / "chat_111").mkdir()
@@ -341,7 +341,7 @@ async def test_execute_heartbeat_fallback_to_session_chat_ids(bot_with_config, t
     send_mock = AsyncMock()
 
     with patch(
-        "cclaw.claude_runner.run_claude",
+        "abyss.claude_runner.run_claude",
         new_callable=AsyncMock,
         return_value="Something to report",
     ):
@@ -370,7 +370,7 @@ async def test_execute_heartbeat_no_heartbeat_md(bot_with_config):
     send_mock = AsyncMock()
 
     with patch(
-        "cclaw.claude_runner.run_claude",
+        "abyss.claude_runner.run_claude",
         new_callable=AsyncMock,
     ) as mock_claude:
         await execute_heartbeat(
@@ -397,7 +397,7 @@ async def test_execute_heartbeat_handles_error(bot_with_config):
     send_mock = AsyncMock()
 
     with patch(
-        "cclaw.claude_runner.run_claude",
+        "abyss.claude_runner.run_claude",
         new_callable=AsyncMock,
         side_effect=RuntimeError("Claude crashed"),
     ):
@@ -464,9 +464,9 @@ async def test_run_heartbeat_scheduler_skips_outside_active_hours(bot_with_confi
 
     asyncio.create_task(set_stop())
 
-    with patch("cclaw.heartbeat.execute_heartbeat", new_callable=AsyncMock) as mock_execute:
+    with patch("abyss.heartbeat.execute_heartbeat", new_callable=AsyncMock) as mock_execute:
         # Force active hours check to return False
-        with patch("cclaw.heartbeat.is_within_active_hours", return_value=False):
+        with patch("abyss.heartbeat.is_within_active_hours", return_value=False):
             await asyncio.wait_for(
                 run_heartbeat_scheduler(bot_with_config, bot_config, application, stop_event),
                 timeout=5,
@@ -508,10 +508,10 @@ async def test_run_heartbeat_scheduler_executes_within_active_hours(bot_with_con
     asyncio.create_task(set_stop())
 
     with patch(
-        "cclaw.heartbeat.execute_heartbeat",
+        "abyss.heartbeat.execute_heartbeat",
         side_effect=mock_execute,
     ) as mock_exec:
-        with patch("cclaw.heartbeat.is_within_active_hours", return_value=True):
+        with patch("abyss.heartbeat.is_within_active_hours", return_value=True):
             await asyncio.wait_for(
                 run_heartbeat_scheduler(bot_with_config, bot_config, application, stop_event),
                 timeout=5,

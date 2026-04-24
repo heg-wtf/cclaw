@@ -1,4 +1,4 @@
-"""Tests for group-related handler logic in cclaw.handlers."""
+"""Tests for group-related handler logic in abyss.handlers."""
 
 from __future__ import annotations
 
@@ -7,16 +7,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import yaml
 
-from cclaw.group import bind_group, create_group, load_group_config
-from cclaw.handlers import _is_mentioned, make_handlers
+from abyss.group import bind_group, create_group, load_group_config
+from abyss.handlers import _is_mentioned, make_handlers
 
 
 @pytest.fixture()
-def temp_cclaw_home(tmp_path, monkeypatch):
-    """Set CCLAW_HOME to a temporary directory with config and bots."""
-    home = tmp_path / ".cclaw"
+def temp_abyss_home(tmp_path, monkeypatch):
+    """Set ABYSS_HOME to a temporary directory with config and bots."""
+    home = tmp_path / ".abyss"
     home.mkdir()
-    monkeypatch.setenv("CCLAW_HOME", str(home))
+    monkeypatch.setenv("ABYSS_HOME", str(home))
 
     config = {
         "bots": [
@@ -72,16 +72,16 @@ def temp_cclaw_home(tmp_path, monkeypatch):
 
 
 @pytest.fixture()
-def dev_team_group(temp_cclaw_home):
+def dev_team_group(temp_abyss_home):
     """Create and bind a dev_team group."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder", "tester"])
     bind_group("dev_team", -12345)
     return "dev_team"
 
 
-def _make_bot_handlers(temp_cclaw_home, bot_name: str) -> list:
+def _make_bot_handlers(temp_abyss_home, bot_name: str) -> list:
     """Create handlers for a specific bot."""
-    bot_directory = temp_cclaw_home / "bots" / bot_name
+    bot_directory = temp_abyss_home / "bots" / bot_name
     bot_yaml = bot_directory / "bot.yaml"
     with open(bot_yaml) as file:
         bot_config = yaml.safe_load(file)
@@ -153,11 +153,11 @@ MESSAGE_HANDLER_INDEX = 19
 
 
 @pytest.mark.asyncio
-async def test_bind_handler_orchestrator_success(temp_cclaw_home):
+async def test_bind_handler_orchestrator_success(temp_abyss_home):
     """/bind by orchestrator bot binds the group and sends confirmation."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder", "tester"])
 
-    handlers = _make_bot_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_bot_handlers(temp_abyss_home, "dev_lead")
     bind_handler = handlers[BIND_HANDLER_INDEX]
 
     update = _mock_update_for_group(chat_id=-12345, text="/bind dev_team")
@@ -179,11 +179,11 @@ async def test_bind_handler_orchestrator_success(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_bind_handler_member_ignores(temp_cclaw_home):
+async def test_bind_handler_member_ignores(temp_abyss_home):
     """/bind by member bot is silently ignored."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder", "tester"])
 
-    handlers = _make_bot_handlers(temp_cclaw_home, "coder")
+    handlers = _make_bot_handlers(temp_abyss_home, "coder")
     bind_handler = handlers[BIND_HANDLER_INDEX]
 
     update = _mock_update_for_group(chat_id=-12345, text="/bind dev_team")
@@ -202,9 +202,9 @@ async def test_bind_handler_member_ignores(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_bind_handler_nonexistent_group(temp_cclaw_home):
+async def test_bind_handler_nonexistent_group(temp_abyss_home):
     """/bind with nonexistent group name shows error."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_bot_handlers(temp_abyss_home, "dev_lead")
     bind_handler = handlers[BIND_HANDLER_INDEX]
 
     update = _mock_update_for_group(chat_id=-12345, text="/bind nonexistent")
@@ -218,12 +218,12 @@ async def test_bind_handler_nonexistent_group(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_bind_handler_already_bound_overwrites(temp_cclaw_home):
+async def test_bind_handler_already_bound_overwrites(temp_abyss_home):
     """/bind overwrites existing binding for the same group."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -11111)
 
-    handlers = _make_bot_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_bot_handlers(temp_abyss_home, "dev_lead")
     bind_handler = handlers[BIND_HANDLER_INDEX]
 
     update = _mock_update_for_group(chat_id=-22222, text="/bind dev_team")
@@ -241,9 +241,9 @@ async def test_bind_handler_already_bound_overwrites(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_bind_handler_no_args(temp_cclaw_home):
+async def test_bind_handler_no_args(temp_abyss_home):
     """/bind with no arguments shows usage."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_bot_handlers(temp_abyss_home, "dev_lead")
     bind_handler = handlers[BIND_HANDLER_INDEX]
 
     update = _mock_update_for_group(chat_id=-12345, text="/bind")
@@ -260,9 +260,9 @@ async def test_bind_handler_no_args(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_unbind_handler_orchestrator_success(temp_cclaw_home, dev_team_group):
+async def test_unbind_handler_orchestrator_success(temp_abyss_home, dev_team_group):
     """/unbind by orchestrator unbinds the group."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_bot_handlers(temp_abyss_home, "dev_lead")
     unbind_handler = handlers[UNBIND_HANDLER_INDEX]
 
     update = _mock_update_for_group(chat_id=-12345, text="/unbind")
@@ -281,9 +281,9 @@ async def test_unbind_handler_orchestrator_success(temp_cclaw_home, dev_team_gro
 
 
 @pytest.mark.asyncio
-async def test_unbind_handler_member_ignores(temp_cclaw_home, dev_team_group):
+async def test_unbind_handler_member_ignores(temp_abyss_home, dev_team_group):
     """/unbind by member bot is silently ignored."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "coder")
+    handlers = _make_bot_handlers(temp_abyss_home, "coder")
     unbind_handler = handlers[UNBIND_HANDLER_INDEX]
 
     update = _mock_update_for_group(chat_id=-12345, text="/unbind")
@@ -301,9 +301,9 @@ async def test_unbind_handler_member_ignores(temp_cclaw_home, dev_team_group):
 
 
 @pytest.mark.asyncio
-async def test_unbind_handler_no_binding(temp_cclaw_home):
+async def test_unbind_handler_no_binding(temp_abyss_home):
     """/unbind when no group is bound shows error."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_bot_handlers(temp_abyss_home, "dev_lead")
     unbind_handler = handlers[UNBIND_HANDLER_INDEX]
 
     update = _mock_update_for_group(chat_id=-99999, text="/unbind")
@@ -320,16 +320,16 @@ async def test_unbind_handler_no_binding(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_group_message_user_to_orchestrator(temp_cclaw_home, dev_team_group):
+async def test_group_message_user_to_orchestrator(temp_abyss_home, dev_team_group):
     """User message in bound group is processed by orchestrator."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_bot_handlers(temp_abyss_home, "dev_lead")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     update = _mock_update_for_group(
         chat_id=-12345, text="Build a crawler", is_bot=False, username="boss"
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Mission accepted."
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
@@ -339,16 +339,16 @@ async def test_group_message_user_to_orchestrator(temp_cclaw_home, dev_team_grou
 
 
 @pytest.mark.asyncio
-async def test_group_message_user_to_member_ignored(temp_cclaw_home, dev_team_group):
+async def test_group_message_user_to_member_ignored(temp_abyss_home, dev_team_group):
     """User message in bound group is NOT processed by member bot (no @mention)."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "coder")
+    handlers = _make_bot_handlers(temp_abyss_home, "coder")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     update = _mock_update_for_group(
         chat_id=-12345, text="Build a crawler", is_bot=False, username="boss"
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
 
@@ -357,9 +357,9 @@ async def test_group_message_user_to_member_ignored(temp_cclaw_home, dev_team_gr
 
 
 @pytest.mark.asyncio
-async def test_group_message_orchestrator_mentions_member(temp_cclaw_home, dev_team_group):
+async def test_group_message_orchestrator_mentions_member(temp_abyss_home, dev_team_group):
     """Bot @mention of member triggers member's Claude processing."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "coder")
+    handlers = _make_bot_handlers(temp_abyss_home, "coder")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     # Orchestrator bot sends @coder_bot mention
@@ -371,7 +371,7 @@ async def test_group_message_orchestrator_mentions_member(temp_cclaw_home, dev_t
         user_id=10001,
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Scraper done."
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
@@ -381,9 +381,9 @@ async def test_group_message_orchestrator_mentions_member(temp_cclaw_home, dev_t
 
 
 @pytest.mark.asyncio
-async def test_group_message_user_mentions_member_ignored(temp_cclaw_home, dev_team_group):
+async def test_group_message_user_mentions_member_ignored(temp_abyss_home, dev_team_group):
     """User directly @mentioning a member is ignored by member (orchestrator bypass)."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "coder")
+    handlers = _make_bot_handlers(temp_abyss_home, "coder")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     # Human user mentions @coder_bot directly
@@ -394,7 +394,7 @@ async def test_group_message_user_mentions_member_ignored(temp_cclaw_home, dev_t
         username="boss",
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
 
@@ -403,9 +403,9 @@ async def test_group_message_user_mentions_member_ignored(temp_cclaw_home, dev_t
 
 
 @pytest.mark.asyncio
-async def test_group_message_member_no_mention_ignored(temp_cclaw_home, dev_team_group):
+async def test_group_message_member_no_mention_ignored(temp_abyss_home, dev_team_group):
     """Member ignores messages without @mention even from orchestrator bot."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "coder")
+    handlers = _make_bot_handlers(temp_abyss_home, "coder")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     # Orchestrator bot sends message without @coder_bot
@@ -417,7 +417,7 @@ async def test_group_message_member_no_mention_ignored(temp_cclaw_home, dev_team
         user_id=10001,
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
 
@@ -426,9 +426,9 @@ async def test_group_message_member_no_mention_ignored(temp_cclaw_home, dev_team
 
 
 @pytest.mark.asyncio
-async def test_group_message_bot_report_to_orchestrator(temp_cclaw_home, dev_team_group):
+async def test_group_message_bot_report_to_orchestrator(temp_abyss_home, dev_team_group):
     """Member bot report is processed by orchestrator."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_bot_handlers(temp_abyss_home, "dev_lead")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     # Coder bot sends a report
@@ -440,7 +440,7 @@ async def test_group_message_bot_report_to_orchestrator(temp_cclaw_home, dev_tea
         user_id=10002,
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Good work."
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
@@ -450,19 +450,19 @@ async def test_group_message_bot_report_to_orchestrator(temp_cclaw_home, dev_tea
 
 
 @pytest.mark.asyncio
-async def test_group_message_unbound_chat_uses_individual(temp_cclaw_home):
+async def test_group_message_unbound_chat_uses_individual(temp_abyss_home):
     """Unbound chat_id falls through to individual (DM) handling."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     # NOT bound — no bind_group call
 
-    handlers = _make_bot_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_bot_handlers(temp_abyss_home, "dev_lead")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     update = _mock_update_for_group(
         chat_id=-99999, text="Hello from DM", is_bot=False, username="boss"
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Hi from DM."
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
@@ -472,9 +472,9 @@ async def test_group_message_unbound_chat_uses_individual(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_group_message_dm_not_affected(temp_cclaw_home, dev_team_group):
+async def test_group_message_dm_not_affected(temp_abyss_home, dev_team_group):
     """DM (positive chat_id) is not affected by group bindings."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "coder")
+    handlers = _make_bot_handlers(temp_abyss_home, "coder")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     # DM has positive chat_id
@@ -482,7 +482,7 @@ async def test_group_message_dm_not_affected(temp_cclaw_home, dev_team_group):
         chat_id=222, text="Help me with something", is_bot=False, username="boss"
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Sure, I can help."
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
@@ -495,18 +495,18 @@ async def test_group_message_dm_not_affected(temp_cclaw_home, dev_team_group):
 
 
 @pytest.mark.asyncio
-async def test_group_message_logged_to_shared_conversation(temp_cclaw_home, dev_team_group):
+async def test_group_message_logged_to_shared_conversation(temp_abyss_home, dev_team_group):
     """All group messages are logged to shared conversation."""
-    from cclaw.group import load_shared_conversation
+    from abyss.group import load_shared_conversation
 
-    handlers = _make_bot_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_bot_handlers(temp_abyss_home, "dev_lead")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     update = _mock_update_for_group(
         chat_id=-12345, text="Build a crawler", is_bot=False, username="boss"
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Mission accepted."
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
@@ -516,11 +516,11 @@ async def test_group_message_logged_to_shared_conversation(temp_cclaw_home, dev_
 
 
 @pytest.mark.asyncio
-async def test_group_message_bot_message_logged(temp_cclaw_home, dev_team_group):
+async def test_group_message_bot_message_logged(temp_abyss_home, dev_team_group):
     """Bot messages in group are logged with @username prefix."""
-    from cclaw.group import load_shared_conversation
+    from abyss.group import load_shared_conversation
 
-    handlers = _make_bot_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_bot_handlers(temp_abyss_home, "dev_lead")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     # Bot message from coder_bot
@@ -532,7 +532,7 @@ async def test_group_message_bot_message_logged(temp_cclaw_home, dev_team_group)
         user_id=10002,
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Good."
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
@@ -542,11 +542,11 @@ async def test_group_message_bot_message_logged(temp_cclaw_home, dev_team_group)
 
 
 @pytest.mark.asyncio
-async def test_group_message_ignored_still_logged(temp_cclaw_home, dev_team_group):
+async def test_group_message_ignored_still_logged(temp_abyss_home, dev_team_group):
     """Messages that a member ignores are still logged to shared conversation."""
-    from cclaw.group import load_shared_conversation
+    from abyss.group import load_shared_conversation
 
-    handlers = _make_bot_handlers(temp_cclaw_home, "coder")
+    handlers = _make_bot_handlers(temp_abyss_home, "coder")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     # User message — member ignores but should still log
@@ -554,7 +554,7 @@ async def test_group_message_ignored_still_logged(temp_cclaw_home, dev_team_grou
         chat_id=-12345, text="General instruction", is_bot=False, username="boss"
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
 
@@ -570,11 +570,11 @@ async def test_group_message_ignored_still_logged(temp_cclaw_home, dev_team_grou
 
 
 @pytest.mark.asyncio
-async def test_group_message_member_response_logged(temp_cclaw_home, dev_team_group):
+async def test_group_message_member_response_logged(temp_abyss_home, dev_team_group):
     """Member bot response in group is logged with @username prefix."""
-    from cclaw.group import load_shared_conversation
+    from abyss.group import load_shared_conversation
 
-    handlers = _make_bot_handlers(temp_cclaw_home, "coder")
+    handlers = _make_bot_handlers(temp_abyss_home, "coder")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     # Orchestrator bot sends @coder_bot mention
@@ -586,7 +586,7 @@ async def test_group_message_member_response_logged(temp_cclaw_home, dev_team_gr
         user_id=10001,
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Scraper done."
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
@@ -599,18 +599,18 @@ async def test_group_message_member_response_logged(temp_cclaw_home, dev_team_gr
 
 
 @pytest.mark.asyncio
-async def test_group_claude_response_logged_to_shared_conversation(temp_cclaw_home, dev_team_group):
+async def test_group_claude_response_logged_to_shared_conversation(temp_abyss_home, dev_team_group):
     """Claude response is logged to shared conversation with @bot_name prefix."""
-    from cclaw.group import load_shared_conversation
+    from abyss.group import load_shared_conversation
 
-    handlers = _make_bot_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_bot_handlers(temp_abyss_home, "dev_lead")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     update = _mock_update_for_group(
         chat_id=-12345, text="Implement group_status", is_bot=False, username="boss"
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "group_status command implemented successfully."
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
@@ -621,11 +621,11 @@ async def test_group_claude_response_logged_to_shared_conversation(temp_cclaw_ho
 
 
 @pytest.mark.asyncio
-async def test_group_claude_response_logged_for_member(temp_cclaw_home, dev_team_group):
+async def test_group_claude_response_logged_for_member(temp_abyss_home, dev_team_group):
     """Member bot's Claude response is also logged to shared conversation."""
-    from cclaw.group import load_shared_conversation
+    from abyss.group import load_shared_conversation
 
-    handlers = _make_bot_handlers(temp_cclaw_home, "coder")
+    handlers = _make_bot_handlers(temp_abyss_home, "coder")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     # Orchestrator mentions coder
@@ -637,7 +637,7 @@ async def test_group_claude_response_logged_for_member(temp_cclaw_home, dev_team
         user_id=10001,
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Scraper implementation complete."
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
@@ -650,9 +650,9 @@ async def test_group_claude_response_logged_for_member(temp_cclaw_home, dev_team
 
 
 @pytest.mark.asyncio
-async def test_group_bot_message_bypasses_allowed_users(temp_cclaw_home, dev_team_group):
+async def test_group_bot_message_bypasses_allowed_users(temp_abyss_home, dev_team_group):
     """Bot messages in group bypass allowed_users check."""
-    bot_directory = temp_cclaw_home / "bots" / "coder"
+    bot_directory = temp_abyss_home / "bots" / "coder"
     with open(bot_directory / "bot.yaml") as file:
         bot_config = yaml.safe_load(file)
     # Set allowed_users to only allow a specific human user
@@ -672,7 +672,7 @@ async def test_group_bot_message_bypasses_allowed_users(temp_cclaw_home, dev_tea
         user_id=10001,
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Tests written."
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
@@ -682,9 +682,9 @@ async def test_group_bot_message_bypasses_allowed_users(temp_cclaw_home, dev_tea
 
 
 @pytest.mark.asyncio
-async def test_group_unauthorized_human_still_blocked(temp_cclaw_home, dev_team_group):
+async def test_group_unauthorized_human_still_blocked(temp_abyss_home, dev_team_group):
     """Human users not in allowed_users are still blocked in group mode."""
-    bot_directory = temp_cclaw_home / "bots" / "dev_lead"
+    bot_directory = temp_abyss_home / "bots" / "dev_lead"
     with open(bot_directory / "bot.yaml") as file:
         bot_config = yaml.safe_load(file)
     bot_config["allowed_users"] = [11111]
@@ -703,7 +703,7 @@ async def test_group_unauthorized_human_still_blocked(temp_cclaw_home, dev_team_
         user_id=99999,
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
 
@@ -716,9 +716,9 @@ async def test_group_unauthorized_human_still_blocked(temp_cclaw_home, dev_team_
 
 
 @pytest.mark.asyncio
-async def test_group_message_self_message_ignored(temp_cclaw_home, dev_team_group):
+async def test_group_message_self_message_ignored(temp_abyss_home, dev_team_group):
     """Bot ignores its own messages (bot.id == from_user.id)."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_bot_handlers(temp_abyss_home, "dev_lead")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     # Simulate the bot's own message (user_id matches bot.id)
@@ -734,7 +734,7 @@ async def test_group_message_self_message_ignored(temp_cclaw_home, dev_team_grou
     # Orchestrator only handles user messages or member bot messages, not its own.
     # dev_lead_bot is the orchestrator, not a member, so its own message is not a member message.
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
 
@@ -743,9 +743,9 @@ async def test_group_message_self_message_ignored(temp_cclaw_home, dev_team_grou
 
 
 @pytest.mark.asyncio
-async def test_group_message_member_to_member_no_reaction(temp_cclaw_home, dev_team_group):
+async def test_group_message_member_to_member_no_reaction(temp_abyss_home, dev_team_group):
     """Member bot does not react to another member bot's message (no @mention)."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "tester")
+    handlers = _make_bot_handlers(temp_abyss_home, "tester")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     # Coder bot sends a message without @mentioning tester
@@ -757,7 +757,7 @@ async def test_group_message_member_to_member_no_reaction(temp_cclaw_home, dev_t
         user_id=10002,
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
 
@@ -767,10 +767,10 @@ async def test_group_message_member_to_member_no_reaction(temp_cclaw_home, dev_t
 
 @pytest.mark.asyncio
 async def test_group_message_orchestrator_self_response_no_retrigger(
-    temp_cclaw_home, dev_team_group
+    temp_abyss_home, dev_team_group
 ):
     """Orchestrator's own response does not re-trigger orchestrator processing."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_bot_handlers(temp_abyss_home, "dev_lead")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     # Orchestrator bot's own message appears in group
@@ -782,7 +782,7 @@ async def test_group_message_orchestrator_self_response_no_retrigger(
         user_id=10001,
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
 
@@ -795,11 +795,11 @@ async def test_group_message_orchestrator_self_response_no_retrigger(
 
 
 @pytest.mark.asyncio
-async def test_group_message_unrelated_bot_ignored(temp_cclaw_home, dev_team_group):
+async def test_group_message_unrelated_bot_ignored(temp_abyss_home, dev_team_group):
     """A bot not in the group ignores group messages."""
     # tester is in the group, but let's test with a bot_name that isn't
     # We'll create a handler with bot_name "unknown_bot"
-    bot_directory = temp_cclaw_home / "bots" / "dev_lead"
+    bot_directory = temp_abyss_home / "bots" / "dev_lead"
     bot_config = {
         "telegram_token": "fake-token",
         "telegram_username": "@unknown_bot",
@@ -817,7 +817,7 @@ async def test_group_message_unrelated_bot_ignored(temp_cclaw_home, dev_team_gro
         chat_id=-12345, text="Hello everyone", is_bot=False, username="boss"
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
 
@@ -830,10 +830,10 @@ async def test_group_message_unrelated_bot_ignored(temp_cclaw_home, dev_team_gro
 
 @pytest.mark.asyncio
 async def test_group_message_non_member_bot_ignored_by_orchestrator(
-    temp_cclaw_home, dev_team_group
+    temp_abyss_home, dev_team_group
 ):
     """Orchestrator ignores bot messages from non-member bots."""
-    handlers = _make_bot_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_bot_handlers(temp_abyss_home, "dev_lead")
     msg_handler = handlers[MESSAGE_HANDLER_INDEX]
 
     # A bot that is NOT a member of the group sends a message
@@ -845,7 +845,7 @@ async def test_group_message_non_member_bot_ignored_by_orchestrator(
         user_id=99999,
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_context = MagicMock()
         await msg_handler.callback(update, mock_context)
 

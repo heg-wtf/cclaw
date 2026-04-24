@@ -1,4 +1,4 @@
-"""Global test fixtures for cclaw."""
+"""Global test fixtures for abyss."""
 
 from __future__ import annotations
 

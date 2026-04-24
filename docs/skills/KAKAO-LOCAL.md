@@ -1,6 +1,6 @@
 # Kakao Local Skill Guide
 
-A guide to installing and using the built-in Kakao Local skill for cclaw.
+A guide to installing and using the built-in Kakao Local skill for abyss.
 
 ## Overview
 
@@ -38,13 +38,13 @@ kakao-cli --help
 ### 1. Install the Built-in Skill
 
 ```bash
-cclaw skills install kakao-local
+abyss skills install kakao-local
 ```
 
 ### 2. Setup (Activate)
 
 ```bash
-cclaw skills setup kakao-local
+abyss skills setup kakao-local
 ```
 
 During setup, you'll be prompted to enter:
@@ -60,7 +60,7 @@ Via Telegram:
 ### 4. Verify
 
 ```bash
-cclaw skills
+abyss skills
 ```
 
 ## Usage
@@ -104,7 +104,7 @@ This allows all `kakao-cli` and `kakao` commands to run without permission promp
 
 ### Environment Variable Injection
 
-`KAKAO_REST_API_KEY` is stored during `cclaw skills setup` and injected into the Claude Code subprocess at runtime. The `kakao-cli` uses this for Kakao Local API authentication.
+`KAKAO_REST_API_KEY` is stored during `abyss skills setup` and injected into the Claude Code subprocess at runtime. The `kakao-cli` uses this for Kakao Local API authentication.
 
 ### Combining with Other Skills
 
@@ -129,7 +129,7 @@ which kakao-cli
 Error: 401 Unauthorized
 ```
 
-**Solution**: Verify your REST API key at [Kakao Developers](https://developers.kakao.com/console/app), then re-run `cclaw skills setup kakao-local`.
+**Solution**: Verify your REST API key at [Kakao Developers](https://developers.kakao.com/console/app), then re-run `abyss skills setup kakao-local`.
 
 ### No results for keyword search
 

@@ -10,35 +10,35 @@ Total issues found: 35 (Critical: 5, High: 4, Medium: 5, Low/Info: 21)
 
 ### 1. Path Traversal in /send Command
 
-- **File**: `src/cclaw/handlers.py` (lines 217-226)
+- **File**: `src/abyss/handlers.py` (lines 217-226)
 - **Status**: Open
 - **Description**: The `/send` command constructs file paths using unsanitized user input. Sending `../../../etc/passwd` can access files outside the workspace directory.
 - **Fix**: Validate with `file_path.resolve().relative_to(workspace.resolve())` and reject on `ValueError`.
 
 ### 2. Path Traversal in File Download
 
-- **File**: `src/cclaw/handlers.py` (lines 675-676)
+- **File**: `src/abyss/handlers.py` (lines 675-676)
 - **Status**: Open
 - **Description**: Files downloaded from Telegram are saved with the original filename from the sender. A filename like `../../exploit.sh` can write files outside the workspace.
 - **Fix**: Sanitize filenames — strip path separators and `..`, or use a deterministic naming scheme like `file_{hash}{extension}`.
 
 ### 3. Telegram Token Stored in Plaintext
 
-- **File**: `src/cclaw/onboarding.py` (line 185), `src/cclaw/config.py`
+- **File**: `src/abyss/onboarding.py` (line 185), `src/abyss/config.py`
 - **Status**: Open
 - **Description**: Telegram bot tokens are saved directly to `bot.yaml` without encryption. If the home directory is compromised, tokens are immediately accessible.
 - **Fix**: Use macOS Keychain via `keyring` library, or encrypt tokens at rest.
 
 ### 4. Cron Job Name Not Validated
 
-- **File**: `src/cclaw/cron.py` (line 95), `src/cclaw/cli.py`
+- **File**: `src/abyss/cron.py` (line 95), `src/abyss/cli.py`
 - **Status**: Open
 - **Description**: Job name from user input is used directly in `cron_sessions/{job_name}/` directory creation. Path traversal sequences like `../` can escape the intended directory.
 - **Fix**: Validate job name with `^[a-z0-9][a-z0-9_-]{0,63}$`.
 
 ### 5. Environment Variable Injection via Skills
 
-- **File**: `src/cclaw/claude_runner.py` (lines 168, 232-234)
+- **File**: `src/abyss/claude_runner.py` (lines 168, 232-234)
 - **Status**: Open
 - **Description**: Skill environment variables are merged into `os.environ` without validation. Malicious skill configs could override critical system variables (e.g., `PATH`, `HOME`).
 - **Fix**: Whitelist allowed environment variable prefixes per skill. Reject variables that override system-critical names.
@@ -47,28 +47,28 @@ Total issues found: 35 (Critical: 5, High: 4, Medium: 5, Low/Info: 21)
 
 ### 6. No Rate Limiting on Messages
 
-- **File**: `src/cclaw/handlers.py` (message_handler, file_handler)
+- **File**: `src/abyss/handlers.py` (message_handler, file_handler)
 - **Status**: Open
 - **Description**: Users can send unlimited messages, each spawning a Claude subprocess. This can exhaust CPU, memory, and file handles.
 - **Fix**: Implement per-user rate limiting (e.g., sliding window, max 1 message per 10 seconds).
 
 ### 7. Bot Name Validation Insufficient
 
-- **File**: `src/cclaw/onboarding.py` (lines 161-170)
+- **File**: `src/abyss/onboarding.py` (lines 161-170)
 - **Status**: Open
 - **Description**: Bot name allows names starting with `.` (hidden directories) and has no length limit. Used directly in directory creation.
 - **Fix**: Enforce `^[a-z0-9][a-z0-9-]{0,62}$`.
 
 ### 8. Absolute Path Exposed in CLAUDE.md
 
-- **File**: `src/cclaw/skill.py` (line 324)
+- **File**: `src/abyss/skill.py` (line 324)
 - **Status**: Open
 - **Description**: The absolute filesystem path to `MEMORY.md` is embedded in the generated CLAUDE.md system prompt. Reveals system directory structure.
 - **Fix**: Use relative path or abstract description.
 
 ### 9. Message Content Logged
 
-- **File**: `src/cclaw/claude_runner.py` (line 176)
+- **File**: `src/abyss/claude_runner.py` (line 176)
 - **Status**: Open
 - **Description**: User messages are logged (truncated to 100 chars). Could contain passwords, tokens, or PII.
 - **Fix**: Log only metadata (message length, timestamp) instead of content.
@@ -77,36 +77,36 @@ Total issues found: 35 (Critical: 5, High: 4, Medium: 5, Low/Info: 21)
 
 ### 10. Conversation History Unlimited Growth
 
-- **File**: `src/cclaw/session.py`
+- **File**: `src/abyss/session.py`
 - **Status**: Mitigated
 - **Description**: `conversation.md` was appended indefinitely with no size limit. A user sending thousands of messages could exhaust disk space.
 - **Mitigation**: Daily rotation to `conversation-YYMMDD.md` files limits per-file growth. Old files are not auto-deleted yet.
-- **Remaining**: Auto-cleanup of old dated files (similar to `cclaw logs clean`) is not yet implemented.
+- **Remaining**: Auto-cleanup of old dated files (similar to `abyss logs clean`) is not yet implemented.
 
 ### 11. No Workspace Size Limit
 
-- **File**: `src/cclaw/session.py` (workspace directory)
+- **File**: `src/abyss/session.py` (workspace directory)
 - **Status**: Open
 - **Description**: Workspace directories have no quota. Large file uploads can fill the disk.
 - **Fix**: Check workspace size before download, enforce per-session quota (e.g., 100MB).
 
 ### 12. HEARTBEAT_OK Marker Spoofable
 
-- **File**: `src/cclaw/heartbeat.py` (line 228)
+- **File**: `src/abyss/heartbeat.py` (line 228)
 - **Status**: Open
 - **Description**: Heartbeat response is checked with `HEARTBEAT_OK_MARKER in response`. If the LLM echoes user input containing "HEARTBEAT_OK", notifications are suppressed.
 - **Fix**: Use structured response format or stricter pattern matching.
 
 ### 13. Error Messages Expose Internal Paths
 
-- **File**: `src/cclaw/handlers.py` (lines 221, 225, 628, 716)
+- **File**: `src/abyss/handlers.py` (lines 221, 225, 628, 716)
 - **Status**: Open
 - **Description**: Error responses sent to Telegram users include internal paths and exception details.
 - **Fix**: Send generic error messages to users, log full details internally.
 
 ### 14. No Timeout on File Download
 
-- **File**: `src/cclaw/handlers.py` (line 676)
+- **File**: `src/abyss/handlers.py` (line 676)
 - **Status**: Open
 - **Description**: `file.download_to_drive()` has no explicit timeout. Slow or large downloads can hang the handler indefinitely.
 - **Fix**: Wrap with `asyncio.wait_for(..., timeout=60)`.
@@ -115,22 +115,22 @@ Total issues found: 35 (Critical: 5, High: 4, Medium: 5, Low/Info: 21)
 
 ### 15. Session ID Entropy
 
-- **File**: `src/cclaw/handlers.py` (line 508)
+- **File**: `src/abyss/handlers.py` (line 508)
 - **Description**: Uses `uuid.uuid4()` for session IDs. `secrets.token_urlsafe(32)` provides higher entropy.
 
 ### 16. No CSRF Protection for Destructive Commands
 
-- **File**: `src/cclaw/handlers.py`
+- **File**: `src/abyss/handlers.py`
 - **Description**: `/resetall` deletes session without confirmation. Consider requiring `/resetall confirm`.
 
 ### 17. MCP Config Written in Plaintext
 
-- **File**: `src/cclaw/claude_runner.py` (lines 162-164)
+- **File**: `src/abyss/claude_runner.py` (lines 162-164)
 - **Description**: `.mcp.json` with potential credentials is stored in plaintext in session directories.
 
 ### 18. Launchd Plist Embeds Current PATH
 
-- **File**: `src/cclaw/bot_manager.py` (lines 238, 254)
+- **File**: `src/abyss/bot_manager.py` (lines 238, 254)
 - **Description**: Full current `PATH` is copied into the launchd plist file.
 
 ### 19. No Audit Logging
@@ -140,12 +140,12 @@ Total issues found: 35 (Critical: 5, High: 4, Medium: 5, Low/Info: 21)
 
 ### 20. Exception Details Sent to Users
 
-- **File**: `src/cclaw/handlers.py` (lines 628, 716)
+- **File**: `src/abyss/handlers.py` (lines 628, 716)
 - **Description**: Full `str(error)` is sent in Telegram responses. Could leak internal details.
 
 ### 21. Subprocess Timeout Cleanup
 
-- **File**: `src/cclaw/claude_runner.py` (lines 191-193)
+- **File**: `src/abyss/claude_runner.py` (lines 191-193)
 - **Description**: Timeout sends SIGKILL directly. Consider SIGTERM first with a grace period.
 
 ### 22. No Config Schema Validation
@@ -155,7 +155,7 @@ Total issues found: 35 (Critical: 5, High: 4, Medium: 5, Low/Info: 21)
 
 ### 23. Skill Installation Integrity
 
-- **File**: `src/cclaw/skill.py` (lines 439-441)
+- **File**: `src/abyss/skill.py` (lines 439-441)
 - **Description**: Builtin skills are copied without checksum verification.
 
 ### 24-33. Additional Minor Items
@@ -173,14 +173,14 @@ Total issues found: 35 (Critical: 5, High: 4, Medium: 5, Low/Info: 21)
 
 ### 34. Group Mode Authorization Bypass for Bots
 
-- **File**: `src/cclaw/handlers.py` (message_handler)
+- **File**: `src/abyss/handlers.py` (message_handler)
 - **Status**: By design
 - **Description**: In group mode, bot senders (`is_bot == True`) skip `allowed_users` authorization. This enables orchestrator-to-member @mention delegation. A malicious bot added to the Telegram group (but not in the group config) could send messages that bypass authorization, though `_should_handle_group_message()` filters by role and only processes messages from known group members.
 - **Mitigation**: Validate that the sending bot's username matches a known group member before skipping authorization.
 
 ### 35. Shared Conversation Log Accessible to All Group Members
 
-- **File**: `src/cclaw/group.py` (log_to_shared_conversation)
+- **File**: `src/abyss/group.py` (log_to_shared_conversation)
 - **Status**: By design
 - **Description**: All bots in a group read the full shared conversation log. A compromised member bot could exfiltrate conversation history from other members' delegated tasks.
 - **Mitigation**: Accept as inherent to shared context model. Limit sensitive data to bot-specific memory (MEMORY.md) rather than group conversation.

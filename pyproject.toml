@@ -1,6 +1,6 @@
 [project]
-name = "cclaw"
-version = "2026.03.25"
+name = "abyss"
+version = "2026.04.24"
 description = "Telegram + Claude Code personal AI assistant"
 requires-python = ">=3.11"
 dependencies = [
@@ -14,25 +14,25 @@ dependencies = [
 ]
 
 [project.scripts]
-cclaw = "cclaw.cli:app"
+abyss = "abyss.cli:app"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cclaw"]
+packages = ["src/abyss"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"clawhouse/src" = "cclaw/clawhouse_data/src"
-"clawhouse/public" = "cclaw/clawhouse_data/public"
-"clawhouse/package.json" = "cclaw/clawhouse_data/package.json"
-"clawhouse/package-lock.json" = "cclaw/clawhouse_data/package-lock.json"
-"clawhouse/tsconfig.json" = "cclaw/clawhouse_data/tsconfig.json"
-"clawhouse/next.config.ts" = "cclaw/clawhouse_data/next.config.ts"
-"clawhouse/postcss.config.mjs" = "cclaw/clawhouse_data/postcss.config.mjs"
-"clawhouse/components.json" = "cclaw/clawhouse_data/components.json"
-"clawhouse/eslint.config.mjs" = "cclaw/clawhouse_data/eslint.config.mjs"
+"abysscope/src" = "abyss/abysscope_data/src"
+"abysscope/public" = "abyss/abysscope_data/public"
+"abysscope/package.json" = "abyss/abysscope_data/package.json"
+"abysscope/package-lock.json" = "abyss/abysscope_data/package-lock.json"
+"abysscope/tsconfig.json" = "abyss/abysscope_data/tsconfig.json"
+"abysscope/next.config.ts" = "abyss/abysscope_data/next.config.ts"
+"abysscope/postcss.config.mjs" = "abyss/abysscope_data/postcss.config.mjs"
+"abysscope/components.json" = "abyss/abysscope_data/components.json"
+"abysscope/eslint.config.mjs" = "abyss/abysscope_data/eslint.config.mjs"
 
 [dependency-groups]
 dev = [

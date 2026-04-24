@@ -1,6 +1,6 @@
 # Apple Reminders Skill Guide
 
-A guide to installing and using the built-in Apple Reminders skill for cclaw.
+A guide to installing and using the built-in Apple Reminders skill for abyss.
 
 ## Overview
 
@@ -88,22 +88,22 @@ If the above methods fail, granting **Full Disk Access** to your terminal app is
 
 Full Disk Access includes Reminders access.
 
-> **Note**: If running cclaw as a daemon (`cclaw start --daemon`), the shell used by `launchd` also needs permission.
+> **Note**: If running abyss as a daemon (`abyss start --daemon`), the shell used by `launchd` also needs permission.
 
 ## Installation & Setup
 
 ### 1. Install the Built-in Skill
 
 ```bash
-cclaw skills install reminders
+abyss skills install reminders
 ```
 
-This creates `SKILL.md` and `skill.yaml` in `~/.cclaw/skills/reminders/`.
+This creates `SKILL.md` and `skill.yaml` in `~/.abyss/skills/reminders/`.
 
 ### 2. Setup (Activate)
 
 ```bash
-cclaw skills setup reminders
+abyss skills setup reminders
 ```
 
 This checks if `reminders` is available in your PATH. If requirements are met, the skill status changes to `active`.
@@ -118,7 +118,7 @@ Via Telegram:
 ### 4. Verify
 
 ```bash
-cclaw skills
+abyss skills
 ```
 
 Expected output:
@@ -219,7 +219,7 @@ reminders show-lists
 ### reminders command not found
 
 ```
-cclaw skills setup reminders
+abyss skills setup reminders
 # Error: required command 'reminders' not found
 ```
 
@@ -249,10 +249,10 @@ If still no popup, use [Full Disk Access](#alternative-full-disk-access) as a fa
 **Solution**: Verify that `Bash(reminders:*)` is included in `allowed_tools` in skill.yaml.
 
 ```bash
-cat ~/.cclaw/skills/reminders/skill.yaml
+cat ~/.abyss/skills/reminders/skill.yaml
 ```
 
-If `allowed_tools` is present, re-activate with `cclaw skills setup reminders`.
+If `allowed_tools` is present, re-activate with `abyss skills setup reminders`.
 
 ### Context lost (multi-turn failure)
 

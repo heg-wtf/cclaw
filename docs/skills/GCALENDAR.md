@@ -1,6 +1,6 @@
 # Google Calendar Skill Guide
 
-A guide to installing and using the built-in Google Calendar skill for cclaw.
+A guide to installing and using the built-in Google Calendar skill for abyss.
 
 ## Overview
 
@@ -56,13 +56,13 @@ gog calendar events --today
 ### 1. Install the Built-in Skill
 
 ```bash
-cclaw skills install gcalendar
+abyss skills install gcalendar
 ```
 
 ### 2. Setup (Activate)
 
 ```bash
-cclaw skills setup gcalendar
+abyss skills setup gcalendar
 ```
 
 During setup, you'll be prompted to enter your `GOG_ACCOUNT` (Google account email).
@@ -78,7 +78,7 @@ Via Telegram:
 ### 4. Verify
 
 ```bash
-cclaw skills
+abyss skills
 ```
 
 ## Usage
@@ -136,7 +136,7 @@ This allows all `gog` commands to run without permission prompts in Claude Code'
 
 ### Environment Variable Injection
 
-The `GOG_ACCOUNT` environment variable is stored during `cclaw skills setup` and injected into the Claude Code subprocess at runtime. The `gog` CLI uses this to select which Google account to operate on.
+The `GOG_ACCOUNT` environment variable is stored during `abyss skills setup` and injected into the Claude Code subprocess at runtime. The `gog` CLI uses this to select which Google account to operate on.
 
 ### Shared Authentication with Gmail
 
@@ -194,4 +194,4 @@ gog calendar events --today
 
 The bot says "Please approve in terminal":
 
-**Solution**: Verify `Bash(gog:*)` is in `allowed_tools` in skill.yaml, then re-run `cclaw skills setup gcalendar`.
+**Solution**: Verify `Bash(gog:*)` is in `allowed_tools` in skill.yaml, then re-run `abyss skills setup gcalendar`.

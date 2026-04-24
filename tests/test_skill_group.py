@@ -5,17 +5,17 @@ from __future__ import annotations
 import pytest
 import yaml
 
-from cclaw.group import bind_group, create_group
-from cclaw.session import ensure_session
-from cclaw.skill import compose_claude_md, compose_group_context
+from abyss.group import bind_group, create_group
+from abyss.session import ensure_session
+from abyss.skill import compose_claude_md, compose_group_context
 
 
 @pytest.fixture()
-def temp_cclaw_home(tmp_path, monkeypatch):
-    """Set CCLAW_HOME to a temporary directory with config and bots."""
-    home = tmp_path / ".cclaw"
+def temp_abyss_home(tmp_path, monkeypatch):
+    """Set ABYSS_HOME to a temporary directory with config and bots."""
+    home = tmp_path / ".abyss"
     home.mkdir()
-    monkeypatch.setenv("CCLAW_HOME", str(home))
+    monkeypatch.setenv("ABYSS_HOME", str(home))
 
     config = {
         "bots": [
@@ -71,7 +71,7 @@ def temp_cclaw_home(tmp_path, monkeypatch):
 
 
 @pytest.fixture()
-def dev_team_group(temp_cclaw_home):
+def dev_team_group(temp_abyss_home):
     """Create a dev_team group."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder", "tester"])
     return "dev_team"
@@ -80,9 +80,9 @@ def dev_team_group(temp_cclaw_home):
 # --- compose_group_context ---
 
 
-def test_compose_group_context_orchestrator(temp_cclaw_home, dev_team_group):
+def test_compose_group_context_orchestrator(temp_abyss_home, dev_team_group):
     """Orchestrator context includes 'orchestrator' and team member info."""
-    from cclaw.group import load_group_config
+    from abyss.group import load_group_config
 
     group_config = load_group_config("dev_team")
     assert group_config is not None
@@ -98,9 +98,9 @@ def test_compose_group_context_orchestrator(temp_cclaw_home, dev_team_group):
     assert "QA engineer" in context
 
 
-def test_compose_group_context_orchestrator_clarification_rules(temp_cclaw_home, dev_team_group):
+def test_compose_group_context_orchestrator_clarification_rules(temp_abyss_home, dev_team_group):
     """Orchestrator context includes clarification question rule."""
-    from cclaw.group import load_group_config
+    from abyss.group import load_group_config
 
     group_config = load_group_config("dev_team")
     assert group_config is not None
@@ -110,9 +110,9 @@ def test_compose_group_context_orchestrator_clarification_rules(temp_cclaw_home,
     assert "ambiguous" in context or "clarifying" in context
 
 
-def test_compose_group_context_orchestrator_workspace(temp_cclaw_home, dev_team_group):
+def test_compose_group_context_orchestrator_workspace(temp_abyss_home, dev_team_group):
     """Orchestrator context includes shared workspace path."""
-    from cclaw.group import load_group_config
+    from abyss.group import load_group_config
 
     group_config = load_group_config("dev_team")
     assert group_config is not None
@@ -123,9 +123,9 @@ def test_compose_group_context_orchestrator_workspace(temp_cclaw_home, dev_team_
     assert "dev_team" in context
 
 
-def test_compose_group_context_member(temp_cclaw_home, dev_team_group):
+def test_compose_group_context_member(temp_abyss_home, dev_team_group):
     """Member context includes 'member' and orchestrator @username."""
-    from cclaw.group import load_group_config
+    from abyss.group import load_group_config
 
     group_config = load_group_config("dev_team")
     assert group_config is not None
@@ -138,9 +138,9 @@ def test_compose_group_context_member(temp_cclaw_home, dev_team_group):
     assert "Only respond when @mentioned" in context
 
 
-def test_compose_group_context_member_workspace(temp_cclaw_home, dev_team_group):
+def test_compose_group_context_member_workspace(temp_abyss_home, dev_team_group):
     """Member context includes shared workspace path."""
-    from cclaw.group import load_group_config
+    from abyss.group import load_group_config
 
     group_config = load_group_config("dev_team")
     assert group_config is not None
@@ -151,9 +151,9 @@ def test_compose_group_context_member_workspace(temp_cclaw_home, dev_team_group)
     assert "dev_team" in context
 
 
-def test_compose_group_context_not_in_group(temp_cclaw_home, dev_team_group):
+def test_compose_group_context_not_in_group(temp_abyss_home, dev_team_group):
     """Bot not in group gets empty context."""
-    from cclaw.group import load_group_config
+    from abyss.group import load_group_config
 
     group_config = load_group_config("dev_team")
     assert group_config is not None
@@ -166,7 +166,7 @@ def test_compose_group_context_not_in_group(temp_cclaw_home, dev_team_group):
 # --- compose_claude_md with group_context ---
 
 
-def test_compose_claude_md_without_group(temp_cclaw_home):
+def test_compose_claude_md_without_group(temp_abyss_home):
     """compose_claude_md without group_context produces standard output."""
     content = compose_claude_md(
         bot_name="coder",
@@ -180,9 +180,9 @@ def test_compose_claude_md_without_group(temp_cclaw_home):
     assert "Group:" not in content
 
 
-def test_compose_claude_md_with_group_orchestrator(temp_cclaw_home, dev_team_group):
+def test_compose_claude_md_with_group_orchestrator(temp_abyss_home, dev_team_group):
     """compose_claude_md with group_context appends orchestrator group section."""
-    from cclaw.group import load_group_config
+    from abyss.group import load_group_config
 
     group_config = load_group_config("dev_team")
 
@@ -204,9 +204,9 @@ def test_compose_claude_md_with_group_orchestrator(temp_cclaw_home, dev_team_gro
     assert "@tester_bot" in content
 
 
-def test_compose_claude_md_with_group_member(temp_cclaw_home, dev_team_group):
+def test_compose_claude_md_with_group_member(temp_abyss_home, dev_team_group):
     """compose_claude_md with group_context appends member group section."""
-    from cclaw.group import load_group_config
+    from abyss.group import load_group_config
 
     group_config = load_group_config("dev_team")
 
@@ -228,9 +228,9 @@ def test_compose_claude_md_with_group_member(temp_cclaw_home, dev_team_group):
 # --- ensure_session with group context ---
 
 
-def test_ensure_session_dm_no_group_context(temp_cclaw_home):
+def test_ensure_session_dm_no_group_context(temp_abyss_home):
     """DM session generates standard CLAUDE.md (no group context)."""
-    bot_path = temp_cclaw_home / "bots" / "coder"
+    bot_path = temp_abyss_home / "bots" / "coder"
 
     session_dir = ensure_session(bot_path, 222, bot_name="coder")
     claude_md = (session_dir / "CLAUDE.md").read_text()
@@ -239,10 +239,10 @@ def test_ensure_session_dm_no_group_context(temp_cclaw_home):
     assert "Group:" not in claude_md
 
 
-def test_ensure_session_group_orchestrator(temp_cclaw_home, dev_team_group):
+def test_ensure_session_group_orchestrator(temp_abyss_home, dev_team_group):
     """Group session for orchestrator generates CLAUDE.md with orchestrator context."""
     bind_group("dev_team", -12345)
-    bot_path = temp_cclaw_home / "bots" / "dev_lead"
+    bot_path = temp_abyss_home / "bots" / "dev_lead"
 
     session_dir = ensure_session(bot_path, -12345, bot_name="dev_lead")
     claude_md = (session_dir / "CLAUDE.md").read_text()
@@ -253,10 +253,10 @@ def test_ensure_session_group_orchestrator(temp_cclaw_home, dev_team_group):
     assert "@coder_bot" in claude_md
 
 
-def test_ensure_session_group_member(temp_cclaw_home, dev_team_group):
+def test_ensure_session_group_member(temp_abyss_home, dev_team_group):
     """Group session for member generates CLAUDE.md with member context."""
     bind_group("dev_team", -12345)
-    bot_path = temp_cclaw_home / "bots" / "coder"
+    bot_path = temp_abyss_home / "bots" / "coder"
 
     session_dir = ensure_session(bot_path, -12345, bot_name="coder")
     claude_md = (session_dir / "CLAUDE.md").read_text()
@@ -267,14 +267,14 @@ def test_ensure_session_group_member(temp_cclaw_home, dev_team_group):
     assert "@dev_lead_bot" in claude_md
 
 
-def test_ensure_session_same_bot_different_groups(temp_cclaw_home):
+def test_ensure_session_same_bot_different_groups(temp_abyss_home):
     """Same bot in different groups gets different CLAUDE.md per session."""
     create_group(name="team_a", orchestrator="dev_lead", members=["coder"])
     create_group(name="team_b", orchestrator="coder", members=["tester"])
     bind_group("team_a", -11111)
     bind_group("team_b", -22222)
 
-    bot_path = temp_cclaw_home / "bots" / "coder"
+    bot_path = temp_abyss_home / "bots" / "coder"
 
     # Group A: coder is a member
     session_a = ensure_session(bot_path, -11111, bot_name="coder")
@@ -291,10 +291,10 @@ def test_ensure_session_same_bot_different_groups(temp_cclaw_home):
     assert "Group: team_b" in claude_md_b
 
 
-def test_ensure_session_same_bot_dm_and_group(temp_cclaw_home, dev_team_group):
+def test_ensure_session_same_bot_dm_and_group(temp_abyss_home, dev_team_group):
     """Same bot has group context in group session but not in DM."""
     bind_group("dev_team", -12345)
-    bot_path = temp_cclaw_home / "bots" / "coder"
+    bot_path = temp_abyss_home / "bots" / "coder"
 
     # DM session
     session_dm = ensure_session(bot_path, 222, bot_name="coder")
@@ -308,10 +308,10 @@ def test_ensure_session_same_bot_dm_and_group(temp_cclaw_home, dev_team_group):
     assert "Group: dev_team" in claude_md_group
 
 
-def test_ensure_session_without_bot_name_uses_copy(temp_cclaw_home, dev_team_group):
+def test_ensure_session_without_bot_name_uses_copy(temp_abyss_home, dev_team_group):
     """ensure_session without bot_name falls back to copying bot's CLAUDE.md."""
     bind_group("dev_team", -12345)
-    bot_path = temp_cclaw_home / "bots" / "coder"
+    bot_path = temp_abyss_home / "bots" / "coder"
 
     # Without bot_name — legacy behavior
     session_dir = ensure_session(bot_path, -12345)

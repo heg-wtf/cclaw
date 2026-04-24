@@ -1,4 +1,4 @@
-"""Tests for cclaw.cron module."""
+"""Tests for abyss.cron module."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from cclaw.cron import (
+from abyss.cron import (
     add_cron_job,
     cron_session_directory,
     disable_cron_job,
@@ -32,17 +32,17 @@ from cclaw.cron import (
 
 
 @pytest.fixture
-def temp_cclaw_home(tmp_path, monkeypatch):
-    """Set CCLAW_HOME to a temporary directory."""
-    home = tmp_path / ".cclaw"
-    monkeypatch.setenv("CCLAW_HOME", str(home))
+def temp_abyss_home(tmp_path, monkeypatch):
+    """Set ABYSS_HOME to a temporary directory."""
+    home = tmp_path / ".abyss"
+    monkeypatch.setenv("ABYSS_HOME", str(home))
     return home
 
 
 @pytest.fixture
-def bot_with_cron(temp_cclaw_home):
+def bot_with_cron(temp_abyss_home):
     """Create a bot directory with a cron.yaml."""
-    bot_directory = temp_cclaw_home / "bots" / "test-bot"
+    bot_directory = temp_abyss_home / "bots" / "test-bot"
     bot_directory.mkdir(parents=True)
     (bot_directory / "CLAUDE.md").write_text("# test-bot\n")
     return "test-bot"
@@ -279,7 +279,7 @@ def test_next_run_time_invalid_schedule():
 
 def test_resolve_job_timezone_default_no_config(monkeypatch):
     """resolve_job_timezone returns UTC when no timezone specified and no config."""
-    monkeypatch.setattr("cclaw.config.load_config", lambda: None)
+    monkeypatch.setattr("abyss.config.load_config", lambda: None)
     job = {"schedule": "0 9 * * *"}
     result = resolve_job_timezone(job)
     assert result == timezone.utc
@@ -290,7 +290,7 @@ def test_resolve_job_timezone_falls_back_to_config(monkeypatch):
     from zoneinfo import ZoneInfo
 
     monkeypatch.setattr(
-        "cclaw.config.load_config",
+        "abyss.config.load_config",
         lambda: {"timezone": "Asia/Tokyo"},
     )
     job = {"schedule": "0 9 * * *"}
@@ -312,7 +312,7 @@ def test_resolve_job_timezone_invalid_falls_back_to_config(monkeypatch):
     from zoneinfo import ZoneInfo
 
     monkeypatch.setattr(
-        "cclaw.config.load_config",
+        "abyss.config.load_config",
         lambda: {"timezone": "Asia/Seoul"},
     )
     job = {"schedule": "0 9 * * *", "timezone": "Invalid/Timezone"}
@@ -322,7 +322,7 @@ def test_resolve_job_timezone_invalid_falls_back_to_config(monkeypatch):
 
 def test_resolve_job_timezone_invalid_no_config(monkeypatch):
     """resolve_job_timezone falls back to UTC when both job and config timezone are invalid."""
-    monkeypatch.setattr("cclaw.config.load_config", lambda: None)
+    monkeypatch.setattr("abyss.config.load_config", lambda: None)
     job = {"schedule": "0 9 * * *", "timezone": "Invalid/Timezone"}
     result = resolve_job_timezone(job)
     assert result == timezone.utc
@@ -341,7 +341,7 @@ def test_next_run_time_with_timezone():
 
 def test_next_run_time_utc_default(monkeypatch):
     """next_run_time uses UTC when no timezone specified and no config timezone."""
-    monkeypatch.setattr("cclaw.config.load_config", lambda: None)
+    monkeypatch.setattr("abyss.config.load_config", lambda: None)
     job = {"schedule": "0 9 * * *"}
     result = next_run_time(job)
     assert result is not None
@@ -351,7 +351,7 @@ def test_next_run_time_utc_default(monkeypatch):
 # --- Cron session directory ---
 
 
-def test_cron_session_directory(bot_with_cron, temp_cclaw_home):
+def test_cron_session_directory(bot_with_cron, temp_abyss_home):
     """cron_session_directory creates and returns correct path."""
     directory = cron_session_directory(bot_with_cron, "test-job")
     assert directory.exists()
@@ -375,7 +375,7 @@ async def test_execute_cron_job_sends_to_allowed_users(bot_with_cron):
     send_mock = AsyncMock()
 
     with patch(
-        "cclaw.claude_runner.run_claude", new_callable=AsyncMock, return_value="Test response"
+        "abyss.claude_runner.run_claude", new_callable=AsyncMock, return_value="Test response"
     ):
         await execute_cron_job(
             bot_name=bot_with_cron,
@@ -400,7 +400,7 @@ async def test_execute_cron_job_no_allowed_users_no_sessions(bot_with_cron):
     send_mock = AsyncMock()
 
     with patch(
-        "cclaw.claude_runner.run_claude", new_callable=AsyncMock, return_value="Test response"
+        "abyss.claude_runner.run_claude", new_callable=AsyncMock, return_value="Test response"
     ):
         await execute_cron_job(
             bot_name=bot_with_cron,
@@ -413,10 +413,10 @@ async def test_execute_cron_job_no_allowed_users_no_sessions(bot_with_cron):
 
 
 @pytest.mark.asyncio
-async def test_execute_cron_job_fallback_to_session_chat_ids(bot_with_cron, temp_cclaw_home):
+async def test_execute_cron_job_fallback_to_session_chat_ids(bot_with_cron, temp_abyss_home):
     """execute_cron_job falls back to session chat IDs when allowed_users is empty."""
     # Create session directories to simulate past conversations
-    bot_path = temp_cclaw_home / "bots" / bot_with_cron
+    bot_path = temp_abyss_home / "bots" / bot_with_cron
     sessions_directory = bot_path / "sessions"
     sessions_directory.mkdir(parents=True, exist_ok=True)
     (sessions_directory / "chat_111").mkdir()
@@ -428,7 +428,7 @@ async def test_execute_cron_job_fallback_to_session_chat_ids(bot_with_cron, temp
     send_mock = AsyncMock()
 
     with patch(
-        "cclaw.claude_runner.run_claude", new_callable=AsyncMock, return_value="Test response"
+        "abyss.claude_runner.run_claude", new_callable=AsyncMock, return_value="Test response"
     ):
         await execute_cron_job(
             bot_name=bot_with_cron,
@@ -453,7 +453,7 @@ async def test_execute_cron_job_uses_job_model(bot_with_cron):
     send_mock = AsyncMock()
 
     with patch(
-        "cclaw.claude_runner.run_claude", new_callable=AsyncMock, return_value="OK"
+        "abyss.claude_runner.run_claude", new_callable=AsyncMock, return_value="OK"
     ) as mock_claude:
         await execute_cron_job(
             bot_name=bot_with_cron,
@@ -475,7 +475,7 @@ async def test_execute_cron_job_handles_error(bot_with_cron):
     send_mock = AsyncMock()
 
     with patch(
-        "cclaw.claude_runner.run_claude",
+        "abyss.claude_runner.run_claude",
         new_callable=AsyncMock,
         side_effect=RuntimeError("Claude crashed"),
     ):
@@ -538,7 +538,7 @@ async def test_run_cron_scheduler_skips_disabled_jobs(bot_with_cron):
 
     asyncio.create_task(set_stop())
 
-    with patch("cclaw.claude_runner.run_claude", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.claude_runner.run_claude", new_callable=AsyncMock) as mock_claude:
         await asyncio.wait_for(
             run_cron_scheduler(bot_with_cron, bot_config, application, stop_event),
             timeout=5,
@@ -578,7 +578,7 @@ async def test_run_cron_scheduler_runs_matching_job(bot_with_cron):
 
     asyncio.create_task(set_stop())
 
-    with patch("cclaw.cron.execute_cron_job", side_effect=mock_execute) as mock_exec:
+    with patch("abyss.cron.execute_cron_job", side_effect=mock_execute) as mock_exec:
         await asyncio.wait_for(
             run_cron_scheduler(bot_with_cron, bot_config, application, stop_event),
             timeout=35,
@@ -613,7 +613,7 @@ async def test_run_cron_scheduler_one_shot_delete(bot_with_cron):
 
     asyncio.create_task(set_stop())
 
-    with patch("cclaw.claude_runner.run_claude", new_callable=AsyncMock, return_value="Done"):
+    with patch("abyss.claude_runner.run_claude", new_callable=AsyncMock, return_value="Done"):
         await asyncio.wait_for(
             run_cron_scheduler(bot_with_cron, bot_config, application, stop_event),
             timeout=5,
@@ -646,7 +646,7 @@ async def test_run_cron_scheduler_one_shot_disable(bot_with_cron):
 
     asyncio.create_task(set_stop())
 
-    with patch("cclaw.claude_runner.run_claude", new_callable=AsyncMock, return_value="Done"):
+    with patch("abyss.claude_runner.run_claude", new_callable=AsyncMock, return_value="Done"):
         await asyncio.wait_for(
             run_cron_scheduler(bot_with_cron, bot_config, application, stop_event),
             timeout=5,
@@ -705,7 +705,7 @@ def test_add_cron_job_keeps_absolute_at_unchanged(bot_with_cron):
 def test_resolve_default_timezone_from_config(monkeypatch):
     """resolve_default_timezone reads timezone from config.yaml."""
     monkeypatch.setattr(
-        "cclaw.config.load_config",
+        "abyss.config.load_config",
         lambda: {"timezone": "Asia/Seoul"},
     )
     assert resolve_default_timezone() == "Asia/Seoul"
@@ -713,14 +713,14 @@ def test_resolve_default_timezone_from_config(monkeypatch):
 
 def test_resolve_default_timezone_no_config(monkeypatch):
     """resolve_default_timezone returns UTC when no config."""
-    monkeypatch.setattr("cclaw.config.load_config", lambda: None)
+    monkeypatch.setattr("abyss.config.load_config", lambda: None)
     assert resolve_default_timezone() == "UTC"
 
 
 def test_resolve_default_timezone_no_timezone_in_config(monkeypatch):
     """resolve_default_timezone returns UTC when config has no timezone."""
     monkeypatch.setattr(
-        "cclaw.config.load_config",
+        "abyss.config.load_config",
         lambda: {"bots": [], "settings": {}},
     )
     assert resolve_default_timezone() == "UTC"
@@ -780,7 +780,7 @@ async def test_parse_natural_language_schedule_recurring():
         }
     )
     with patch(
-        "cclaw.claude_runner.run_claude",
+        "abyss.claude_runner.run_claude",
         new_callable=AsyncMock,
         return_value=mock_response,
     ):
@@ -808,7 +808,7 @@ async def test_parse_natural_language_schedule_oneshot():
         }
     )
     with patch(
-        "cclaw.claude_runner.run_claude",
+        "abyss.claude_runner.run_claude",
         new_callable=AsyncMock,
         return_value=mock_response,
     ):
@@ -836,7 +836,7 @@ async def test_parse_natural_language_schedule_json_in_code_block():
     )
     mock_response = f"```json\n{inner}\n```"
     with patch(
-        "cclaw.claude_runner.run_claude",
+        "abyss.claude_runner.run_claude",
         new_callable=AsyncMock,
         return_value=mock_response,
     ):
@@ -851,7 +851,7 @@ async def test_parse_natural_language_schedule_json_in_code_block():
 @pytest.mark.asyncio
 async def test_parse_natural_language_schedule_invalid_json():
     """parse_natural_language_schedule raises ValueError on invalid JSON."""
-    with patch("cclaw.claude_runner.run_claude", new_callable=AsyncMock, return_value="not json"):
+    with patch("abyss.claude_runner.run_claude", new_callable=AsyncMock, return_value="not json"):
         with pytest.raises(ValueError, match="Failed to parse"):
             await parse_natural_language_schedule("gibberish", "UTC")
 
@@ -861,7 +861,7 @@ async def test_parse_natural_language_schedule_missing_fields():
     """parse_natural_language_schedule raises ValueError on incomplete."""
     mock_response = '{"type": "recurring"}'
     with patch(
-        "cclaw.claude_runner.run_claude",
+        "abyss.claude_runner.run_claude",
         new_callable=AsyncMock,
         return_value=mock_response,
     ):
@@ -883,7 +883,7 @@ async def test_parse_natural_language_schedule_invalid_cron():
         }
     )
     with patch(
-        "cclaw.claude_runner.run_claude",
+        "abyss.claude_runner.run_claude",
         new_callable=AsyncMock,
         return_value=mock_response,
     ):

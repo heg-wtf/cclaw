@@ -1,4 +1,4 @@
-"""Tests for cclaw.skill module."""
+"""Tests for abyss.skill module."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import json
 import pytest
 import yaml
 
-from cclaw.skill import (
+from abyss.skill import (
     VALID_SKILL_TYPES,
     activate_skill,
     attach_skill_to_bot,
@@ -40,26 +40,26 @@ from cclaw.skill import (
 
 
 @pytest.fixture
-def temp_cclaw_home(tmp_path, monkeypatch):
-    """Set CCLAW_HOME to a temporary directory."""
-    home = tmp_path / ".cclaw"
-    monkeypatch.setenv("CCLAW_HOME", str(home))
+def temp_abyss_home(tmp_path, monkeypatch):
+    """Set ABYSS_HOME to a temporary directory."""
+    home = tmp_path / ".abyss"
+    monkeypatch.setenv("ABYSS_HOME", str(home))
     return home
 
 
 @pytest.fixture
-def setup_skill(temp_cclaw_home):
+def setup_skill(temp_abyss_home):
     """Create a sample skill."""
-    directory = temp_cclaw_home / "skills" / "test-skill"
+    directory = temp_abyss_home / "skills" / "test-skill"
     directory.mkdir(parents=True)
     (directory / "SKILL.md").write_text("# test-skill\n\nA test skill.")
     return directory
 
 
 @pytest.fixture
-def setup_tool_skill(temp_cclaw_home):
+def setup_tool_skill(temp_abyss_home):
     """Create a tool-based skill with skill.yaml."""
-    directory = temp_cclaw_home / "skills" / "tool-skill"
+    directory = temp_abyss_home / "skills" / "tool-skill"
     directory.mkdir(parents=True)
     (directory / "SKILL.md").write_text("# tool-skill\n\nA CLI tool skill.")
     config = {
@@ -75,9 +75,9 @@ def setup_tool_skill(temp_cclaw_home):
 
 
 @pytest.fixture
-def setup_bot(temp_cclaw_home):
+def setup_bot(temp_abyss_home):
     """Create a sample bot."""
-    from cclaw.config import add_bot_to_config, save_bot_config
+    from abyss.config import add_bot_to_config, save_bot_config
 
     bot_config = {
         "telegram_token": "fake-token",
@@ -96,14 +96,14 @@ def setup_bot(temp_cclaw_home):
 # --- Directory Helpers ---
 
 
-def test_skills_directory(temp_cclaw_home):
+def test_skills_directory(temp_abyss_home):
     """skills_directory returns correct path."""
-    assert skills_directory() == temp_cclaw_home / "skills"
+    assert skills_directory() == temp_abyss_home / "skills"
 
 
-def test_skill_directory(temp_cclaw_home):
+def test_skill_directory(temp_abyss_home):
     """skill_directory returns correct path for a skill."""
-    assert skill_directory("my-skill") == temp_cclaw_home / "skills" / "my-skill"
+    assert skill_directory("my-skill") == temp_abyss_home / "skills" / "my-skill"
 
 
 # --- Valid Types ---
@@ -126,7 +126,7 @@ def test_is_valid_skill_type():
 # --- Recognition & Loading ---
 
 
-def test_list_skills_empty(temp_cclaw_home):
+def test_list_skills_empty(temp_abyss_home):
     """list_skills returns empty list when no skills exist."""
     assert list_skills() == []
 
@@ -145,14 +145,14 @@ def test_is_skill_true(setup_skill):
     assert is_skill("test-skill") is True
 
 
-def test_is_skill_false(temp_cclaw_home):
+def test_is_skill_false(temp_abyss_home):
     """is_skill returns False for nonexistent skill."""
     assert is_skill("nonexistent") is False
 
 
-def test_is_skill_no_skill_md(temp_cclaw_home):
+def test_is_skill_no_skill_md(temp_abyss_home):
     """is_skill returns False when directory exists but no SKILL.md."""
-    directory = temp_cclaw_home / "skills" / "no-md"
+    directory = temp_abyss_home / "skills" / "no-md"
     directory.mkdir(parents=True)
     assert is_skill("no-md") is False
 
@@ -185,12 +185,12 @@ def test_load_skill_markdown(setup_skill):
     assert "# test-skill" in markdown
 
 
-def test_load_skill_markdown_missing(temp_cclaw_home):
+def test_load_skill_markdown_missing(temp_abyss_home):
     """load_skill_markdown returns None for missing skill."""
     assert load_skill_markdown("nonexistent") is None
 
 
-def test_skill_status_not_found(temp_cclaw_home):
+def test_skill_status_not_found(temp_abyss_home):
     """skill_status returns not_found for missing skill."""
     assert skill_status("nonexistent") == "not_found"
 
@@ -218,11 +218,11 @@ def test_skill_type_cli(setup_tool_skill):
 # --- Creation & Deletion ---
 
 
-def test_create_skill_directory(temp_cclaw_home):
+def test_create_skill_directory(temp_abyss_home):
     """create_skill_directory creates the directory."""
     directory = create_skill_directory("new-skill")
     assert directory.exists()
-    assert directory == temp_cclaw_home / "skills" / "new-skill"
+    assert directory == temp_abyss_home / "skills" / "new-skill"
 
 
 def test_generate_skill_markdown():
@@ -265,12 +265,12 @@ def test_remove_skill(setup_skill):
     assert is_skill("test-skill") is False
 
 
-def test_remove_skill_not_found(temp_cclaw_home):
+def test_remove_skill_not_found(temp_abyss_home):
     """remove_skill returns False for missing skill."""
     assert remove_skill("nonexistent") is False
 
 
-def test_remove_skill_detaches_from_bots(setup_skill, setup_bot, temp_cclaw_home):
+def test_remove_skill_detaches_from_bots(setup_skill, setup_bot, temp_abyss_home):
     """remove_skill detaches from all bots."""
     attach_skill_to_bot("test-bot", "test-skill")
     assert "test-skill" in get_bot_skills("test-bot")
@@ -295,9 +295,9 @@ def test_check_skill_requirements_met(setup_tool_skill):
     assert errors == []
 
 
-def test_check_skill_requirements_missing_command(temp_cclaw_home):
+def test_check_skill_requirements_missing_command(temp_abyss_home):
     """check_skill_requirements reports missing commands."""
-    directory = temp_cclaw_home / "skills" / "bad-skill"
+    directory = temp_abyss_home / "skills" / "bad-skill"
     directory.mkdir(parents=True)
     (directory / "SKILL.md").write_text("# bad-skill")
     config = {
@@ -439,9 +439,9 @@ def test_compose_claude_md_nonexistent_skill():
     assert "Available Skills" not in result
 
 
-def test_compose_claude_md_with_global_memory(temp_cclaw_home):
+def test_compose_claude_md_with_global_memory(temp_abyss_home):
     """compose_claude_md includes global memory section when present."""
-    from cclaw.session import save_global_memory
+    from abyss.session import save_global_memory
 
     save_global_memory("- Timezone: Asia/Seoul\n- Language: Korean")
 
@@ -455,7 +455,7 @@ def test_compose_claude_md_with_global_memory(temp_cclaw_home):
     assert "수정하지 마라" in result
 
 
-def test_compose_claude_md_no_global_memory(temp_cclaw_home):
+def test_compose_claude_md_no_global_memory(temp_abyss_home):
     """compose_claude_md omits global memory section when not present."""
     result = compose_claude_md(
         bot_name="my-bot",
@@ -465,13 +465,13 @@ def test_compose_claude_md_no_global_memory(temp_cclaw_home):
     assert "Global Memory" not in result
 
 
-def test_compose_claude_md_global_memory_before_bot_memory(temp_cclaw_home):
+def test_compose_claude_md_global_memory_before_bot_memory(temp_abyss_home):
     """compose_claude_md places global memory before bot memory."""
-    from cclaw.session import save_global_memory
+    from abyss.session import save_global_memory
 
     save_global_memory("- Global setting")
 
-    bot_path = temp_cclaw_home / "bots" / "my-bot"
+    bot_path = temp_abyss_home / "bots" / "my-bot"
     bot_path.mkdir(parents=True)
 
     result = compose_claude_md(
@@ -485,9 +485,9 @@ def test_compose_claude_md_global_memory_before_bot_memory(temp_cclaw_home):
     assert global_memory_index < bot_memory_index
 
 
-def test_regenerate_bot_claude_md(setup_skill, setup_bot, temp_cclaw_home):
+def test_regenerate_bot_claude_md(setup_skill, setup_bot, temp_abyss_home):
     """regenerate_bot_claude_md updates CLAUDE.md."""
-    from cclaw.config import bot_directory
+    from abyss.config import bot_directory
 
     attach_skill_to_bot("test-bot", "test-skill")
     regenerate_bot_claude_md("test-bot")
@@ -502,9 +502,9 @@ def test_regenerate_bot_claude_md_nonexistent():
     regenerate_bot_claude_md("nonexistent")  # Should not crash
 
 
-def test_update_session_claude_md(temp_cclaw_home):
+def test_update_session_claude_md(temp_abyss_home):
     """update_session_claude_md propagates to all sessions."""
-    bot_path = temp_cclaw_home / "bots" / "test-bot"
+    bot_path = temp_abyss_home / "bots" / "test-bot"
     bot_path.mkdir(parents=True)
     (bot_path / "CLAUDE.md").write_text("# Updated content")
 
@@ -556,10 +556,10 @@ def test_merge_mcp_configs_no_mcp_skills(setup_skill):
     assert merge_mcp_configs(["test-skill"]) is None
 
 
-def test_merge_mcp_configs_multiple(temp_cclaw_home):
+def test_merge_mcp_configs_multiple(temp_abyss_home):
     """merge_mcp_configs merges multiple MCP configs."""
     for i, skill_name in enumerate(["skill-a", "skill-b"]):
-        directory = temp_cclaw_home / "skills" / skill_name
+        directory = temp_abyss_home / "skills" / skill_name
         directory.mkdir(parents=True)
         (directory / "SKILL.md").write_text(f"# {skill_name}")
         mcp_config = {"mcpServers": {f"server-{i}": {"command": f"cmd-{i}"}}}
@@ -582,9 +582,9 @@ def test_collect_skill_environment_variables_no_config(setup_skill):
     assert collect_skill_environment_variables(["test-skill"]) == {}
 
 
-def test_collect_skill_environment_variables_with_values(temp_cclaw_home):
+def test_collect_skill_environment_variables_with_values(temp_abyss_home):
     """collect_skill_environment_variables collects from skill.yaml."""
-    directory = temp_cclaw_home / "skills" / "env-skill"
+    directory = temp_abyss_home / "skills" / "env-skill"
     directory.mkdir(parents=True)
     (directory / "SKILL.md").write_text("# env-skill")
     config = {
@@ -616,13 +616,13 @@ def test_collect_skill_allowed_tools_no_config(setup_skill):
     assert collect_skill_allowed_tools(["test-skill"]) == []
 
 
-def test_collect_skill_allowed_tools(temp_cclaw_home):
+def test_collect_skill_allowed_tools(temp_abyss_home):
     """collect_skill_allowed_tools collects and merges from multiple skills."""
     for skill_name, tools in [
         ("skill-a", ["Bash(imsg:*)"]),
         ("skill-b", ["Bash(curl:*)", "Read(*)"]),
     ]:
-        directory = temp_cclaw_home / "skills" / skill_name
+        directory = temp_abyss_home / "skills" / skill_name
         directory.mkdir(parents=True)
         (directory / "SKILL.md").write_text(f"# {skill_name}")
         config = {

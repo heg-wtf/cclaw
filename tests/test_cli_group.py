@@ -1,4 +1,4 @@
-"""Tests for cclaw CLI group subcommands."""
+"""Tests for abyss CLI group subcommands."""
 
 from __future__ import annotations
 
@@ -6,18 +6,18 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from cclaw.cli import app
-from cclaw.group import bind_group, load_group_config
+from abyss.cli import app
+from abyss.group import bind_group, load_group_config
 
 runner = CliRunner()
 
 
 @pytest.fixture()
-def temp_cclaw_home(tmp_path, monkeypatch):
-    """Set CCLAW_HOME to a temporary directory with registered bots."""
-    home = tmp_path / ".cclaw"
+def temp_abyss_home(tmp_path, monkeypatch):
+    """Set ABYSS_HOME to a temporary directory with registered bots."""
+    home = tmp_path / ".abyss"
     home.mkdir()
-    monkeypatch.setenv("CCLAW_HOME", str(home))
+    monkeypatch.setenv("ABYSS_HOME", str(home))
 
     config = {
         "bots": [
@@ -70,11 +70,11 @@ def temp_cclaw_home(tmp_path, monkeypatch):
     return home
 
 
-# --- cclaw group create ---
+# --- abyss group create ---
 
 
-def test_group_create(temp_cclaw_home):
-    """cclaw group create creates group and shows confirmation."""
+def test_group_create(temp_abyss_home):
+    """abyss group create creates group and shows confirmation."""
     result = runner.invoke(
         app, ["group", "create", "dev_team", "-o", "dev_lead", "-m", "coder,tester"]
     )
@@ -91,16 +91,16 @@ def test_group_create(temp_cclaw_home):
     assert config["members"] == ["coder", "tester"]
 
 
-def test_group_create_nonexistent_orchestrator(temp_cclaw_home):
-    """cclaw group create with nonexistent orchestrator shows error."""
+def test_group_create_nonexistent_orchestrator(temp_abyss_home):
+    """abyss group create with nonexistent orchestrator shows error."""
     result = runner.invoke(app, ["group", "create", "dev_team", "-o", "nonexistent", "-m", "coder"])
 
     assert result.exit_code == 1
     assert "not registered" in result.output
 
 
-def test_group_create_nonexistent_member(temp_cclaw_home):
-    """cclaw group create with nonexistent member shows error."""
+def test_group_create_nonexistent_member(temp_abyss_home):
+    """abyss group create with nonexistent member shows error."""
     result = runner.invoke(
         app, ["group", "create", "dev_team", "-o", "dev_lead", "-m", "coder,nonexistent"]
     )
@@ -109,8 +109,8 @@ def test_group_create_nonexistent_member(temp_cclaw_home):
     assert "not registered" in result.output
 
 
-def test_group_create_duplicate(temp_cclaw_home):
-    """cclaw group create with duplicate name shows error."""
+def test_group_create_duplicate(temp_abyss_home):
+    """abyss group create with duplicate name shows error."""
     runner.invoke(app, ["group", "create", "dev_team", "-o", "dev_lead", "-m", "coder"])
     result = runner.invoke(app, ["group", "create", "dev_team", "-o", "dev_lead", "-m", "tester"])
 
@@ -118,19 +118,19 @@ def test_group_create_duplicate(temp_cclaw_home):
     assert "already exists" in result.output
 
 
-# --- cclaw group list ---
+# --- abyss group list ---
 
 
-def test_group_list_empty(temp_cclaw_home):
-    """cclaw group list with no groups shows message."""
+def test_group_list_empty(temp_abyss_home):
+    """abyss group list with no groups shows message."""
     result = runner.invoke(app, ["group", "list"])
 
     assert result.exit_code == 0
     assert "No groups" in result.output
 
 
-def test_group_list_with_groups(temp_cclaw_home):
-    """cclaw group list shows all groups."""
+def test_group_list_with_groups(temp_abyss_home):
+    """abyss group list shows all groups."""
     runner.invoke(app, ["group", "create", "team_a", "-o", "dev_lead", "-m", "coder"])
     runner.invoke(app, ["group", "create", "team_b", "-o", "coder", "-m", "tester"])
 
@@ -142,8 +142,8 @@ def test_group_list_with_groups(temp_cclaw_home):
     assert "dev_lead" in result.output
 
 
-def test_group_list_binding_status(temp_cclaw_home):
-    """cclaw group list shows bound/not bound status."""
+def test_group_list_binding_status(temp_abyss_home):
+    """abyss group list shows bound/not bound status."""
     runner.invoke(app, ["group", "create", "team_a", "-o", "dev_lead", "-m", "coder"])
     runner.invoke(app, ["group", "create", "team_b", "-o", "coder", "-m", "tester"])
     bind_group("team_a", -12345)
@@ -155,11 +155,11 @@ def test_group_list_binding_status(temp_cclaw_home):
     assert "not bound" in result.output
 
 
-# --- cclaw group show ---
+# --- abyss group show ---
 
 
-def test_group_show(temp_cclaw_home):
-    """cclaw group show displays group details."""
+def test_group_show(temp_abyss_home):
+    """abyss group show displays group details."""
     runner.invoke(app, ["group", "create", "dev_team", "-o", "dev_lead", "-m", "coder,tester"])
 
     result = runner.invoke(app, ["group", "show", "dev_team"])
@@ -172,19 +172,19 @@ def test_group_show(temp_cclaw_home):
     assert "0 files" in result.output
 
 
-def test_group_show_nonexistent(temp_cclaw_home):
-    """cclaw group show for nonexistent group shows error."""
+def test_group_show_nonexistent(temp_abyss_home):
+    """abyss group show for nonexistent group shows error."""
     result = runner.invoke(app, ["group", "show", "nonexistent"])
 
     assert result.exit_code == 1
     assert "not found" in result.output
 
 
-# --- cclaw group delete ---
+# --- abyss group delete ---
 
 
-def test_group_delete(temp_cclaw_home):
-    """cclaw group delete removes group after confirmation."""
+def test_group_delete(temp_abyss_home):
+    """abyss group delete removes group after confirmation."""
     runner.invoke(app, ["group", "create", "dev_team", "-o", "dev_lead", "-m", "coder"])
 
     result = runner.invoke(app, ["group", "delete", "dev_team"], input="y\n")
@@ -196,8 +196,8 @@ def test_group_delete(temp_cclaw_home):
     assert config is None
 
 
-def test_group_delete_nonexistent(temp_cclaw_home):
-    """cclaw group delete for nonexistent group shows error."""
+def test_group_delete_nonexistent(temp_abyss_home):
+    """abyss group delete for nonexistent group shows error."""
     result = runner.invoke(app, ["group", "delete", "nonexistent"])
 
     assert result.exit_code == 1

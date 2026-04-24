@@ -1,4 +1,4 @@
-"""Tests for cclaw.token_compact module."""
+"""Tests for abyss.token_compact module."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 import yaml
 
-from cclaw.token_compact import (
+from abyss.token_compact import (
     DOCUMENT_TYPE_HEARTBEAT,
     DOCUMENT_TYPE_MEMORY,
     DOCUMENT_TYPE_SKILL,
@@ -24,17 +24,17 @@ from cclaw.token_compact import (
 
 
 @pytest.fixture
-def temp_cclaw_home(tmp_path, monkeypatch):
-    """Set CCLAW_HOME to a temporary directory."""
-    home = tmp_path / ".cclaw"
-    monkeypatch.setenv("CCLAW_HOME", str(home))
+def temp_abyss_home(tmp_path, monkeypatch):
+    """Set ABYSS_HOME to a temporary directory."""
+    home = tmp_path / ".abyss"
+    monkeypatch.setenv("ABYSS_HOME", str(home))
     return home
 
 
 @pytest.fixture
-def setup_bot(temp_cclaw_home):
+def setup_bot(temp_abyss_home):
     """Create a minimal bot structure."""
-    bot_path = temp_cclaw_home / "bots" / "test-bot"
+    bot_path = temp_abyss_home / "bots" / "test-bot"
     bot_path.mkdir(parents=True)
     (bot_path / "sessions").mkdir()
     bot_config = {
@@ -58,10 +58,10 @@ def setup_bot_with_memory(setup_bot):
 
 
 @pytest.fixture
-def setup_bot_with_skill(setup_bot, temp_cclaw_home):
+def setup_bot_with_skill(setup_bot, temp_abyss_home):
     """Create a bot with a user-created skill attached."""
     # Create the skill
-    skill_path = temp_cclaw_home / "skills" / "my-skill"
+    skill_path = temp_abyss_home / "skills" / "my-skill"
     skill_path.mkdir(parents=True)
     (skill_path / "SKILL.md").write_text("# my-skill\n\nDo something useful.\n")
 
@@ -108,7 +108,7 @@ class TestEstimateTokenCount:
 
 
 class TestCollectCompactTargets:
-    def test_no_bot_config(self, temp_cclaw_home):
+    def test_no_bot_config(self, temp_abyss_home):
         targets = collect_compact_targets("nonexistent")
         assert targets == []
 
@@ -134,7 +134,7 @@ class TestCollectCompactTargets:
         assert targets[0].label == "Skill: my-skill"
         assert targets[0].document_type == DOCUMENT_TYPE_SKILL
 
-    def test_builtin_skill_excluded(self, setup_bot, temp_cclaw_home):
+    def test_builtin_skill_excluded(self, setup_bot, temp_abyss_home):
         """Builtin skills should not be collected as compact targets."""
         # Attach a builtin skill name to bot
         bot_yaml_path = setup_bot / "bot.yaml"
@@ -154,12 +154,12 @@ class TestCollectCompactTargets:
         assert targets[0].label == "HEARTBEAT.md"
         assert targets[0].document_type == DOCUMENT_TYPE_HEARTBEAT
 
-    def test_all_targets(self, setup_bot_with_memory, temp_cclaw_home):
+    def test_all_targets(self, setup_bot_with_memory, temp_abyss_home):
         """Test collecting all three target types."""
         bot_path = setup_bot_with_memory
 
         # Add skill
-        skill_path = temp_cclaw_home / "skills" / "custom-skill"
+        skill_path = temp_abyss_home / "skills" / "custom-skill"
         skill_path.mkdir(parents=True)
         (skill_path / "SKILL.md").write_text("# custom\n\nInstructions.\n")
         bot_yaml_path = bot_path / "bot.yaml"
@@ -188,7 +188,7 @@ class TestCollectCompactTargets:
 class TestCompactContent:
     @pytest.mark.asyncio
     async def test_calls_run_claude(self):
-        with patch("cclaw.claude_runner.run_claude", new_callable=AsyncMock) as mock_run:
+        with patch("abyss.claude_runner.run_claude", new_callable=AsyncMock) as mock_run:
             mock_run.return_value = "compressed output"
 
             result = await compact_content(
@@ -208,7 +208,7 @@ class TestCompactContent:
 
     @pytest.mark.asyncio
     async def test_strips_result(self):
-        with patch("cclaw.claude_runner.run_claude", new_callable=AsyncMock) as mock_run:
+        with patch("abyss.claude_runner.run_claude", new_callable=AsyncMock) as mock_run:
             mock_run.return_value = "  result with whitespace  \n\n"
 
             result = await compact_content(
@@ -277,7 +277,7 @@ class TestCompactResult:
 class TestRunCompact:
     @pytest.mark.asyncio
     async def test_full_flow(self, setup_bot_with_memory):
-        with patch("cclaw.claude_runner.run_claude", new_callable=AsyncMock) as mock_run:
+        with patch("abyss.claude_runner.run_claude", new_callable=AsyncMock) as mock_run:
             mock_run.return_value = "# Memory\n\n- Coffee lover\n"
 
             results = await run_compact("test-bot", model="sonnet")
@@ -288,10 +288,10 @@ class TestRunCompact:
             assert results[0].compacted_lines == 3
 
     @pytest.mark.asyncio
-    async def test_individual_failure_continues(self, setup_bot_with_memory, temp_cclaw_home):
+    async def test_individual_failure_continues(self, setup_bot_with_memory, temp_abyss_home):
         """When one target fails, remaining targets should still be processed."""
         # Add a skill so we have 2 targets
-        skill_path = temp_cclaw_home / "skills" / "fail-skill"
+        skill_path = temp_abyss_home / "skills" / "fail-skill"
         skill_path.mkdir(parents=True)
         (skill_path / "SKILL.md").write_text("# fail\n\nContent.\n")
         bot_yaml_path = setup_bot_with_memory / "bot.yaml"
@@ -310,7 +310,7 @@ class TestRunCompact:
                 return "compacted memory"
             raise RuntimeError("Claude failed")
 
-        with patch("cclaw.claude_runner.run_claude", new_callable=AsyncMock) as mock_run:
+        with patch("abyss.claude_runner.run_claude", new_callable=AsyncMock) as mock_run:
             mock_run.side_effect = mock_side_effect
 
             results = await run_compact("test-bot")

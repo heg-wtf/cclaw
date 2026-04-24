@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import yaml
 
-from cclaw.group import (
+from abyss.group import (
     bind_group,
     clear_shared_conversation,
     create_group,
@@ -19,8 +19,8 @@ from cclaw.group import (
     log_to_shared_conversation,
     shared_workspace_path,
 )
-from cclaw.handlers import make_handlers
-from cclaw.session import ensure_session
+from abyss.handlers import make_handlers
+from abyss.session import ensure_session
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -28,11 +28,11 @@ from cclaw.session import ensure_session
 
 
 @pytest.fixture()
-def temp_cclaw_home(tmp_path, monkeypatch):
-    """Set CCLAW_HOME with 4 registered bots."""
-    home = tmp_path / ".cclaw"
+def temp_abyss_home(tmp_path, monkeypatch):
+    """Set ABYSS_HOME with 4 registered bots."""
+    home = tmp_path / ".abyss"
     home.mkdir()
-    monkeypatch.setenv("CCLAW_HOME", str(home))
+    monkeypatch.setenv("ABYSS_HOME", str(home))
 
     bot_definitions = [
         {
@@ -99,9 +99,9 @@ RESET_HANDLER_INDEX = 2
 MESSAGE_HANDLER_INDEX = 19
 
 
-def _make_handlers(temp_cclaw_home, bot_name: str) -> list:
+def _make_handlers(temp_abyss_home, bot_name: str) -> list:
     """Create handlers for a bot with streaming disabled."""
-    bot_directory = temp_cclaw_home / "bots" / bot_name
+    bot_directory = temp_abyss_home / "bots" / bot_name
     with open(bot_directory / "bot.yaml") as file:
         bot_config = yaml.safe_load(file)
     bot_config.setdefault("allowed_users", [])
@@ -138,14 +138,14 @@ def _mock_update(
 
 
 @pytest.mark.asyncio
-async def test_bot_member_in_two_groups(temp_cclaw_home):
+async def test_bot_member_in_two_groups(temp_abyss_home):
     """Bot as member in 2 groups reacts independently per group chat_id."""
     create_group(name="team_a", orchestrator="dev_lead", members=["coder"])
     create_group(name="team_b", orchestrator="analyst", members=["coder"])
     bind_group("team_a", -11111)
     bind_group("team_b", -22222)
 
-    coder_handlers = _make_handlers(temp_cclaw_home, "coder")
+    coder_handlers = _make_handlers(temp_abyss_home, "coder")
     msg_handler = coder_handlers[MESSAGE_HANDLER_INDEX]
 
     # @mention in team_a
@@ -157,7 +157,7 @@ async def test_bot_member_in_two_groups(temp_cclaw_home):
         user_id=10001,
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Done in team_a."
         await msg_handler.callback(update_a, MagicMock())
         mock_claude.assert_called_once()
@@ -171,26 +171,26 @@ async def test_bot_member_in_two_groups(temp_cclaw_home):
         user_id=10002,
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Done in team_b."
         await msg_handler.callback(update_b, MagicMock())
         mock_claude.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_bot_orchestrator_and_member_different_groups(temp_cclaw_home):
+async def test_bot_orchestrator_and_member_different_groups(temp_abyss_home):
     """Bot as orchestrator in group A and member in group B."""
     create_group(name="team_a", orchestrator="coder", members=["tester"])
     create_group(name="team_b", orchestrator="dev_lead", members=["coder"])
     bind_group("team_a", -11111)
     bind_group("team_b", -22222)
 
-    coder_handlers = _make_handlers(temp_cclaw_home, "coder")
+    coder_handlers = _make_handlers(temp_abyss_home, "coder")
     msg_handler = coder_handlers[MESSAGE_HANDLER_INDEX]
 
     # In team_a: coder is orchestrator → handles user message
     update_orch = _mock_update(chat_id=-11111, text="Do something", is_bot=False, username="boss")
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Got it."
         await msg_handler.callback(update_orch, MagicMock())
         mock_claude.assert_called_once()
@@ -199,35 +199,35 @@ async def test_bot_orchestrator_and_member_different_groups(temp_cclaw_home):
     update_mem = _mock_update(
         chat_id=-22222, text="General instruction", is_bot=False, username="boss"
     )
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         await msg_handler.callback(update_mem, MagicMock())
         mock_claude.assert_not_called()  # Member ignores user messages
 
 
 @pytest.mark.asyncio
-async def test_bot_member_plus_dm_coexist(temp_cclaw_home):
+async def test_bot_member_plus_dm_coexist(temp_abyss_home):
     """Bot works as member in group and personal assistant in DM."""
     create_group(name="team_a", orchestrator="dev_lead", members=["coder"])
     bind_group("team_a", -11111)
 
-    coder_handlers = _make_handlers(temp_cclaw_home, "coder")
+    coder_handlers = _make_handlers(temp_abyss_home, "coder")
     msg_handler = coder_handlers[MESSAGE_HANDLER_INDEX]
 
     # DM: processes normally
     update_dm = _mock_update(chat_id=222, text="Help me with Python", is_bot=False)
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Sure!"
         await msg_handler.callback(update_dm, MagicMock())
         mock_claude.assert_called_once()
 
     # Group: ignores user message (member role)
     update_group = _mock_update(chat_id=-11111, text="Help me with Python", is_bot=False)
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         await msg_handler.callback(update_group, MagicMock())
         mock_claude.assert_not_called()
 
 
-def test_find_group_by_chat_id_correct_group(temp_cclaw_home):
+def test_find_group_by_chat_id_correct_group(temp_abyss_home):
     """find_group_by_chat_id returns the correct group among multiple."""
     create_group(name="team_a", orchestrator="dev_lead", members=["coder"])
     create_group(name="team_b", orchestrator="analyst", members=["tester"])
@@ -249,13 +249,13 @@ def test_find_group_by_chat_id_correct_group(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_integration_mission_flow(temp_cclaw_home):
+async def test_integration_mission_flow(temp_abyss_home):
     """7-1: Full mission flow — user → orchestrator → member → orchestrator."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder", "tester"])
     bind_group("dev_team", -12345)
 
-    dev_lead_handlers = _make_handlers(temp_cclaw_home, "dev_lead")
-    coder_handlers = _make_handlers(temp_cclaw_home, "coder")
+    dev_lead_handlers = _make_handlers(temp_abyss_home, "dev_lead")
+    coder_handlers = _make_handlers(temp_abyss_home, "coder")
 
     dev_lead_msg = dev_lead_handlers[MESSAGE_HANDLER_INDEX]
     coder_msg = coder_handlers[MESSAGE_HANDLER_INDEX]
@@ -264,7 +264,7 @@ async def test_integration_mission_flow(temp_cclaw_home):
     update_user = _mock_update(
         chat_id=-12345, text="Build a crawler", is_bot=False, username="boss"
     )
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "@coder_bot Write a web scraper."
         await dev_lead_msg.callback(update_user, MagicMock())
         mock_claude.assert_called_once()
@@ -277,7 +277,7 @@ async def test_integration_mission_flow(temp_cclaw_home):
         username="dev_lead_bot",
         user_id=10001,
     )
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "@dev_lead_bot Scraper done. workspace/scraper.py"
         await coder_msg.callback(update_orch_response, MagicMock())
         mock_claude.assert_called_once()
@@ -290,7 +290,7 @@ async def test_integration_mission_flow(temp_cclaw_home):
         username="coder_bot",
         user_id=10002,
     )
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Mission complete."
         await dev_lead_msg.callback(update_coder_report, MagicMock())
         mock_claude.assert_called_once()
@@ -303,12 +303,12 @@ async def test_integration_mission_flow(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_integration_member_not_mentioned_stays_silent(temp_cclaw_home):
+async def test_integration_member_not_mentioned_stays_silent(temp_abyss_home):
     """7-1 verification: member does not respond without @mention."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder", "tester"])
     bind_group("dev_team", -12345)
 
-    tester_handlers = _make_handlers(temp_cclaw_home, "tester")
+    tester_handlers = _make_handlers(temp_abyss_home, "tester")
     tester_msg = tester_handlers[MESSAGE_HANDLER_INDEX]
 
     # Orchestrator mentions only @coder_bot, not @tester_bot
@@ -319,25 +319,25 @@ async def test_integration_member_not_mentioned_stays_silent(temp_cclaw_home):
         username="dev_lead_bot",
         user_id=10001,
     )
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         await tester_msg.callback(update, MagicMock())
         mock_claude.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_integration_direction_change(temp_cclaw_home):
+async def test_integration_direction_change(temp_abyss_home):
     """7-2: User changes direction mid-mission → orchestrator handles both."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
 
-    dev_lead_handlers = _make_handlers(temp_cclaw_home, "dev_lead")
-    coder_handlers = _make_handlers(temp_cclaw_home, "coder")
+    dev_lead_handlers = _make_handlers(temp_abyss_home, "dev_lead")
+    coder_handlers = _make_handlers(temp_abyss_home, "coder")
     dev_lead_msg = dev_lead_handlers[MESSAGE_HANDLER_INDEX]
     coder_msg = coder_handlers[MESSAGE_HANDLER_INDEX]
 
     # Initial mission
     update1 = _mock_update(chat_id=-12345, text="Build a crawler", is_bot=False, username="boss")
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "@coder_bot Write crawler."
         await dev_lead_msg.callback(update1, MagicMock())
 
@@ -349,7 +349,7 @@ async def test_integration_direction_change(temp_cclaw_home):
         username="dev_lead_bot",
         user_id=10001,
     )
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Working on it."
         await coder_msg.callback(update_orch1, MagicMock())
 
@@ -357,7 +357,7 @@ async def test_integration_direction_change(temp_cclaw_home):
     update2 = _mock_update(
         chat_id=-12345, text="Actually use API instead", is_bot=False, username="boss"
     )
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "@coder_bot Switch to API."
         await dev_lead_msg.callback(update2, MagicMock())
         mock_claude.assert_called_once()
@@ -370,7 +370,7 @@ async def test_integration_direction_change(temp_cclaw_home):
         username="dev_lead_bot",
         user_id=10001,
     )
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Switching to API."
         await coder_msg.callback(update_orch2, MagicMock())
 
@@ -381,12 +381,12 @@ async def test_integration_direction_change(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_integration_member_failure_report(temp_cclaw_home):
+async def test_integration_member_failure_report(temp_abyss_home):
     """7-3: Member reports failure → orchestrator receives and processes."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
 
-    dev_lead_handlers = _make_handlers(temp_cclaw_home, "dev_lead")
+    dev_lead_handlers = _make_handlers(temp_abyss_home, "dev_lead")
     dev_lead_msg = dev_lead_handlers[MESSAGE_HANDLER_INDEX]
 
     # Coder reports failure
@@ -397,13 +397,13 @@ async def test_integration_member_failure_report(temp_cclaw_home):
         username="coder_bot",
         user_id=10002,
     )
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Understood. Trying alternative approach."
         await dev_lead_msg.callback(update, MagicMock())
         mock_claude.assert_called_once()
 
 
-def test_session_restoration_after_restart(temp_cclaw_home):
+def test_session_restoration_after_restart(temp_abyss_home):
     """7-4: After restart, group.yaml binding and conversation log persist."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
@@ -426,12 +426,12 @@ def test_session_restoration_after_restart(temp_cclaw_home):
     assert (workspace / "scraper.py").exists()
 
 
-def test_ensure_session_regenerates_group_claude_md(temp_cclaw_home):
+def test_ensure_session_regenerates_group_claude_md(temp_abyss_home):
     """7-4: ensure_session regenerates group-aware CLAUDE.md after restart."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
 
-    bot_path = temp_cclaw_home / "bots" / "dev_lead"
+    bot_path = temp_abyss_home / "bots" / "dev_lead"
     session_dir = ensure_session(bot_path, -12345, bot_name="dev_lead")
     claude_md = (session_dir / "CLAUDE.md").read_text()
 
@@ -453,14 +453,14 @@ def test_ensure_session_regenerates_group_claude_md(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_reset_group_orchestrator_resets_all(temp_cclaw_home):
+async def test_reset_group_orchestrator_resets_all(temp_abyss_home):
     """/reset in group: orchestrator resets all bots' sessions."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder", "tester"])
     bind_group("dev_team", -12345)
 
     # Create sessions for all bots
     for name in ["dev_lead", "coder", "tester"]:
-        bot_path = temp_cclaw_home / "bots" / name
+        bot_path = temp_abyss_home / "bots" / name
         session_dir = ensure_session(bot_path, -12345, bot_name=name)
         # Write a conversation file
         (session_dir / "conversation-260313.md").write_text("test conversation")
@@ -468,7 +468,7 @@ async def test_reset_group_orchestrator_resets_all(temp_cclaw_home):
     # Add shared conversation
     log_to_shared_conversation("dev_team", "user", "Hello")
 
-    handlers = _make_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_handlers(temp_abyss_home, "dev_lead")
     reset_handler = handlers[RESET_HANDLER_INDEX]
 
     update = _mock_update(chat_id=-12345, text="/reset")
@@ -480,7 +480,7 @@ async def test_reset_group_orchestrator_resets_all(temp_cclaw_home):
 
     # All bots' conversation files should be cleared
     for name in ["dev_lead", "coder", "tester"]:
-        bot_path = temp_cclaw_home / "bots" / name
+        bot_path = temp_abyss_home / "bots" / name
         session_dir = bot_path / "sessions" / "chat_-12345"
         conversation_files = list(session_dir.glob("conversation-*.md"))
         assert len(conversation_files) == 0, f"{name} still has conversation files"
@@ -490,12 +490,12 @@ async def test_reset_group_orchestrator_resets_all(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_reset_group_preserves_dm_session(temp_cclaw_home):
+async def test_reset_group_preserves_dm_session(temp_abyss_home):
     """/reset in group does NOT affect DM sessions."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
 
-    bot_path = temp_cclaw_home / "bots" / "coder"
+    bot_path = temp_abyss_home / "bots" / "coder"
 
     # Create DM session
     dm_session = ensure_session(bot_path, 222)
@@ -506,7 +506,7 @@ async def test_reset_group_preserves_dm_session(temp_cclaw_home):
     (group_session / "conversation-260313.md").write_text("Group conversation")
 
     # Orchestrator resets group
-    handlers = _make_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_handlers(temp_abyss_home, "dev_lead")
     reset_handler = handlers[RESET_HANDLER_INDEX]
     update = _mock_update(chat_id=-12345, text="/reset")
     await reset_handler.callback(update, MagicMock())
@@ -517,7 +517,7 @@ async def test_reset_group_preserves_dm_session(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_reset_group_preserves_workspace(temp_cclaw_home):
+async def test_reset_group_preserves_workspace(temp_abyss_home):
     """/reset in group preserves shared workspace files."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
@@ -525,7 +525,7 @@ async def test_reset_group_preserves_workspace(temp_cclaw_home):
     workspace = shared_workspace_path("dev_team")
     (workspace / "result.py").write_text("print('result')")
 
-    handlers = _make_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_handlers(temp_abyss_home, "dev_lead")
     reset_handler = handlers[RESET_HANDLER_INDEX]
     update = _mock_update(chat_id=-12345, text="/reset")
     await reset_handler.callback(update, MagicMock())
@@ -535,14 +535,14 @@ async def test_reset_group_preserves_workspace(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_reset_group_member_ignored(temp_cclaw_home):
+async def test_reset_group_member_ignored(temp_abyss_home):
     """/reset by member in group is silently ignored."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
 
     log_to_shared_conversation("dev_team", "user", "Hello")
 
-    handlers = _make_handlers(temp_cclaw_home, "coder")
+    handlers = _make_handlers(temp_abyss_home, "coder")
     reset_handler = handlers[RESET_HANDLER_INDEX]
     update = _mock_update(chat_id=-12345, text="/reset")
     await reset_handler.callback(update, MagicMock())
@@ -555,13 +555,13 @@ async def test_reset_group_member_ignored(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_reset_dm_unchanged(temp_cclaw_home):
+async def test_reset_dm_unchanged(temp_abyss_home):
     """/reset in DM works as before (no group logic)."""
-    bot_path = temp_cclaw_home / "bots" / "coder"
+    bot_path = temp_abyss_home / "bots" / "coder"
     session_dir = ensure_session(bot_path, 222)
     (session_dir / "conversation-260313.md").write_text("DM conversation")
 
-    handlers = _make_handlers(temp_cclaw_home, "coder")
+    handlers = _make_handlers(temp_abyss_home, "coder")
     reset_handler = handlers[RESET_HANDLER_INDEX]
     update = _mock_update(chat_id=222, text="/reset")
     await reset_handler.callback(update, MagicMock())
@@ -576,7 +576,7 @@ async def test_reset_dm_unchanged(temp_cclaw_home):
 # ===========================================================================
 
 
-def test_workspace_flat_structure(temp_cclaw_home):
+def test_workspace_flat_structure(temp_abyss_home):
     """Workspace uses flat structure without per-bot subdirectories."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder", "tester"])
     workspace = shared_workspace_path("dev_team")
@@ -591,7 +591,7 @@ def test_workspace_flat_structure(temp_cclaw_home):
     assert subdirs == []
 
 
-def test_workspace_cross_member_read(temp_cclaw_home):
+def test_workspace_cross_member_read(temp_abyss_home):
     """One member can read another member's workspace file."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder", "tester"])
     workspace = shared_workspace_path("dev_team")
@@ -604,9 +604,9 @@ def test_workspace_cross_member_read(temp_cclaw_home):
     assert content == "def scrape(): pass"
 
 
-def test_workspace_file_listing(temp_cclaw_home):
+def test_workspace_file_listing(temp_abyss_home):
     """Orchestrator can list workspace files."""
-    from cclaw.group import list_workspace_files
+    from abyss.group import list_workspace_files
 
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     workspace = shared_workspace_path("dev_team")
@@ -618,7 +618,7 @@ def test_workspace_file_listing(temp_cclaw_home):
     assert sorted(files) == ["a.py", "b.py"]
 
 
-def test_workspace_preserved_after_conversation_clear(temp_cclaw_home):
+def test_workspace_preserved_after_conversation_clear(temp_abyss_home):
     """Clearing conversation log does not affect workspace."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     workspace = shared_workspace_path("dev_team")
@@ -637,13 +637,13 @@ def test_workspace_preserved_after_conversation_clear(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_dual_mention_both_bots_react(temp_cclaw_home):
+async def test_dual_mention_both_bots_react(temp_abyss_home):
     """Orchestrator @mentions 2 bots in one message — both react."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder", "tester"])
     bind_group("dev_team", -12345)
 
-    coder_handlers = _make_handlers(temp_cclaw_home, "coder")
-    tester_handlers = _make_handlers(temp_cclaw_home, "tester")
+    coder_handlers = _make_handlers(temp_abyss_home, "coder")
+    tester_handlers = _make_handlers(temp_abyss_home, "tester")
 
     # Orchestrator mentions both
     text = "@coder_bot Write scraper. @tester_bot Write tests."
@@ -654,19 +654,19 @@ async def test_dual_mention_both_bots_react(temp_cclaw_home):
         chat_id=-12345, text=text, is_bot=True, username="dev_lead_bot", user_id=10001
     )
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Done."
         await coder_handlers[MESSAGE_HANDLER_INDEX].callback(update_coder, MagicMock())
         mock_claude.assert_called_once()
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Tests done."
         await tester_handlers[MESSAGE_HANDLER_INDEX].callback(update_tester, MagicMock())
         mock_claude.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_concurrent_workspace_writes(temp_cclaw_home):
+async def test_concurrent_workspace_writes(temp_abyss_home):
     """Two bots writing different files to workspace simultaneously."""
     import asyncio
 
@@ -693,12 +693,12 @@ async def test_concurrent_workspace_writes(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_member_question_to_orchestrator(temp_cclaw_home):
+async def test_member_question_to_orchestrator(temp_abyss_home):
     """Member's @mention question to orchestrator is processed."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
 
-    dev_lead_handlers = _make_handlers(temp_cclaw_home, "dev_lead")
+    dev_lead_handlers = _make_handlers(temp_abyss_home, "dev_lead")
     msg = dev_lead_handlers[MESSAGE_HANDLER_INDEX]
 
     update = _mock_update(
@@ -708,7 +708,7 @@ async def test_member_question_to_orchestrator(temp_cclaw_home):
         username="coder_bot",
         user_id=10002,
     )
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "@coder_bot Yes, use UTF-8 without BOM."
         await msg.callback(update, MagicMock())
         mock_claude.assert_called_once()
@@ -720,44 +720,44 @@ async def test_member_question_to_orchestrator(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_orchestrator_alone_processes_user_message(temp_cclaw_home):
+async def test_orchestrator_alone_processes_user_message(temp_abyss_home):
     """Orchestrator with no members present still processes user messages."""
     create_group(name="solo_team", orchestrator="dev_lead", members=["coder"])
     bind_group("solo_team", -12345)
 
-    handlers = _make_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_handlers(temp_abyss_home, "dev_lead")
     msg = handlers[MESSAGE_HANDLER_INDEX]
 
     update = _mock_update(chat_id=-12345, text="Do everything yourself", is_bot=False)
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "I'll handle it."
         await msg.callback(update, MagicMock())
         mock_claude.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_user_general_message_orchestrator_only(temp_cclaw_home):
+async def test_user_general_message_orchestrator_only(temp_abyss_home):
     """User general message (no @mention) → only orchestrator responds."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
 
-    orch_handlers = _make_handlers(temp_cclaw_home, "dev_lead")
-    member_handlers = _make_handlers(temp_cclaw_home, "coder")
+    orch_handlers = _make_handlers(temp_abyss_home, "dev_lead")
+    member_handlers = _make_handlers(temp_abyss_home, "coder")
 
     update = _mock_update(chat_id=-12345, text="What is the status?", is_bot=False)
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Status: all good."
         await orch_handlers[MESSAGE_HANDLER_INDEX].callback(update, MagicMock())
         mock_claude.assert_called_once()
 
     update2 = _mock_update(chat_id=-12345, text="What is the status?", is_bot=False)
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         await member_handlers[MESSAGE_HANDLER_INDEX].callback(update2, MagicMock())
         mock_claude.assert_not_called()
 
 
-def test_same_chat_id_double_bind_rejected(temp_cclaw_home):
+def test_same_chat_id_double_bind_rejected(temp_abyss_home):
     """Same chat_id cannot be bound to two different groups."""
     create_group(name="team_a", orchestrator="dev_lead", members=["coder"])
     create_group(name="team_b", orchestrator="analyst", members=["tester"])
@@ -768,7 +768,7 @@ def test_same_chat_id_double_bind_rejected(temp_cclaw_home):
         bind_group("team_b", -12345)
 
 
-def test_group_name_with_korean(temp_cclaw_home):
+def test_group_name_with_korean(temp_abyss_home):
     """Group with Korean name in group.yaml is handled safely."""
     create_group(name="개발팀", orchestrator="dev_lead", members=["coder"])
 
@@ -781,7 +781,7 @@ def test_group_name_with_korean(temp_cclaw_home):
     assert config["name"] == "개발팀"
 
 
-def test_group_name_with_special_characters(temp_cclaw_home):
+def test_group_name_with_special_characters(temp_abyss_home):
     """Group with hyphens and underscores works."""
     create_group(name="dev-team_2026", orchestrator="dev_lead", members=["coder"])
     bind_group("dev-team_2026", -12345)
@@ -791,7 +791,7 @@ def test_group_name_with_special_characters(temp_cclaw_home):
     assert config["name"] == "dev-team_2026"
 
 
-def test_clear_shared_conversation(temp_cclaw_home):
+def test_clear_shared_conversation(temp_abyss_home):
     """clear_shared_conversation removes all conversation files."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     log_to_shared_conversation("dev_team", "user", "Message 1")
@@ -803,7 +803,7 @@ def test_clear_shared_conversation(temp_cclaw_home):
     assert load_shared_conversation("dev_team") == ""
 
 
-def test_clear_shared_conversation_empty_is_safe(temp_cclaw_home):
+def test_clear_shared_conversation_empty_is_safe(temp_abyss_home):
     """clear_shared_conversation on empty group does not error."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     clear_shared_conversation("dev_team")  # Should not raise
@@ -817,19 +817,19 @@ CANCEL_HANDLER_INDEX = 9
 
 
 @pytest.mark.asyncio
-async def test_cancel_group_orchestrator_cancels_all(temp_cclaw_home):
+async def test_cancel_group_orchestrator_cancels_all(temp_abyss_home):
     """/cancel in group: orchestrator cancels all bots' processes."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder", "tester"])
     bind_group("dev_team", -12345)
 
-    handlers = _make_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_handlers(temp_abyss_home, "dev_lead")
     cancel_handler = handlers[CANCEL_HANDLER_INDEX]
 
     update = _mock_update(chat_id=-12345, text="/cancel")
 
     with (
-        patch("cclaw.handlers.is_process_running") as mock_running,
-        patch("cclaw.handlers.cancel_process") as mock_cancel,
+        patch("abyss.handlers.is_process_running") as mock_running,
+        patch("abyss.handlers.cancel_process") as mock_cancel,
     ):
         # dev_lead and coder are running, tester is not
         def running_side_effect(key):
@@ -847,17 +847,17 @@ async def test_cancel_group_orchestrator_cancels_all(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_cancel_group_no_running_processes(temp_cclaw_home):
+async def test_cancel_group_no_running_processes(temp_abyss_home):
     """/cancel in group with no running processes."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
 
-    handlers = _make_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_handlers(temp_abyss_home, "dev_lead")
     cancel_handler = handlers[CANCEL_HANDLER_INDEX]
 
     update = _mock_update(chat_id=-12345, text="/cancel")
 
-    with patch("cclaw.handlers.is_process_running", return_value=False):
+    with patch("abyss.handlers.is_process_running", return_value=False):
         await cancel_handler.callback(update, MagicMock())
 
     call_text = update.message.reply_text.call_args[0][0]
@@ -865,29 +865,29 @@ async def test_cancel_group_no_running_processes(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_cancel_group_member_ignored(temp_cclaw_home):
+async def test_cancel_group_member_ignored(temp_abyss_home):
     """/cancel by member in group is silently ignored."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
 
-    handlers = _make_handlers(temp_cclaw_home, "coder")
+    handlers = _make_handlers(temp_abyss_home, "coder")
     cancel_handler = handlers[CANCEL_HANDLER_INDEX]
 
     update = _mock_update(chat_id=-12345, text="/cancel")
 
-    with patch("cclaw.handlers.is_process_running", return_value=True):
+    with patch("abyss.handlers.is_process_running", return_value=True):
         await cancel_handler.callback(update, MagicMock())
 
     update.message.reply_text.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_cancel_group_dm_process_unaffected(temp_cclaw_home):
+async def test_cancel_group_dm_process_unaffected(temp_abyss_home):
     """/cancel in group does NOT affect DM processes."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
 
-    handlers = _make_handlers(temp_cclaw_home, "dev_lead")
+    handlers = _make_handlers(temp_abyss_home, "dev_lead")
     cancel_handler = handlers[CANCEL_HANDLER_INDEX]
 
     update = _mock_update(chat_id=-12345, text="/cancel")
@@ -899,8 +899,8 @@ async def test_cancel_group_dm_process_unaffected(temp_cclaw_home):
         return True
 
     with (
-        patch("cclaw.handlers.is_process_running", return_value=True),
-        patch("cclaw.handlers.cancel_process", side_effect=cancel_side_effect),
+        patch("abyss.handlers.is_process_running", return_value=True),
+        patch("abyss.handlers.cancel_process", side_effect=cancel_side_effect),
     ):
         await cancel_handler.callback(update, MagicMock())
 
@@ -912,16 +912,16 @@ async def test_cancel_group_dm_process_unaffected(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_cancel_dm_unchanged(temp_cclaw_home):
+async def test_cancel_dm_unchanged(temp_abyss_home):
     """/cancel in DM works as before (no group logic)."""
-    handlers = _make_handlers(temp_cclaw_home, "coder")
+    handlers = _make_handlers(temp_abyss_home, "coder")
     cancel_handler = handlers[CANCEL_HANDLER_INDEX]
 
     update = _mock_update(chat_id=222, text="/cancel")
 
     with (
-        patch("cclaw.handlers.is_process_running", return_value=True),
-        patch("cclaw.handlers.cancel_process", return_value=True),
+        patch("abyss.handlers.is_process_running", return_value=True),
+        patch("abyss.handlers.cancel_process", return_value=True),
     ):
         await cancel_handler.callback(update, MagicMock())
 
@@ -935,15 +935,15 @@ async def test_cancel_dm_unchanged(temp_cclaw_home):
 
 
 @pytest.mark.asyncio
-async def test_concurrent_bots_same_message(temp_cclaw_home):
+async def test_concurrent_bots_same_message(temp_abyss_home):
     """Two bots processing the same group message don't interfere."""
     import asyncio
 
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
 
-    dev_lead_handlers = _make_handlers(temp_cclaw_home, "dev_lead")
-    coder_handlers = _make_handlers(temp_cclaw_home, "coder")
+    dev_lead_handlers = _make_handlers(temp_abyss_home, "dev_lead")
+    coder_handlers = _make_handlers(temp_abyss_home, "coder")
 
     # User message — orchestrator should process, member should not
     update_dev = _mock_update(chat_id=-12345, text="Build something", is_bot=False)
@@ -951,7 +951,7 @@ async def test_concurrent_bots_same_message(temp_cclaw_home):
 
     mock_claude = AsyncMock(return_value="Orchestrator response.")
 
-    with patch("cclaw.handlers.run_claude_with_sdk", mock_claude):
+    with patch("abyss.handlers.run_claude_with_sdk", mock_claude):
         await asyncio.gather(
             dev_lead_handlers[MESSAGE_HANDLER_INDEX].callback(update_dev, MagicMock()),
             coder_handlers[MESSAGE_HANDLER_INDEX].callback(update_coder, MagicMock()),
@@ -961,9 +961,9 @@ async def test_concurrent_bots_same_message(temp_cclaw_home):
     mock_claude.assert_called_once()
 
 
-def test_long_message_split(temp_cclaw_home):
+def test_long_message_split(temp_abyss_home):
     """Messages over 4096 chars are properly split by split_message."""
-    from cclaw.utils import split_message
+    from abyss.utils import split_message
 
     long_text = "A" * 5000
     parts = split_message(long_text)

@@ -1,6 +1,6 @@
 # DART Skill Guide
 
-A guide to installing and using the built-in DART skill for cclaw.
+A guide to installing and using the built-in DART skill for abyss.
 
 ## Overview
 
@@ -40,13 +40,13 @@ dartcli version
 ### 1. Install the Built-in Skill
 
 ```bash
-cclaw skills install dart
+abyss skills install dart
 ```
 
 ### 2. Setup (Activate)
 
 ```bash
-cclaw skills setup dart
+abyss skills setup dart
 ```
 
 During setup, you'll be prompted to enter:
@@ -62,7 +62,7 @@ Via Telegram:
 ### 4. Verify
 
 ```bash
-cclaw skills
+abyss skills
 ```
 
 ## Usage
@@ -112,7 +112,7 @@ This allows all `dartcli` commands to run without permission prompts in Claude C
 
 ### Environment Variable Injection
 
-`DART_API_KEY` is stored during `cclaw skills setup` and injected into the Claude Code subprocess at runtime. The `dartcli` uses this for DART OpenAPI authentication.
+`DART_API_KEY` is stored during `abyss skills setup` and injected into the Claude Code subprocess at runtime. The `dartcli` uses this for DART OpenAPI authentication.
 
 ## Troubleshooting
 
@@ -131,7 +131,7 @@ which dartcli
 Error: 인증키가 유효하지 않습니다
 ```
 
-**Solution**: Verify your API key at [DART OpenAPI](https://opendart.fss.or.kr), then re-run `cclaw skills setup dart`.
+**Solution**: Verify your API key at [DART OpenAPI](https://opendart.fss.or.kr), then re-run `abyss skills setup dart`.
 
 ### Multiple companies with same name
 

@@ -9,11 +9,11 @@ Search your markdown knowledge bases, notes, documents, and past bot conversatio
 ## Installation
 
 ```bash
-cclaw skills install qmd
-cclaw skills setup qmd
+abyss skills install qmd
+abyss skills setup qmd
 ```
 
-Setup automatically registers your bot conversation logs as a searchable collection (`cclaw-conversations`).
+Setup automatically registers your bot conversation logs as a searchable collection (`abyss-conversations`).
 
 ## Adding Your Own Collections
 
@@ -46,7 +46,7 @@ qmd collection list
 Or via CLI:
 
 ```bash
-cclaw bot edit <bot-name>
+abyss bot edit <bot-name>
 # Add "qmd" to the skills list
 ```
 
@@ -80,10 +80,10 @@ qmd update && qmd embed
 
 ## How It Works
 
-- QMD runs as an HTTP daemon on port 8181 (started automatically with `cclaw start`)
+- QMD runs as an HTTP daemon on port 8181 (started automatically with `abyss start`)
 - Claude Code connects to QMD via MCP HTTP transport
 - Models are loaded once when the daemon starts, so searches are fast
-- The daemon stops automatically with `cclaw stop`
+- The daemon stops automatically with `abyss stop`
 
 ## Troubleshooting
 
@@ -104,6 +104,6 @@ qmd embed           # Create vector embeddings (needed for vector_search/deep_se
 
 **Daemon not starting**
 ```bash
-cclaw doctor        # Check QMD daemon status
+abyss doctor        # Check QMD daemon status
 qmd mcp --http      # Try starting manually to see errors
 ```

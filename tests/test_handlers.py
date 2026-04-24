@@ -1,14 +1,14 @@
-"""Tests for cclaw.handlers module."""
+"""Tests for abyss.handlers module."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from cclaw.handlers import _is_user_allowed, make_handlers
-from cclaw.utils import split_message
+from abyss.handlers import _is_user_allowed, make_handlers
+from abyss.utils import split_message
 
-MOCK_CANCEL = "cclaw.handlers.cancel_process"
-MOCK_IS_RUNNING = "cclaw.handlers.is_process_running"
+MOCK_CANCEL = "abyss.handlers.cancel_process"
+MOCK_IS_RUNNING = "abyss.handlers.is_process_running"
 
 
 @pytest.fixture
@@ -134,7 +134,7 @@ async def test_reset_handler(bot_path, bot_config, mock_update):
     handlers = make_handlers("test-bot", bot_path, bot_config)
     reset_handler = handlers[2]
 
-    with patch("cclaw.handlers.reset_session") as mock_reset:
+    with patch("abyss.handlers.reset_session") as mock_reset:
         await reset_handler.callback(mock_update, MagicMock())
         mock_reset.assert_called_once_with(bot_path, 67890)
 
@@ -146,7 +146,7 @@ async def test_message_handler_calls_claude(bot_path, bot_config, mock_update):
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[19]
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Claude response"
         mock_context = MagicMock()
         await message_handler.callback(mock_update, mock_context)
@@ -268,7 +268,7 @@ async def test_model_handler_change_model(bot_path, bot_config, mock_update):
     mock_context = MagicMock()
     mock_context.args = ["opus"]
 
-    with patch("cclaw.handlers.save_bot_config") as mock_save:
+    with patch("abyss.handlers.save_bot_config") as mock_save:
         await model_handler.callback(mock_update, mock_context)
         mock_save.assert_called_once()
         saved_config = mock_save.call_args[0][1]
@@ -300,7 +300,7 @@ async def test_message_handler_passes_model(bot_path, bot_config, mock_update):
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[19]
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
         await message_handler.callback(mock_update, mock_context)
@@ -331,8 +331,8 @@ async def test_skills_handler_empty(bot_path, bot_config, mock_update):
     mock_context.args = []
 
     with (
-        patch("cclaw.skill.list_skills", return_value=[]),
-        patch("cclaw.builtin_skills.list_builtin_skills", return_value=[]),
+        patch("abyss.skill.list_skills", return_value=[]),
+        patch("abyss.builtin_skills.list_builtin_skills", return_value=[]),
     ):
         await skills_handler.callback(mock_update, mock_context)
 
@@ -356,8 +356,8 @@ async def test_skills_handler_lists_all(bot_path, bot_config, mock_update):
     mock_context.args = []
 
     with (
-        patch("cclaw.skill.list_skills", return_value=mock_skills),
-        patch("cclaw.builtin_skills.list_builtin_skills", return_value=[]),
+        patch("abyss.skill.list_skills", return_value=mock_skills),
+        patch("abyss.builtin_skills.list_builtin_skills", return_value=[]),
     ):
         await skills_handler.callback(mock_update, mock_context)
 
@@ -393,9 +393,9 @@ async def test_skills_handler_attach(bot_path, bot_config, mock_update):
     mock_context.args = ["attach", "test-skill"]
 
     with (
-        patch("cclaw.skill.is_skill", return_value=True),
-        patch("cclaw.skill.skill_status", return_value="active"),
-        patch("cclaw.skill.attach_skill_to_bot") as mock_attach,
+        patch("abyss.skill.is_skill", return_value=True),
+        patch("abyss.skill.skill_status", return_value="active"),
+        patch("abyss.skill.attach_skill_to_bot") as mock_attach,
     ):
         bot_config["skills"] = ["test-skill"]
         await skills_handler.callback(mock_update, mock_context)
@@ -414,7 +414,7 @@ async def test_skills_handler_attach_not_found(bot_path, bot_config, mock_update
     mock_context = MagicMock()
     mock_context.args = ["attach", "nonexistent"]
 
-    with patch("cclaw.skill.is_skill", return_value=False):
+    with patch("abyss.skill.is_skill", return_value=False):
         await skills_handler.callback(mock_update, mock_context)
 
     call_text = mock_update.message.reply_text.call_args[0][0]
@@ -431,7 +431,7 @@ async def test_skills_handler_detach(bot_path, bot_config, mock_update):
     mock_context = MagicMock()
     mock_context.args = ["detach", "test-skill"]
 
-    with patch("cclaw.skill.detach_skill_from_bot") as mock_detach:
+    with patch("abyss.skill.detach_skill_from_bot") as mock_detach:
         bot_config["skills"] = []
         await skills_handler.callback(mock_update, mock_context)
         mock_detach.assert_called_once_with("test-bot", "test-skill")
@@ -448,7 +448,7 @@ async def test_message_handler_passes_skill_names(bot_path, bot_config, mock_upd
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[19]
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
         await message_handler.callback(mock_update, mock_context)
@@ -464,7 +464,7 @@ async def test_message_handler_no_skill_names(bot_path, bot_config, mock_update)
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[19]
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
         await message_handler.callback(mock_update, mock_context)
@@ -483,7 +483,7 @@ async def test_heartbeat_handler_no_args(bot_path, bot_config, mock_update):
     mock_context.args = []
 
     with patch(
-        "cclaw.heartbeat.get_heartbeat_config",
+        "abyss.heartbeat.get_heartbeat_config",
         return_value={
             "enabled": False,
             "interval_minutes": 30,
@@ -506,7 +506,7 @@ async def test_heartbeat_handler_on(bot_path, bot_config, mock_update):
     mock_context = MagicMock()
     mock_context.args = ["on"]
 
-    with patch("cclaw.heartbeat.enable_heartbeat", return_value=True):
+    with patch("abyss.heartbeat.enable_heartbeat", return_value=True):
         await heartbeat_handler.callback(mock_update, mock_context)
 
     call_text = mock_update.message.reply_text.call_args[0][0]
@@ -522,7 +522,7 @@ async def test_heartbeat_handler_off(bot_path, bot_config, mock_update):
     mock_context = MagicMock()
     mock_context.args = ["off"]
 
-    with patch("cclaw.heartbeat.disable_heartbeat", return_value=True):
+    with patch("abyss.heartbeat.disable_heartbeat", return_value=True):
         await heartbeat_handler.callback(mock_update, mock_context)
 
     call_text = mock_update.message.reply_text.call_args[0][0]
@@ -554,7 +554,7 @@ async def test_streaming_handler_on(bot_path, bot_config, mock_update):
     mock_context = MagicMock()
     mock_context.args = ["on"]
 
-    with patch("cclaw.handlers.save_bot_config") as mock_save:
+    with patch("abyss.handlers.save_bot_config") as mock_save:
         await streaming_handler.callback(mock_update, mock_context)
         mock_save.assert_called_once()
         saved_config = mock_save.call_args[0][1]
@@ -574,7 +574,7 @@ async def test_streaming_handler_off(bot_path, bot_config, mock_update):
     mock_context = MagicMock()
     mock_context.args = ["off"]
 
-    with patch("cclaw.handlers.save_bot_config") as mock_save:
+    with patch("abyss.handlers.save_bot_config") as mock_save:
         await streaming_handler.callback(mock_update, mock_context)
         mock_save.assert_called_once()
         saved_config = mock_save.call_args[0][1]
@@ -591,7 +591,7 @@ async def test_message_handler_non_streaming(bot_path, bot_config, mock_update):
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[19]
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "Non-streaming response"
         mock_context = MagicMock()
         await message_handler.callback(mock_update, mock_context)
@@ -617,7 +617,7 @@ async def test_streaming_uses_send_message_draft(bot_path, bot_config, mock_upda
         return "Hello, this is a streaming response from Claude!"
 
     with patch(
-        "cclaw.handlers.run_claude_streaming_with_sdk", new_callable=AsyncMock
+        "abyss.handlers.run_claude_streaming_with_sdk", new_callable=AsyncMock
     ) as mock_stream:
         mock_stream.side_effect = fake_streaming
         mock_context = MagicMock()
@@ -647,7 +647,7 @@ async def test_streaming_draft_clears_before_final(bot_path, bot_config, mock_up
         return "Draft streaming response text"
 
     with patch(
-        "cclaw.handlers.run_claude_streaming_with_sdk", new_callable=AsyncMock
+        "abyss.handlers.run_claude_streaming_with_sdk", new_callable=AsyncMock
     ) as mock_stream:
         mock_stream.side_effect = fake_streaming
         mock_context = MagicMock()
@@ -676,7 +676,7 @@ async def test_streaming_fallback_to_edit_message(bot_path, bot_config, mock_upd
         return "Fallback streaming response text"
 
     with patch(
-        "cclaw.handlers.run_claude_streaming_with_sdk", new_callable=AsyncMock
+        "abyss.handlers.run_claude_streaming_with_sdk", new_callable=AsyncMock
     ) as mock_stream:
         mock_stream.side_effect = fake_streaming
         mock_context = MagicMock()
@@ -710,7 +710,7 @@ async def test_streaming_short_response_no_draft(bot_path, bot_config, mock_upda
         return "Hi"
 
     with patch(
-        "cclaw.handlers.run_claude_streaming_with_sdk", new_callable=AsyncMock
+        "abyss.handlers.run_claude_streaming_with_sdk", new_callable=AsyncMock
     ) as mock_stream:
         mock_stream.side_effect = fake_streaming
         mock_context = MagicMock()
@@ -733,7 +733,7 @@ async def test_message_handler_first_message_bootstraps(bot_path, bot_config, mo
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[19]
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
         mock_context.bot.edit_message_text = AsyncMock()
@@ -748,7 +748,7 @@ async def test_message_handler_first_message_bootstraps(bot_path, bot_config, mo
     assert len(call_kwargs["claude_session_id"]) > 0
 
     # Verify session ID was saved to disk
-    from cclaw.session import get_claude_session_id, session_directory
+    from abyss.session import get_claude_session_id, session_directory
 
     session_dir = session_directory(bot_path, 67890)
     saved_id = get_claude_session_id(session_dir)
@@ -758,7 +758,7 @@ async def test_message_handler_first_message_bootstraps(bot_path, bot_config, mo
 @pytest.mark.asyncio
 async def test_message_handler_resume_session(bot_path, bot_config, mock_update):
     """Second message uses --resume with existing session_id."""
-    from cclaw.session import ensure_session, save_claude_session_id
+    from abyss.session import ensure_session, save_claude_session_id
 
     # Pre-create session with a saved session ID
     session_dir = ensure_session(bot_path, 67890)
@@ -768,7 +768,7 @@ async def test_message_handler_resume_session(bot_path, bot_config, mock_update)
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[19]
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
         mock_context.bot.edit_message_text = AsyncMock()
@@ -783,7 +783,7 @@ async def test_message_handler_resume_session(bot_path, bot_config, mock_update)
 @pytest.mark.asyncio
 async def test_message_handler_resume_fallback(bot_path, bot_config, mock_update):
     """When --resume fails with RuntimeError, falls back to bootstrap."""
-    from cclaw.session import ensure_session, get_claude_session_id, save_claude_session_id
+    from abyss.session import ensure_session, get_claude_session_id, save_claude_session_id
 
     session_dir = ensure_session(bot_path, 67890)
     save_claude_session_id(session_dir, "expired-session-id")
@@ -803,7 +803,7 @@ async def test_message_handler_resume_fallback(bot_path, bot_config, mock_update
         # Second call (bootstrap) succeeds
         return "fallback response"
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.side_effect = side_effect
         mock_context = MagicMock()
         mock_context.bot.edit_message_text = AsyncMock()
@@ -832,7 +832,7 @@ async def test_message_handler_resume_fallback(bot_path, bot_config, mock_update
 @pytest.mark.asyncio
 async def test_message_handler_first_message_with_history(bot_path, bot_config, mock_update):
     """First message with existing conversation.md bootstraps with history context."""
-    from cclaw.session import ensure_session, log_conversation
+    from abyss.session import ensure_session, log_conversation
 
     session_dir = ensure_session(bot_path, 67890)
     log_conversation(session_dir, "user", "Previous question")
@@ -842,7 +842,7 @@ async def test_message_handler_first_message_with_history(bot_path, bot_config, 
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[19]
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
         mock_context.bot.edit_message_text = AsyncMock()
@@ -877,7 +877,7 @@ async def test_memory_handler_show_empty(bot_path, bot_config, mock_update):
 @pytest.mark.asyncio
 async def test_memory_handler_show_content(bot_path, bot_config, mock_update):
     """Memory handler displays MEMORY.md content."""
-    from cclaw.session import save_bot_memory
+    from abyss.session import save_bot_memory
 
     save_bot_memory(bot_path, "# Memory\n\n- User likes Python")
 
@@ -896,7 +896,7 @@ async def test_memory_handler_show_content(bot_path, bot_config, mock_update):
 @pytest.mark.asyncio
 async def test_memory_handler_clear(bot_path, bot_config, mock_update):
     """Memory handler clears memory on /memory clear."""
-    from cclaw.session import load_bot_memory, save_bot_memory
+    from abyss.session import load_bot_memory, save_bot_memory
 
     save_bot_memory(bot_path, "some memory")
 
@@ -915,7 +915,7 @@ async def test_memory_handler_clear(bot_path, bot_config, mock_update):
 @pytest.mark.asyncio
 async def test_message_handler_bootstrap_includes_memory(bot_path, bot_config, mock_update):
     """First message bootstrap includes bot memory in the prompt."""
-    from cclaw.session import save_bot_memory
+    from abyss.session import save_bot_memory
 
     save_bot_memory(bot_path, "# Memory\n\n- User prefers Korean")
 
@@ -923,7 +923,7 @@ async def test_message_handler_bootstrap_includes_memory(bot_path, bot_config, m
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[19]
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
         mock_context.bot.edit_message_text = AsyncMock()
@@ -940,7 +940,7 @@ async def test_message_handler_bootstrap_includes_memory(bot_path, bot_config, m
 @pytest.mark.asyncio
 async def test_message_handler_bootstrap_memory_and_history(bot_path, bot_config, mock_update):
     """First message bootstrap includes both memory and conversation history."""
-    from cclaw.session import ensure_session, log_conversation, save_bot_memory
+    from abyss.session import ensure_session, log_conversation, save_bot_memory
 
     save_bot_memory(bot_path, "# Memory\n\n- Name is Kim")
 
@@ -952,7 +952,7 @@ async def test_message_handler_bootstrap_memory_and_history(bot_path, bot_config
     handlers = make_handlers("test-bot", bot_path, bot_config)
     message_handler = handlers[19]
 
-    with patch("cclaw.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
+    with patch("abyss.handlers.run_claude_with_sdk", new_callable=AsyncMock) as mock_claude:
         mock_claude.return_value = "response"
         mock_context = MagicMock()
         mock_context.bot.edit_message_text = AsyncMock()
@@ -1020,7 +1020,7 @@ async def test_cron_handler_add_recurring(bot_path, bot_config, mock_update):
 
     with (
         patch(
-            "cclaw.cron.parse_natural_language_schedule",
+            "abyss.cron.parse_natural_language_schedule",
             new_callable=AsyncMock,
             return_value={
                 "type": "recurring",
@@ -1029,13 +1029,13 @@ async def test_cron_handler_add_recurring(bot_path, bot_config, mock_update):
                 "name": "email-summary",
             },
         ),
-        patch("cclaw.cron.resolve_default_timezone", return_value="Asia/Seoul"),
-        patch("cclaw.cron.add_cron_job"),
+        patch("abyss.cron.resolve_default_timezone", return_value="Asia/Seoul"),
+        patch("abyss.cron.add_cron_job"),
         patch(
-            "cclaw.cron.generate_unique_job_name",
+            "abyss.cron.generate_unique_job_name",
             return_value="email-summary",
         ),
-        patch("cclaw.cron.next_run_time", return_value=None),
+        patch("abyss.cron.next_run_time", return_value=None),
     ):
         await cron_handler.callback(mock_update, mock_context)
 
@@ -1055,11 +1055,11 @@ async def test_cron_handler_add_parse_failure(bot_path, bot_config, mock_update)
 
     with (
         patch(
-            "cclaw.cron.parse_natural_language_schedule",
+            "abyss.cron.parse_natural_language_schedule",
             new_callable=AsyncMock,
             side_effect=ValueError("Failed to parse"),
         ),
-        patch("cclaw.cron.resolve_default_timezone", return_value="UTC"),
+        patch("abyss.cron.resolve_default_timezone", return_value="UTC"),
     ):
         await cron_handler.callback(mock_update, mock_context)
 
@@ -1076,7 +1076,7 @@ async def test_cron_handler_remove_success(bot_path, bot_config, mock_update):
     mock_context = MagicMock()
     mock_context.args = ["remove", "my-job"]
 
-    with patch("cclaw.cron.remove_cron_job", return_value=True):
+    with patch("abyss.cron.remove_cron_job", return_value=True):
         await cron_handler.callback(mock_update, mock_context)
 
     text = mock_update.message.reply_text.call_args_list[-1][0][0]
@@ -1093,7 +1093,7 @@ async def test_cron_handler_remove_not_found(bot_path, bot_config, mock_update):
     mock_context = MagicMock()
     mock_context.args = ["remove", "nonexistent"]
 
-    with patch("cclaw.cron.remove_cron_job", return_value=False):
+    with patch("abyss.cron.remove_cron_job", return_value=False):
         await cron_handler.callback(mock_update, mock_context)
 
     text = mock_update.message.reply_text.call_args_list[-1][0][0]
@@ -1109,7 +1109,7 @@ async def test_cron_handler_enable(bot_path, bot_config, mock_update):
     mock_context = MagicMock()
     mock_context.args = ["enable", "my-job"]
 
-    with patch("cclaw.cron.enable_cron_job", return_value=True):
+    with patch("abyss.cron.enable_cron_job", return_value=True):
         await cron_handler.callback(mock_update, mock_context)
 
     text = mock_update.message.reply_text.call_args_list[-1][0][0]
@@ -1126,7 +1126,7 @@ async def test_cron_handler_disable(bot_path, bot_config, mock_update):
     mock_context = MagicMock()
     mock_context.args = ["disable", "my-job"]
 
-    with patch("cclaw.cron.disable_cron_job", return_value=True):
+    with patch("abyss.cron.disable_cron_job", return_value=True):
         await cron_handler.callback(mock_update, mock_context)
 
     text = mock_update.message.reply_text.call_args_list[-1][0][0]

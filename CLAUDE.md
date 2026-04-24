@@ -1,4 +1,4 @@
-# cclaw Development Guide
+# abyss Development Guide
 
 Personal AI assistant: Telegram + Claude Code. Runs locally on Mac.
 
@@ -23,15 +23,15 @@ uv run ruff check --fix . && uv run ruff format .  # Lint + format
 - No abbreviations. Use full words: `session_directory` not `sess_dir`, `bot_config` not `bc`
 - Type hints with `from __future__ import annotations`
 - async/await for Telegram handlers and Claude runner
-- `CCLAW_HOME` env var overrides `~/.cclaw/` in tests
-- Always use `pathlib.Path` and absolute paths. Use `config.py` helpers (`bot_directory()`, `cclaw_home()`)
+- `ABYSS_HOME` env var overrides `~/.abyss/` in tests
+- Always use `pathlib.Path` and absolute paths. Use `config.py` helpers (`bot_directory()`, `abyss_home()`)
 - Line length limit: 100 characters (ruff)
 
 ## Test Rules
 
 - Every module has `tests/test_*.py`
 - Mock all Telegram API calls
-- Filesystem isolation: `tmp_path` + `monkeypatch.setenv("CCLAW_HOME", ...)`
+- Filesystem isolation: `tmp_path` + `monkeypatch.setenv("ABYSS_HOME", ...)`
 - Async tests: `@pytest.mark.asyncio`
 - `tests/evaluation/`: Real Claude API calls, excluded from CI (`--ignore=tests/evaluation`)
 
@@ -43,7 +43,7 @@ uv run ruff check --fix . && uv run ruff format .  # Lint + format
 |------|------|
 | `cli.py` | Typer entry point, all subcommand definitions |
 | `config.py` | Config YAML CRUD, timezone (`get_timezone()`), language (`get_language()`), model mapping |
-| `onboarding.py` | `cclaw init` (env check + timezone + language), `cclaw bot add` (token + profile) |
+| `onboarding.py` | `abyss init` (env check + timezone + language), `abyss bot add` (token + profile) |
 | `claude_runner.py` | `claude -p` subprocess (async), model/skill/MCP injection, `DEFAULT_ALLOWED_TOOLS` (WebFetch/WebSearch/Bash/Read/Write/Edit/Glob/Grep/Agent always allowed), streaming, `--resume` session continuity, SDK-aware wrappers |
 | `sdk_client.py` | Python Agent SDK client (`claude-agent-sdk`), `SDKClientPool` (persistent `ClaudeSDKClient` per session, avoids process re-spawn), `get_pool()` / `close_pool()` singleton, legacy `sdk_query()` / `sdk_query_streaming()` |
 | `session.py` | Session directories, conversation logs (`conversation-YYMMDD.md`), Claude session ID (`--resume`), memory CRUD (bot + global) |
@@ -54,12 +54,12 @@ uv run ruff check --fix . && uv run ruff format .  # Lint + format
 | `cron.py` | Cron scheduling (croniter), natural language parsing via Claude haiku, per-job timezone, one-shot support, `edit_cron_job_message()` (message-only edit) |
 | `heartbeat.py` | Periodic situation awareness, active hours check, HEARTBEAT_OK detection |
 | `token_compact.py` | Compress MEMORY.md/SKILL.md/HEARTBEAT.md via `claude -p` one-shot |
-| `backup.py` | AES-256 encrypted zip of `~/.cclaw/` |
+| `backup.py` | AES-256 encrypted zip of `~/.abyss/` |
 | `utils.py` | Message splitting, Markdown-to-HTML conversion, logging, IME-compatible CLI input |
 
 ### Built-in Skills
 
-`src/cclaw/builtin_skills/` contains skill templates (SKILL.md + skill.yaml + optional mcp.json). Each subdirectory is one skill. `__init__.py` scans subdirectories as a registry. All follow the same pattern -- adding a new builtin means creating a new subdirectory.
+`src/abyss/builtin_skills/` contains skill templates (SKILL.md + skill.yaml + optional mcp.json). Each subdirectory is one skill. `__init__.py` scans subdirectories as a registry. All follow the same pattern -- adding a new builtin means creating a new subdirectory.
 
 ## Key Architecture Patterns
 
@@ -89,7 +89,7 @@ This is the only way to inject system instructions into `claude -p`, which auto-
 
 ### Startup Sequence
 
-For each bot on `cclaw start`:
+For each bot on `abyss start`:
 1. Regenerate CLAUDE.md (picks up config/skill changes)
 2. Check SDK availability, start QMD daemon, then polling
 
@@ -131,7 +131,7 @@ Multi-bot collaboration via Telegram groups using an orchestrator pattern:
 ## Runtime Data Structure
 
 ```
-~/.cclaw/
+~/.abyss/
 ├── config.yaml               # timezone, language, bot list, settings
 ├── GLOBAL_MEMORY.md          # Shared read-only memory (CLI-managed)
 ├── bots/<name>/
@@ -154,20 +154,20 @@ Multi-bot collaboration via Telegram groups using an orchestrator pattern:
 
 - **Calendar versioning**: `YYYY.MM.DD` format (e.g., `2026.03.07`). **Two files must be updated together**:
   - `pyproject.toml` → `version = "YYYY.MM.DD"`
-  - `src/cclaw/__init__.py` → `__version__ = "YYYY.MM.DD"`
+  - `src/abyss/__init__.py` → `__version__ = "YYYY.MM.DD"`
 - **Version bump commit**: `🔧 config: bump version to YYYY.MM.DD`
 - **Git tag**: `vYYYY.MM.DD` (e.g., `v2026.03.07`). Create after pushing the release commit
 - **Release notes**: Write in English
 - **Tweet draft**: Multi-line format, one feature per line with emoji. Example:
   ```
-  🚀 cclaw v2026.03.07
+  🚀 abyss v2026.03.07
 
   ⚡ Node.js bridge for faster Claude queries
   📚 system-wide QMD search
   🌏 timezone/language config
   🗜️ startup auto-compact
   ```
-- **Landing page update**: After release, update `docs/landing/` for cclaw.heg.wtf based on the released content
+- **Landing page update**: After release, update `docs/landing/` for abyss.heg.wtf based on the released content
 
 ## Engineering Mindset
 
@@ -175,18 +175,18 @@ Multi-bot collaboration via Telegram groups using an orchestrator pattern:
 - Planning is good, but never hesitate. Conclusions come only from execution, tests, and data
 - Always strive to build great products, hype products. We are engineers and influencers
 
-## ClawHouse (Web Dashboard)
+## Abysscope (Web Dashboard)
 
-`clawhouse/` directory contains the Next.js web dashboard. Tech: Next.js 16 + shadcn/ui + Tailwind CSS + js-yaml.
+`abysscope/` directory contains the Next.js web dashboard. Tech: Next.js 16 + shadcn/ui + Tailwind CSS + js-yaml.
 
-- Reads/writes `~/.cclaw/` directly via `lib/cclaw.ts` (no database)
+- Reads/writes `~/.abyss/` directly via `lib/abyss.ts` (no database)
 - Server components for data pages, client components for editors
-- API routes in `src/app/api/` as thin wrappers over `lib/cclaw.ts`
-- `cclaw dashboard start/stop/restart/status` subcommands, PID file at `~/.cclaw/clawhouse.pid`
+- API routes in `src/app/api/` as thin wrappers over `lib/abyss.ts`
+- `abyss dashboard start/stop/restart/status` subcommands, PID file at `~/.abyss/abysscope.pid`
 - Status detection: PID file first, then port 3847 fallback (detects externally started dashboards)
-- `cclaw status` includes dashboard info (local + network URL)
+- `abyss status` includes dashboard info (local + network URL)
 - `--daemon` for background mode, `--port` for custom port (default 3847)
-- Bundled in wheel via `force-include` (clawhouse_data/), works after `pip install`
+- Bundled in wheel via `force-include` (abysscope_data/), works after `pip install`
 - Cron editor: inline view/edit toggle in bot detail, supports recurring + one-shot jobs, skills picker
 - Log management: view, filter, delete (single/bulk/by-age), daemon log truncate
 - Settings: timezone/language Select dropdowns, Home directory with Finder open link, bot paths as relative links
@@ -195,7 +195,7 @@ Multi-bot collaboration via Telegram groups using an orchestrator pattern:
 - Session management: per-session delete in bot detail, per-conversation-file delete in conversation viewer
 - Memory editor: markdown rendering in view mode (react-markdown + @tailwindcss/typography), raw edit mode
 - Sidebar: collapsible Bots/Skills sections, theme toggle with emoji icon
-- See **[docs/PLAN-26-0311-CLAWHOUSE.md](docs/PLAN-26-0311-CLAWHOUSE.md)** for full plan and implementation status
+- See **[docs/PLAN-26-0311-ABYSSCOPE.md](docs/PLAN-26-0311-ABYSSCOPE.md)** for full plan and implementation status
 
 ## Essential References
 

@@ -10,9 +10,9 @@ graph LR
     H <--> S[session.py]
     H <--> G[group.py]
     CR <--> SK[skill.py]
-    S <--> BOTS[~/.cclaw/bots/]
-    SK <--> SKILLS[~/.cclaw/skills/]
-    G <--> GROUPS[~/.cclaw/groups/]
+    S <--> BOTS[~/.abyss/bots/]
+    SK <--> SKILLS[~/.abyss/skills/]
+    G <--> GROUPS[~/.abyss/groups/]
 ```
 
 ### Claude Code Execution Paths
@@ -63,7 +63,7 @@ Sessions are managed via directory structure without a database.
 
 ### 4. Bot Configuration (bot.yaml)
 
-Each bot's configuration is stored in `~/.cclaw/bots/<name>/bot.yaml`.
+Each bot's configuration is stored in `~/.abyss/bots/<name>/bot.yaml`.
 
 ```yaml
 telegram_token: "123456:ABCDEF"    # Telegram Bot API token
@@ -118,22 +118,22 @@ Per-bot Claude model configuration with runtime changes.
 
 - Stored in `bot.yaml`'s `model` field (default: sonnet)
 - Runtime change via Telegram `/model` command (immediately saved to bot.yaml)
-- Also changeable via CLI `cclaw bot model <name> <model>`
+- Also changeable via CLI `abyss bot model <name> <model>`
 - Valid models: sonnet (4.5), opus (4.6), haiku (3.5) — `/model` shows version alongside name
 
 ### 9. Skill System
 
 Extends bot capabilities by linking tools/knowledge. Skills are classified by origin:
 
-- **Built-in skills** (`builtin`): Pre-packaged with cclaw, installable via `cclaw skills install <name>`
-- **Custom skills** (`custom`): User-created via `cclaw skills add`
-- **Imported skills** (`custom`): Downloaded from GitHub via `cclaw skills import <github-url>` or `/skills import <github-url>` in Telegram
+- **Built-in skills** (`builtin`): Pre-packaged with abyss, installable via `abyss skills install <name>`
+- **Custom skills** (`custom`): User-created via `abyss skills add`
+- **Imported skills** (`custom`): Downloaded from GitHub via `abyss skills import <github-url>` or `/skills import <github-url>` in Telegram
 
 Internally, skills have different tool configurations:
 
 - Minimum skill unit: folder + single `SKILL.md`
 - **Markdown-only skills**: Just `SKILL.md` makes it immediately active. Adds knowledge/instructions to bot
-- **Tool-based skills**: `skill.yaml` defines tool type (cli/mcp/browser), required commands, environment variables. Activated via `cclaw skill setup`
+- **Tool-based skills**: `skill.yaml` defines tool type (cli/mcp/browser), required commands, environment variables. Activated via `abyss skill setup`
 - On skill attachment, `compose_claude_md()` merges bot prompt + skill content to regenerate CLAUDE.md
 - MCP skills: Auto-generates `.mcp.json` in session directory. Environment variables injected via subprocess env
 - CLI skills: Environment variables auto-injected during subprocess execution
@@ -156,9 +156,9 @@ Automatically runs Claude Code at scheduled times and sends results via Telegram
 - One-shot jobs: auto-deleted after execution when `delete_after_run=true`, auto-disabled when `delete_after_run=false`
 - Inherits bot's skills/model settings, overridable at job level
 - **Natural language creation**: `/cron add <description>` in Telegram parses any language (Korean, English, Japanese, etc.) into cron jobs via Claude haiku one-shot (`parse_natural_language_schedule()`)
-- **Timezone**: `resolve_default_timezone()` reads from `config.yaml` timezone (single source of truth, set during `cclaw init`)
+- **Timezone**: `resolve_default_timezone()` reads from `config.yaml` timezone (single source of truth, set during `abyss init`)
 - **Unique naming**: `generate_unique_job_name()` appends `-2`, `-3` suffix on conflict
-- **Message editing**: `edit_cron_job_message()` updates only the message field (name/schedule immutable). CLI: `cclaw cron edit <bot> <job>` opens `$EDITOR`. Telegram: `/cron edit <name>` shows current message with `ForceReply`, user replies with new content. `pending_cron_edits` dict in handler tracks in-flight edits by chat_id
+- **Message editing**: `edit_cron_job_message()` updates only the message field (name/schedule immutable). CLI: `abyss cron edit <bot> <job>` opens `$EDITOR`. Telegram: `/cron edit <name>` shows current message with `ForceReply`, user replies with new content. `pending_cron_edits` dict in handler tracks in-flight edits by chat_id
 - **Full Telegram CRUD**: `/cron list|add|edit|run|remove|enable|disable`
 
 ### 11. Heartbeat (Periodic Situation Awareness)
@@ -177,17 +177,17 @@ Proactive agent feature that periodically wakes Claude Code to run HEARTBEAT.md 
 
 ### 12. Built-in Skill System
 
-Frequently used skills are bundled as templates inside the package, installable via `cclaw skills install`.
+Frequently used skills are bundled as templates inside the package, installable via `abyss skills install`.
 
-- Skill templates stored in `src/cclaw/builtin_skills/` directory (SKILL.md, skill.yaml, etc.)
+- Skill templates stored in `src/abyss/builtin_skills/` directory (SKILL.md, skill.yaml, etc.)
 - `builtin_skills/__init__.py` scans subdirectories to provide a registry
-- `install_builtin_skill()` copies template files to `~/.cclaw/skills/<name>/`
+- `install_builtin_skill()` copies template files to `~/.abyss/skills/<name>/`
 - After installation: requirement check -> auto-activate on pass, stays inactive with guidance on fail
 - `skill.yaml`'s `install_hints` field provides installation instructions for missing tools
 - Built-in skills: iMessage (`imsg` CLI), Apple Reminders (`reminders-cli`), Naver Map (knowledge type, web URL based), Image Processing (`slimg` CLI), Best Price (knowledge type, web search based), Supabase (MCP type, DB/Storage/Edge Functions with no-deletion guardrails), Gmail (`gogcli`), Google Calendar (`gogcli`), Twitter/X (MCP type, tweet posting/search via `@enescinar/twitter-mcp`), Jira (MCP type, issue management via `mcp-atlassian`), Naver Search (`naver-cli`, 6-type search), Kakao Local (`kakao-cli`, address/coordinate/keyword search), DART (`dartcli`, corporate disclosure/finance/filings), Translate (`translatecli`, Gemini-powered text/transcript translation), Daiso (`daiso-cli`, Daiso Mall product search), QMD (MCP type, markdown knowledge search via HTTP daemon, auto-injected system-wide)
-- `cclaw skills` command shows all skills with origin type (builtin/custom), including uninstalled builtins
+- `abyss skills` command shows all skills with origin type (builtin/custom), including uninstalled builtins
 - Telegram `/skills` handler also shows origin type (builtin/custom) and uninstalled builtins
-- **GitHub import**: `import_skill_from_github(url, name)` downloads SKILL.md (required) + skill.yaml + mcp.json (optional) from a GitHub repo. `parse_github_url()` parses owner/repo/branch/subdir. Tries `main` branch first, falls back to `master`. Compatible with [skills.sh](https://skills.sh) skill packages. CLI: `cclaw skills import <url> [--skill <name>]`. Telegram: `/skills import <url> [name]` — imports and auto-attaches to the bot in one step.
+- **GitHub import**: `import_skill_from_github(url, name)` downloads SKILL.md (required) + skill.yaml + mcp.json (optional) from a GitHub repo. `parse_github_url()` parses owner/repo/branch/subdir. Tries `main` branch first, falls back to `master`. Compatible with [skills.sh](https://skills.sh) skill packages. CLI: `abyss skills import <url> [--skill <name>]`. Telegram: `/skills import <url> [name]` — imports and auto-attaches to the bot in one step.
 
 ### 13. QMD Auto-Injection (System-Wide Knowledge Search)
 
@@ -196,9 +196,9 @@ QMD (local markdown search engine) is automatically available to all bots when t
 - **Auto-detect**: `shutil.which("qmd")` checks if QMD CLI is available on the system
 - **MCP config injection**: `_prepare_skill_config()` in `claude_runner.py` auto-injects QMD HTTP MCP server config (`localhost:8181/mcp`) and allowed tools into every session, regardless of skill attachment
 - **CLAUDE.md injection**: `compose_claude_md()` in `skill.py` auto-appends QMD SKILL.md instructions from the builtin template. Deduplicates if qmd is also attached as a skill
-- **HTTP daemon**: `bot_manager.py` starts QMD daemon (`qmd mcp --http --daemon`) on `cclaw start` and stops it (`qmd mcp stop`) on shutdown. Self-managed by QMD — no Popen/pipe management needed
+- **HTTP daemon**: `bot_manager.py` starts QMD daemon (`qmd mcp --http --daemon`) on `abyss start` and stops it (`qmd mcp stop`) on shutdown. Self-managed by QMD — no Popen/pipe management needed
 - **Health check**: TCP connection to `localhost:8181` to verify daemon readiness (up to 30 retries with 1s sleep)
-- **Collection auto-setup**: `_ensure_qmd_conversations_collection()` registers `cclaw-conversations` collection pointing to `~/.cclaw/bots/` with `**/conversation-*.md` glob on startup
+- **Collection auto-setup**: `_ensure_qmd_conversations_collection()` registers `abyss-conversations` collection pointing to `~/.abyss/bots/` with `**/conversation-*.md` glob on startup
 - **Test isolation**: `tests/conftest.py` autouse fixture patches `shutil.which` to return `None` for `"qmd"`, preventing auto-injection in tests. QMD-specific tests in `test_qmd.py` override with explicit mocking
 
 ### 14. Session Continuity
@@ -219,23 +219,23 @@ Each message runs `claude -p` as a new process, but maintains conversation conte
 
 When user requests "remember this", the bot saves to `MEMORY.md` and injects it into the prompt on new session bootstrap for persistent memory.
 
-- `MEMORY.md` managed per bot (`~/.cclaw/bots/<name>/MEMORY.md`). All chat sessions share the same memory
+- `MEMORY.md` managed per bot (`~/.abyss/bots/<name>/MEMORY.md`). All chat sessions share the same memory
 - **Save mechanism**: `compose_claude_md()` includes memory instructions + MEMORY.md absolute path in CLAUDE.md -> Claude Code writes to MEMORY.md directly via file write tool
 - **Load mechanism**: `_prepare_session_context()` reads `load_global_memory()` + `load_bot_memory()` during bootstrap -> prompt injection (global memory -> bot memory -> conversation history -> new message order)
 - `--resume` sessions don't inject memory separately (Claude Code session maintains its own context)
-- Management: Telegram `/memory` (show), `/memory clear` (reset), CLI `cclaw memory show|edit|clear`
+- Management: Telegram `/memory` (show), `/memory clear` (reset), CLI `abyss memory show|edit|clear`
 - CRUD functions in `session.py`: `memory_file_path()`, `load_bot_memory()`, `save_bot_memory()`, `clear_bot_memory()`
 
 ### 16. Global Memory
 
 Shared read-only memory accessible by all bots, managed via CLI only.
 
-- `GLOBAL_MEMORY.md` stored at `~/.cclaw/GLOBAL_MEMORY.md`
+- `GLOBAL_MEMORY.md` stored at `~/.abyss/GLOBAL_MEMORY.md`
 - Stores user preferences and other information all bots should reference (timezone is managed in config.yaml, not here)
 - **CLAUDE.md injection**: `compose_claude_md()` inserts a "Global Memory (Read-Only)" section without the file path, preventing Claude from modifying it. Placed before bot Memory section
 - **Bootstrap injection**: `_prepare_session_context()` and `_call_with_resume_fallback()` inject global memory before bot memory (global memory -> bot memory -> conversation history -> message)
 - **Cron/Heartbeat injection**: `execute_cron_job()` and `execute_heartbeat()` inject global memory + bot memory into prompt before execution
-- **CLI management**: `cclaw global-memory show|edit|clear`. Editing or clearing regenerates all bots' CLAUDE.md and propagates to sessions
+- **CLI management**: `abyss global-memory show|edit|clear`. Editing or clearing regenerates all bots' CLAUDE.md and propagates to sessions
 - Not editable via Telegram (no file path exposed, no Telegram command)
 - CRUD functions in `session.py`: `global_memory_file_path()`, `load_global_memory()`, `save_global_memory()`, `clear_global_memory()`
 
@@ -244,7 +244,7 @@ Shared read-only memory accessible by all bots, managed via CLI only.
 Delivers Claude Code output to Telegram in real-time. User-toggleable on/off.
 
 - Controlled by `streaming` field in `bot.yaml` (default: `DEFAULT_STREAMING = False`)
-- Runtime toggle via Telegram `/streaming on|off` or CLI `cclaw bot streaming <name> on|off`
+- Runtime toggle via Telegram `/streaming on|off` or CLI `abyss bot streaming <name> on|off`
 - **Streaming mode** (`_send_streaming_response`):
   - `run_claude_streaming()`: Runs with `--output-format stream-json --verbose --include-partial-messages`
   - Extracts `text_delta` from stream-json `content_block_delta` events for per-token streaming
@@ -266,17 +266,17 @@ Compresses bot MD files (MEMORY.md, user-created SKILL.md, HEARTBEAT.md) via one
 - **Working directory**: Each compaction runs in a `tempfile.TemporaryDirectory()` (no session state needed)
 - **Token estimation**: `chars // 4` heuristic for relative before/after comparison
 - **Post-save**: After saving compacted files, `regenerate_bot_claude_md()` + `update_session_claude_md()` propagate changes
-- **CLI**: `cclaw bot compact <name>` with `--yes/-y` skip confirmation
+- **CLI**: `abyss bot compact <name>` with `--yes/-y` skip confirmation
 - **Telegram**: `/compact` auto-saves on success
 
 ### 19. Encrypted Backup
 
-Full backup of `~/.cclaw/` directory to an AES-256 encrypted zip file.
+Full backup of `~/.abyss/` directory to an AES-256 encrypted zip file.
 
-- `cclaw backup` generates `YYMMDD-cclaw.zip` in the current working directory
+- `abyss backup` generates `YYMMDD-abyss.zip` in the current working directory
 - Password input via `getpass.getpass()` (masked, confirmed twice)
 - Encryption via `pyzipper` (AES-256, WZ_AES mode)
-- Excludes runtime artifacts: `cclaw.pid`, `__pycache__/`
+- Excludes runtime artifacts: `abyss.pid`, `__pycache__/`
 - Same-day backup prompts for overwrite confirmation
 
 ### 20. Group Collaboration (Orchestrator Pattern)
@@ -290,7 +290,7 @@ Multi-bot collaboration via Telegram groups using an orchestrator-member pattern
 - **Shared workspace**: Persistent file workspace across all group members, preserved on `/reset`
 - **CLAUDE.md injection**: `compose_group_claude_md()` injects team roster + rules for orchestrator, role context + shared conversation history for members
 - **Data model**: `groups/<name>/group.yaml` stores name, orchestrator, members list, telegram_chat_id
-- **CLI**: `cclaw group create/list/show/delete/status`
+- **CLI**: `abyss group create/list/show/delete/status`
 - **Telegram**: `/bind <group>`, `/unbind` to associate chat with group config
 
 ## Module Dependencies
@@ -365,7 +365,7 @@ graph TD
 
 ```mermaid
 graph TD
-    START["cclaw start"] --> MODE{daemon?}
+    START["abyss start"] --> MODE{daemon?}
     MODE -->|No| FG["asyncio.run(_run_bots())"]
     MODE -->|Yes| PLIST["Create launchd plist"]
     PLIST --> LOAD["launchctl load"]
@@ -385,7 +385,7 @@ graph TD
     K4 --> K5["stop_bridge()"]
 ```
 
-- **PID file**: Records current process ID in `~/.cclaw/cclaw.pid`
+- **PID file**: Records current process ID in `~/.abyss/abyss.pid`
 - **Graceful Shutdown**: Without killing subprocesses first, `application.stop()` would wait for running handlers (up to `command_timeout` seconds)
 
 ## Message Processing Flow

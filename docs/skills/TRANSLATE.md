@@ -1,6 +1,6 @@
 # Translate Skill Guide
 
-A guide to installing and using the built-in Translate skill for cclaw.
+A guide to installing and using the built-in Translate skill for abyss.
 
 ## Overview
 
@@ -38,13 +38,13 @@ translatecli --help
 ### 1. Install the Built-in Skill
 
 ```bash
-cclaw skills install translate
+abyss skills install translate
 ```
 
 ### 2. Setup (Activate)
 
 ```bash
-cclaw skills setup translate
+abyss skills setup translate
 ```
 
 During setup, you'll be prompted to enter:
@@ -60,7 +60,7 @@ Via Telegram:
 ### 4. Verify
 
 ```bash
-cclaw skills
+abyss skills
 ```
 
 ## Usage
@@ -102,7 +102,7 @@ This allows all `translatecli` commands to run without permission prompts in Cla
 
 ### Environment Variable Injection
 
-`GEMINI_API_KEY` is stored during `cclaw skills setup` and injected into the Claude Code subprocess at runtime. The `translatecli` uses this for Gemini API authentication.
+`GEMINI_API_KEY` is stored during `abyss skills setup` and injected into the Claude Code subprocess at runtime. The `translatecli` uses this for Gemini API authentication.
 
 ## Troubleshooting
 
@@ -121,7 +121,7 @@ which translatecli
 Error: API key not valid
 ```
 
-**Solution**: Verify your API key at [Google AI Studio](https://aistudio.google.com/apikey), then re-run `cclaw skills setup translate`.
+**Solution**: Verify your API key at [Google AI Studio](https://aistudio.google.com/apikey), then re-run `abyss skills setup translate`.
 
 ### Garbled output for transcript formats
 

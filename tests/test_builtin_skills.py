@@ -5,13 +5,13 @@ from __future__ import annotations
 import pytest
 import yaml
 
-from cclaw.builtin_skills import (
+from abyss.builtin_skills import (
     builtin_skills_directory,
     get_builtin_skill_path,
     is_builtin_skill,
     list_builtin_skills,
 )
-from cclaw.skill import (
+from abyss.skill import (
     check_skill_requirements,
     install_builtin_skill,
     is_skill,
@@ -23,10 +23,10 @@ from cclaw.skill import (
 
 
 @pytest.fixture
-def temp_cclaw_home(tmp_path, monkeypatch):
-    """Set CCLAW_HOME to a temporary directory."""
-    home = tmp_path / ".cclaw"
-    monkeypatch.setenv("CCLAW_HOME", str(home))
+def temp_abyss_home(tmp_path, monkeypatch):
+    """Set ABYSS_HOME to a temporary directory."""
+    home = tmp_path / ".abyss"
+    monkeypatch.setenv("ABYSS_HOME", str(home))
     return home
 
 
@@ -73,15 +73,15 @@ def test_is_builtin_skill():
 # --- Installation Tests ---
 
 
-def test_install_builtin_skill_creates_directory(temp_cclaw_home):
+def test_install_builtin_skill_creates_directory(temp_abyss_home):
     """install_builtin_skill creates the skill directory."""
     directory = install_builtin_skill("imessage")
     assert directory.exists()
     assert directory.is_dir()
-    assert directory == temp_cclaw_home / "skills" / "imessage"
+    assert directory == temp_abyss_home / "skills" / "imessage"
 
 
-def test_install_builtin_skill_copies_files(temp_cclaw_home):
+def test_install_builtin_skill_copies_files(temp_abyss_home):
     """install_builtin_skill copies SKILL.md and skill.yaml."""
     directory = install_builtin_skill("imessage")
     assert (directory / "SKILL.md").exists()
@@ -97,7 +97,7 @@ def test_install_builtin_skill_copies_files(temp_cclaw_home):
     assert config["type"] == "cli"
 
 
-def test_install_builtin_skill_already_exists(temp_cclaw_home):
+def test_install_builtin_skill_already_exists(temp_abyss_home):
     """install_builtin_skill raises FileExistsError when already installed."""
     install_builtin_skill("imessage")
 
@@ -105,13 +105,13 @@ def test_install_builtin_skill_already_exists(temp_cclaw_home):
         install_builtin_skill("imessage")
 
 
-def test_install_builtin_skill_unknown_name(temp_cclaw_home):
+def test_install_builtin_skill_unknown_name(temp_abyss_home):
     """install_builtin_skill raises ValueError for unknown skill name."""
     with pytest.raises(ValueError):
         install_builtin_skill("nonexistent_skill_xyz")
 
 
-def test_installed_skill_appears_in_list_skills(temp_cclaw_home):
+def test_installed_skill_appears_in_list_skills(temp_abyss_home):
     """Installed built-in skill shows up in list_skills()."""
     install_builtin_skill("imessage")
 
@@ -120,19 +120,19 @@ def test_installed_skill_appears_in_list_skills(temp_cclaw_home):
     assert "imessage" in names
 
 
-def test_installed_skill_starts_inactive(temp_cclaw_home):
+def test_installed_skill_starts_inactive(temp_abyss_home):
     """Installed built-in skill starts with inactive status."""
     install_builtin_skill("imessage")
     assert skill_status("imessage") == "inactive"
 
 
-def test_installed_skill_is_recognized(temp_cclaw_home):
+def test_installed_skill_is_recognized(temp_abyss_home):
     """Installed built-in skill is recognized by is_skill()."""
     install_builtin_skill("imessage")
     assert is_skill("imessage") is True
 
 
-def test_installed_skill_config_matches_template(temp_cclaw_home):
+def test_installed_skill_config_matches_template(temp_abyss_home):
     """Installed skill config matches the template values."""
     install_builtin_skill("imessage")
     config = load_skill_config("imessage")
@@ -144,7 +144,7 @@ def test_installed_skill_config_matches_template(temp_cclaw_home):
     assert "Bash(imsg:*)" in config["allowed_tools"]
 
 
-def test_installed_skill_requirements_check_with_missing_command(temp_cclaw_home):
+def test_installed_skill_requirements_check_with_missing_command(temp_abyss_home):
     """check_skill_requirements reports missing commands with install hint."""
     install_builtin_skill("imessage")
 
@@ -189,11 +189,11 @@ def test_is_builtin_skill_reminders():
     assert is_builtin_skill("reminders") is True
 
 
-def test_install_builtin_skill_reminders(temp_cclaw_home):
+def test_install_builtin_skill_reminders(temp_abyss_home):
     """install_builtin_skill creates the reminders skill directory with files."""
     directory = install_builtin_skill("reminders")
     assert directory.exists()
-    assert directory == temp_cclaw_home / "skills" / "reminders"
+    assert directory == temp_abyss_home / "skills" / "reminders"
     assert (directory / "SKILL.md").exists()
     assert (directory / "skill.yaml").exists()
 
@@ -211,7 +211,7 @@ def test_install_builtin_skill_reminders(temp_cclaw_home):
     assert "Bash(reminders:*)" in config["allowed_tools"]
 
 
-def test_installed_reminders_skill_starts_inactive(temp_cclaw_home):
+def test_installed_reminders_skill_starts_inactive(temp_abyss_home):
     """Installed reminders skill starts with inactive status."""
     install_builtin_skill("reminders")
     assert skill_status("reminders") == "inactive"
@@ -244,11 +244,11 @@ def test_is_builtin_skill_naver_map():
     assert is_builtin_skill("naver-map") is True
 
 
-def test_install_builtin_skill_naver_map(temp_cclaw_home):
+def test_install_builtin_skill_naver_map(temp_abyss_home):
     """install_builtin_skill creates the naver-map skill directory with files."""
     directory = install_builtin_skill("naver-map")
     assert directory.exists()
-    assert directory == temp_cclaw_home / "skills" / "naver-map"
+    assert directory == temp_abyss_home / "skills" / "naver-map"
     assert (directory / "SKILL.md").exists()
     assert (directory / "skill.yaml").exists()
 
@@ -263,7 +263,7 @@ def test_install_builtin_skill_naver_map(temp_cclaw_home):
     assert config["type"] == "knowledge"
 
 
-def test_installed_naver_map_skill_starts_inactive(temp_cclaw_home):
+def test_installed_naver_map_skill_starts_inactive(temp_abyss_home):
     """Installed naver-map skill starts with inactive status."""
     install_builtin_skill("naver-map")
     assert skill_status("naver-map") == "inactive"
@@ -296,11 +296,11 @@ def test_is_builtin_skill_image():
     assert is_builtin_skill("image") is True
 
 
-def test_install_builtin_skill_image(temp_cclaw_home):
+def test_install_builtin_skill_image(temp_abyss_home):
     """install_builtin_skill creates the image skill directory with files."""
     directory = install_builtin_skill("image")
     assert directory.exists()
-    assert directory == temp_cclaw_home / "skills" / "image"
+    assert directory == temp_abyss_home / "skills" / "image"
     assert (directory / "SKILL.md").exists()
     assert (directory / "skill.yaml").exists()
 
@@ -318,7 +318,7 @@ def test_install_builtin_skill_image(temp_cclaw_home):
     assert "Bash(slimg:*)" in config["allowed_tools"]
 
 
-def test_installed_image_skill_starts_inactive(temp_cclaw_home):
+def test_installed_image_skill_starts_inactive(temp_abyss_home):
     """Installed image skill starts with inactive status."""
     install_builtin_skill("image")
     assert skill_status("image") == "inactive"
@@ -351,11 +351,11 @@ def test_is_builtin_skill_best_price():
     assert is_builtin_skill("best-price") is True
 
 
-def test_install_builtin_skill_best_price(temp_cclaw_home):
+def test_install_builtin_skill_best_price(temp_abyss_home):
     """install_builtin_skill creates the best-price skill directory with files."""
     directory = install_builtin_skill("best-price")
     assert directory.exists()
-    assert directory == temp_cclaw_home / "skills" / "best-price"
+    assert directory == temp_abyss_home / "skills" / "best-price"
     assert (directory / "SKILL.md").exists()
     assert (directory / "skill.yaml").exists()
 
@@ -372,7 +372,7 @@ def test_install_builtin_skill_best_price(temp_cclaw_home):
     assert config["type"] == "knowledge"
 
 
-def test_installed_best_price_skill_starts_inactive(temp_cclaw_home):
+def test_installed_best_price_skill_starts_inactive(temp_abyss_home):
     """Installed best-price skill starts with inactive status."""
     install_builtin_skill("best-price")
     assert skill_status("best-price") == "inactive"
@@ -406,11 +406,11 @@ def test_is_builtin_skill_supabase():
     assert is_builtin_skill("supabase") is True
 
 
-def test_install_builtin_skill_supabase(temp_cclaw_home):
+def test_install_builtin_skill_supabase(temp_abyss_home):
     """install_builtin_skill creates the supabase skill directory with files."""
     directory = install_builtin_skill("supabase")
     assert directory.exists()
-    assert directory == temp_cclaw_home / "skills" / "supabase"
+    assert directory == temp_abyss_home / "skills" / "supabase"
     assert (directory / "SKILL.md").exists()
     assert (directory / "skill.yaml").exists()
     assert (directory / "mcp.json").exists()
@@ -448,15 +448,15 @@ def test_install_builtin_skill_supabase(temp_cclaw_home):
     assert "supabase" in mcp_config["mcpServers"]
 
 
-def test_installed_supabase_skill_starts_inactive(temp_cclaw_home):
+def test_installed_supabase_skill_starts_inactive(temp_abyss_home):
     """Installed supabase skill starts with inactive status."""
     install_builtin_skill("supabase")
     assert skill_status("supabase") == "inactive"
 
 
-def test_supabase_mcp_config_merges(temp_cclaw_home):
+def test_supabase_mcp_config_merges(temp_abyss_home):
     """Supabase mcp.json integrates with merge_mcp_configs."""
-    from cclaw.skill import load_skill_mcp_config, merge_mcp_configs
+    from abyss.skill import load_skill_mcp_config, merge_mcp_configs
 
     install_builtin_skill("supabase")
 
@@ -498,11 +498,11 @@ def test_is_builtin_skill_gmail():
     assert is_builtin_skill("gmail") is True
 
 
-def test_install_builtin_skill_gmail(temp_cclaw_home):
+def test_install_builtin_skill_gmail(temp_abyss_home):
     """install_builtin_skill creates the gmail skill directory with files."""
     directory = install_builtin_skill("gmail")
     assert directory.exists()
-    assert directory == temp_cclaw_home / "skills" / "gmail"
+    assert directory == temp_abyss_home / "skills" / "gmail"
     assert (directory / "SKILL.md").exists()
     assert (directory / "skill.yaml").exists()
 
@@ -521,7 +521,7 @@ def test_install_builtin_skill_gmail(temp_cclaw_home):
     assert "Bash(gog:*)" in config["allowed_tools"]
 
 
-def test_installed_gmail_skill_starts_inactive(temp_cclaw_home):
+def test_installed_gmail_skill_starts_inactive(temp_abyss_home):
     """Installed gmail skill starts with inactive status."""
     install_builtin_skill("gmail")
     assert skill_status("gmail") == "inactive"
@@ -554,11 +554,11 @@ def test_is_builtin_skill_gcalendar():
     assert is_builtin_skill("gcalendar") is True
 
 
-def test_install_builtin_skill_gcalendar(temp_cclaw_home):
+def test_install_builtin_skill_gcalendar(temp_abyss_home):
     """install_builtin_skill creates the gcalendar skill directory with files."""
     directory = install_builtin_skill("gcalendar")
     assert directory.exists()
-    assert directory == temp_cclaw_home / "skills" / "gcalendar"
+    assert directory == temp_abyss_home / "skills" / "gcalendar"
     assert (directory / "SKILL.md").exists()
     assert (directory / "skill.yaml").exists()
 
@@ -577,7 +577,7 @@ def test_install_builtin_skill_gcalendar(temp_cclaw_home):
     assert "Bash(gog:*)" in config["allowed_tools"]
 
 
-def test_installed_gcalendar_skill_starts_inactive(temp_cclaw_home):
+def test_installed_gcalendar_skill_starts_inactive(temp_abyss_home):
     """Installed gcalendar skill starts with inactive status."""
     install_builtin_skill("gcalendar")
     assert skill_status("gcalendar") == "inactive"
@@ -611,11 +611,11 @@ def test_is_builtin_skill_twitter():
     assert is_builtin_skill("twitter") is True
 
 
-def test_install_builtin_skill_twitter(temp_cclaw_home):
+def test_install_builtin_skill_twitter(temp_abyss_home):
     """install_builtin_skill creates the twitter skill directory with files."""
     directory = install_builtin_skill("twitter")
     assert directory.exists()
-    assert directory == temp_cclaw_home / "skills" / "twitter"
+    assert directory == temp_abyss_home / "skills" / "twitter"
     assert (directory / "SKILL.md").exists()
     assert (directory / "skill.yaml").exists()
     assert (directory / "mcp.json").exists()
@@ -649,15 +649,15 @@ def test_install_builtin_skill_twitter(temp_cclaw_home):
     assert "twitter" in mcp_config["mcpServers"]
 
 
-def test_installed_twitter_skill_starts_inactive(temp_cclaw_home):
+def test_installed_twitter_skill_starts_inactive(temp_abyss_home):
     """Installed twitter skill starts with inactive status."""
     install_builtin_skill("twitter")
     assert skill_status("twitter") == "inactive"
 
 
-def test_twitter_mcp_config_merges(temp_cclaw_home):
+def test_twitter_mcp_config_merges(temp_abyss_home):
     """Twitter mcp.json integrates with merge_mcp_configs."""
-    from cclaw.skill import load_skill_mcp_config, merge_mcp_configs
+    from abyss.skill import load_skill_mcp_config, merge_mcp_configs
 
     install_builtin_skill("twitter")
 
@@ -672,9 +672,9 @@ def test_twitter_mcp_config_merges(temp_cclaw_home):
     assert "twitter" in merged["mcpServers"]
 
 
-def test_twitter_and_supabase_mcp_configs_merge(temp_cclaw_home):
+def test_twitter_and_supabase_mcp_configs_merge(temp_abyss_home):
     """Twitter and Supabase MCP configs merge without conflict."""
-    from cclaw.skill import merge_mcp_configs
+    from abyss.skill import merge_mcp_configs
 
     install_builtin_skill("twitter")
     install_builtin_skill("supabase")
@@ -713,11 +713,11 @@ def test_is_builtin_skill_jira():
     assert is_builtin_skill("jira") is True
 
 
-def test_install_builtin_skill_jira(temp_cclaw_home):
+def test_install_builtin_skill_jira(temp_abyss_home):
     """install_builtin_skill creates the jira skill directory with files."""
     directory = install_builtin_skill("jira")
     assert directory.exists()
-    assert directory == temp_cclaw_home / "skills" / "jira"
+    assert directory == temp_abyss_home / "skills" / "jira"
     assert (directory / "SKILL.md").exists()
     assert (directory / "skill.yaml").exists()
     assert (directory / "mcp.json").exists()
@@ -754,15 +754,15 @@ def test_install_builtin_skill_jira(temp_cclaw_home):
     assert mcp_config["mcpServers"]["jira"]["command"] == "uvx"
 
 
-def test_installed_jira_skill_starts_inactive(temp_cclaw_home):
+def test_installed_jira_skill_starts_inactive(temp_abyss_home):
     """Installed jira skill starts with inactive status."""
     install_builtin_skill("jira")
     assert skill_status("jira") == "inactive"
 
 
-def test_jira_mcp_config_merges(temp_cclaw_home):
+def test_jira_mcp_config_merges(temp_abyss_home):
     """Jira mcp.json integrates with merge_mcp_configs."""
-    from cclaw.skill import load_skill_mcp_config, merge_mcp_configs
+    from abyss.skill import load_skill_mcp_config, merge_mcp_configs
 
     install_builtin_skill("jira")
 
@@ -804,11 +804,11 @@ def test_is_builtin_skill_dart():
     assert is_builtin_skill("dart") is True
 
 
-def test_install_builtin_skill_dart(temp_cclaw_home):
+def test_install_builtin_skill_dart(temp_abyss_home):
     """install_builtin_skill creates the dart skill directory with files."""
     directory = install_builtin_skill("dart")
     assert directory.exists()
-    assert directory == temp_cclaw_home / "skills" / "dart"
+    assert directory == temp_abyss_home / "skills" / "dart"
     assert (directory / "SKILL.md").exists()
     assert (directory / "skill.yaml").exists()
 
@@ -826,7 +826,7 @@ def test_install_builtin_skill_dart(temp_cclaw_home):
     assert "Bash(dartcli:*)" in config["allowed_tools"]
 
 
-def test_installed_dart_skill_starts_inactive(temp_cclaw_home):
+def test_installed_dart_skill_starts_inactive(temp_abyss_home):
     """Installed dart skill starts with inactive status."""
     install_builtin_skill("dart")
     assert skill_status("dart") == "inactive"
@@ -859,11 +859,11 @@ def test_is_builtin_skill_translate():
     assert is_builtin_skill("translate") is True
 
 
-def test_install_builtin_skill_translate(temp_cclaw_home):
+def test_install_builtin_skill_translate(temp_abyss_home):
     """install_builtin_skill creates the translate skill directory with files."""
     directory = install_builtin_skill("translate")
     assert directory.exists()
-    assert directory == temp_cclaw_home / "skills" / "translate"
+    assert directory == temp_abyss_home / "skills" / "translate"
     assert (directory / "SKILL.md").exists()
     assert (directory / "skill.yaml").exists()
 
@@ -880,7 +880,7 @@ def test_install_builtin_skill_translate(temp_cclaw_home):
     assert "Bash(translatecli:*)" in config["allowed_tools"]
 
 
-def test_installed_translate_skill_starts_inactive(temp_cclaw_home):
+def test_installed_translate_skill_starts_inactive(temp_abyss_home):
     """Installed translate skill starts with inactive status."""
     install_builtin_skill("translate")
     assert skill_status("translate") == "inactive"

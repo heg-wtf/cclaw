@@ -1,6 +1,6 @@
 # Image Processing Skill Guide
 
-A guide to installing and using the built-in Image Processing skill for cclaw.
+A guide to installing and using the built-in Image Processing skill for abyss.
 
 ## Overview
 
@@ -37,15 +37,15 @@ slimg --help
 ### 1. Install the Built-in Skill
 
 ```bash
-cclaw skills install image
+abyss skills install image
 ```
 
-This creates `SKILL.md` and `skill.yaml` in `~/.cclaw/skills/image/`.
+This creates `SKILL.md` and `skill.yaml` in `~/.abyss/skills/image/`.
 
 ### 2. Setup (Activate)
 
 ```bash
-cclaw skills setup image
+abyss skills setup image
 ```
 
 This checks if `slimg` is available in your PATH. If requirements are met, the skill status changes to `active`.
@@ -60,7 +60,7 @@ Via Telegram:
 ### 4. Verify
 
 ```bash
-cclaw skills
+abyss skills
 ```
 
 Expected output:
@@ -151,7 +151,7 @@ SKILL.md contains guidelines for Claude to follow:
 ### slimg command not found
 
 ```
-cclaw skills setup image
+abyss skills setup image
 # Error: required command 'slimg' not found
 ```
 
@@ -170,10 +170,10 @@ which slimg
 **Solution**: Verify that `Bash(slimg:*)` is included in `allowed_tools` in skill.yaml.
 
 ```bash
-cat ~/.cclaw/skills/image/skill.yaml
+cat ~/.abyss/skills/image/skill.yaml
 ```
 
-If `allowed_tools` is present, re-activate with `cclaw skills setup image`.
+If `allowed_tools` is present, re-activate with `abyss skills setup image`.
 
 ### Output file not found
 

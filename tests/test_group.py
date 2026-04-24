@@ -1,4 +1,4 @@
-"""Tests for cclaw.group module."""
+"""Tests for abyss.group module."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from cclaw.group import (
+from abyss.group import (
     bind_group,
     create_group,
     delete_group,
@@ -26,11 +26,11 @@ from cclaw.group import (
 
 
 @pytest.fixture()
-def temp_cclaw_home(tmp_path, monkeypatch):
-    """Set CCLAW_HOME to a temporary directory with config."""
-    home = tmp_path / ".cclaw"
+def temp_abyss_home(tmp_path, monkeypatch):
+    """Set ABYSS_HOME to a temporary directory with config."""
+    home = tmp_path / ".abyss"
     home.mkdir()
-    monkeypatch.setenv("CCLAW_HOME", str(home))
+    monkeypatch.setenv("ABYSS_HOME", str(home))
 
     # Create config with registered bots
     config = {
@@ -67,7 +67,7 @@ def temp_cclaw_home(tmp_path, monkeypatch):
 # --- create_group ---
 
 
-def test_create_group(temp_cclaw_home):
+def test_create_group(temp_abyss_home):
     """create_group creates group.yaml and directories."""
     directory = create_group(
         name="dev_team",
@@ -88,7 +88,7 @@ def test_create_group(temp_cclaw_home):
     assert config["telegram_chat_id"] is None
 
 
-def test_create_group_duplicate(temp_cclaw_home):
+def test_create_group_duplicate(temp_abyss_home):
     """create_group raises ValueError for duplicate group name."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
 
@@ -96,19 +96,19 @@ def test_create_group_duplicate(temp_cclaw_home):
         create_group(name="dev_team", orchestrator="dev_lead", members=["tester"])
 
 
-def test_create_group_invalid_orchestrator(temp_cclaw_home):
+def test_create_group_invalid_orchestrator(temp_abyss_home):
     """create_group raises ValueError for unregistered orchestrator."""
     with pytest.raises(ValueError, match="not registered"):
         create_group(name="dev_team", orchestrator="nonexistent", members=["coder"])
 
 
-def test_create_group_invalid_member(temp_cclaw_home):
+def test_create_group_invalid_member(temp_abyss_home):
     """create_group raises ValueError for unregistered member."""
     with pytest.raises(ValueError, match="not registered"):
         create_group(name="dev_team", orchestrator="dev_lead", members=["coder", "nonexistent"])
 
 
-def test_create_group_orchestrator_in_multiple_groups(temp_cclaw_home):
+def test_create_group_orchestrator_in_multiple_groups(temp_abyss_home):
     """create_group allows orchestrator to be in multiple groups."""
     create_group(name="team_a", orchestrator="dev_lead", members=["coder"])
     create_group(name="team_b", orchestrator="dev_lead", members=["tester"])
@@ -120,7 +120,7 @@ def test_create_group_orchestrator_in_multiple_groups(temp_cclaw_home):
 # --- load_group_config ---
 
 
-def test_load_group_config(temp_cclaw_home):
+def test_load_group_config(temp_abyss_home):
     """load_group_config returns config dict."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     config = load_group_config("dev_team")
@@ -128,7 +128,7 @@ def test_load_group_config(temp_cclaw_home):
     assert config["name"] == "dev_team"
 
 
-def test_load_group_config_nonexistent(temp_cclaw_home):
+def test_load_group_config_nonexistent(temp_abyss_home):
     """load_group_config returns None for nonexistent group."""
     config = load_group_config("nonexistent")
     assert config is None
@@ -137,7 +137,7 @@ def test_load_group_config_nonexistent(temp_cclaw_home):
 # --- list_groups ---
 
 
-def test_list_groups(temp_cclaw_home):
+def test_list_groups(temp_abyss_home):
     """list_groups returns all group configs."""
     create_group(name="team_a", orchestrator="dev_lead", members=["coder"])
     create_group(name="team_b", orchestrator="coder", members=["tester"])
@@ -148,7 +148,7 @@ def test_list_groups(temp_cclaw_home):
     assert names == {"team_a", "team_b"}
 
 
-def test_list_groups_empty(temp_cclaw_home):
+def test_list_groups_empty(temp_abyss_home):
     """list_groups returns empty list when no groups exist."""
     groups = list_groups()
     assert groups == []
@@ -157,7 +157,7 @@ def test_list_groups_empty(temp_cclaw_home):
 # --- delete_group ---
 
 
-def test_delete_group(temp_cclaw_home):
+def test_delete_group(temp_abyss_home):
     """delete_group removes the group directory."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     assert group_directory("dev_team").exists()
@@ -166,7 +166,7 @@ def test_delete_group(temp_cclaw_home):
     assert not group_directory("dev_team").exists()
 
 
-def test_delete_group_nonexistent(temp_cclaw_home):
+def test_delete_group_nonexistent(temp_abyss_home):
     """delete_group raises ValueError for nonexistent group."""
     with pytest.raises(ValueError, match="does not exist"):
         delete_group("nonexistent")
@@ -175,7 +175,7 @@ def test_delete_group_nonexistent(temp_cclaw_home):
 # --- find_group_by_chat_id ---
 
 
-def test_find_group_by_chat_id(temp_cclaw_home):
+def test_find_group_by_chat_id(temp_abyss_home):
     """find_group_by_chat_id returns the correct group."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
@@ -185,7 +185,7 @@ def test_find_group_by_chat_id(temp_cclaw_home):
     assert result["name"] == "dev_team"
 
 
-def test_find_group_by_chat_id_unbound(temp_cclaw_home):
+def test_find_group_by_chat_id_unbound(temp_abyss_home):
     """find_group_by_chat_id returns None for unbound groups."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
 
@@ -193,7 +193,7 @@ def test_find_group_by_chat_id_unbound(temp_cclaw_home):
     assert result is None
 
 
-def test_find_group_by_chat_id_multiple_groups(temp_cclaw_home):
+def test_find_group_by_chat_id_multiple_groups(temp_abyss_home):
     """find_group_by_chat_id returns correct group among multiple."""
     create_group(name="team_a", orchestrator="dev_lead", members=["coder"])
     create_group(name="team_b", orchestrator="coder", members=["tester"])
@@ -208,7 +208,7 @@ def test_find_group_by_chat_id_multiple_groups(temp_cclaw_home):
 # --- bind_group / unbind_group ---
 
 
-def test_bind_group(temp_cclaw_home):
+def test_bind_group(temp_abyss_home):
     """bind_group records telegram_chat_id in group.yaml."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
@@ -218,7 +218,7 @@ def test_bind_group(temp_cclaw_home):
     assert config["telegram_chat_id"] == -12345
 
 
-def test_bind_group_overwrite(temp_cclaw_home):
+def test_bind_group_overwrite(temp_abyss_home):
     """bind_group overwrites existing chat_id."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
@@ -229,13 +229,13 @@ def test_bind_group_overwrite(temp_cclaw_home):
     assert config["telegram_chat_id"] == -99999
 
 
-def test_bind_group_nonexistent(temp_cclaw_home):
+def test_bind_group_nonexistent(temp_abyss_home):
     """bind_group raises ValueError for nonexistent group."""
     with pytest.raises(ValueError, match="does not exist"):
         bind_group("nonexistent", -12345)
 
 
-def test_bind_group_chat_id_already_bound(temp_cclaw_home):
+def test_bind_group_chat_id_already_bound(temp_abyss_home):
     """bind_group raises ValueError if chat_id is bound to another group."""
     create_group(name="team_a", orchestrator="dev_lead", members=["coder"])
     create_group(name="team_b", orchestrator="coder", members=["tester"])
@@ -245,7 +245,7 @@ def test_bind_group_chat_id_already_bound(temp_cclaw_home):
         bind_group("team_b", -12345)
 
 
-def test_unbind_group(temp_cclaw_home):
+def test_unbind_group(temp_abyss_home):
     """unbind_group sets telegram_chat_id to None."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     bind_group("dev_team", -12345)
@@ -256,7 +256,7 @@ def test_unbind_group(temp_cclaw_home):
     assert config["telegram_chat_id"] is None
 
 
-def test_unbind_group_nonexistent(temp_cclaw_home):
+def test_unbind_group_nonexistent(temp_abyss_home):
     """unbind_group raises ValueError for nonexistent group."""
     with pytest.raises(ValueError, match="does not exist"):
         unbind_group("nonexistent")
@@ -265,7 +265,7 @@ def test_unbind_group_nonexistent(temp_cclaw_home):
 # --- get_my_role ---
 
 
-def test_get_my_role_orchestrator(temp_cclaw_home):
+def test_get_my_role_orchestrator(temp_abyss_home):
     """get_my_role returns 'orchestrator' for the orchestrator bot."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     config = load_group_config("dev_team")
@@ -273,7 +273,7 @@ def test_get_my_role_orchestrator(temp_cclaw_home):
     assert get_my_role(config, "dev_lead") == "orchestrator"
 
 
-def test_get_my_role_member(temp_cclaw_home):
+def test_get_my_role_member(temp_abyss_home):
     """get_my_role returns 'member' for a member bot."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     config = load_group_config("dev_team")
@@ -281,7 +281,7 @@ def test_get_my_role_member(temp_cclaw_home):
     assert get_my_role(config, "coder") == "member"
 
 
-def test_get_my_role_not_in_group(temp_cclaw_home):
+def test_get_my_role_not_in_group(temp_abyss_home):
     """get_my_role returns None for a bot not in the group."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     config = load_group_config("dev_team")
@@ -292,7 +292,7 @@ def test_get_my_role_not_in_group(temp_cclaw_home):
 # --- find_groups_for_bot ---
 
 
-def test_find_groups_for_bot_member(temp_cclaw_home):
+def test_find_groups_for_bot_member(temp_abyss_home):
     """find_groups_for_bot finds groups where bot is a member."""
     create_group(name="team_a", orchestrator="dev_lead", members=["coder", "tester"])
     create_group(name="team_b", orchestrator="researcher", members=["coder"])
@@ -303,7 +303,7 @@ def test_find_groups_for_bot_member(temp_cclaw_home):
     assert names == {"team_a", "team_b"}
 
 
-def test_find_groups_for_bot_orchestrator(temp_cclaw_home):
+def test_find_groups_for_bot_orchestrator(temp_abyss_home):
     """find_groups_for_bot finds groups where bot is orchestrator."""
     create_group(name="team_a", orchestrator="dev_lead", members=["coder"])
 
@@ -312,7 +312,7 @@ def test_find_groups_for_bot_orchestrator(temp_cclaw_home):
     assert groups[0]["name"] == "team_a"
 
 
-def test_find_groups_for_bot_none(temp_cclaw_home):
+def test_find_groups_for_bot_none(temp_abyss_home):
     """find_groups_for_bot returns empty list for bot not in any group."""
     create_group(name="team_a", orchestrator="dev_lead", members=["coder"])
 
@@ -323,7 +323,7 @@ def test_find_groups_for_bot_none(temp_cclaw_home):
 # --- Shared Conversation Log ---
 
 
-def test_log_to_shared_conversation(temp_cclaw_home):
+def test_log_to_shared_conversation(temp_abyss_home):
     """log_to_shared_conversation writes to conversation file."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
 
@@ -335,7 +335,7 @@ def test_log_to_shared_conversation(temp_cclaw_home):
     assert "@dev_lead_bot: Mission accepted." in content
 
 
-def test_log_to_shared_conversation_append(temp_cclaw_home):
+def test_log_to_shared_conversation_append(temp_abyss_home):
     """log_to_shared_conversation appends, does not overwrite."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
 
@@ -347,7 +347,7 @@ def test_log_to_shared_conversation_append(temp_cclaw_home):
     assert "Second message" in content
 
 
-def test_log_to_shared_conversation_sender_format(temp_cclaw_home):
+def test_log_to_shared_conversation_sender_format(temp_abyss_home):
     """log_to_shared_conversation formats sender correctly."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
 
@@ -360,7 +360,7 @@ def test_log_to_shared_conversation_sender_format(temp_cclaw_home):
     assert "] @coder_bot: Done" in lines[1]
 
 
-def test_log_to_shared_conversation_date_file(temp_cclaw_home):
+def test_log_to_shared_conversation_date_file(temp_abyss_home):
     """Messages on different dates are written to different files."""
     from datetime import datetime, timezone
     from unittest.mock import patch
@@ -368,13 +368,13 @@ def test_log_to_shared_conversation_date_file(temp_cclaw_home):
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
 
     # Log a message with a mocked date (March 10)
-    with patch("cclaw.group.datetime") as mock_dt:
+    with patch("abyss.group.datetime") as mock_dt:
         mock_dt.now.return_value = datetime(2026, 3, 10, 14, 30, 0, tzinfo=timezone.utc)
         mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
         log_to_shared_conversation("dev_team", "user", "Day one message")
 
     # Log a message with a different mocked date (March 11)
-    with patch("cclaw.group.datetime") as mock_dt:
+    with patch("abyss.group.datetime") as mock_dt:
         mock_dt.now.return_value = datetime(2026, 3, 11, 9, 0, 0, tzinfo=timezone.utc)
         mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
         log_to_shared_conversation("dev_team", "user", "Day two message")
@@ -389,7 +389,7 @@ def test_log_to_shared_conversation_date_file(temp_cclaw_home):
     assert "Day two message" in files[1].read_text()
 
 
-def test_load_shared_conversation_empty(temp_cclaw_home):
+def test_load_shared_conversation_empty(temp_abyss_home):
     """load_shared_conversation returns empty string when no conversation exists."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
 
@@ -397,7 +397,7 @@ def test_load_shared_conversation_empty(temp_cclaw_home):
     assert content == ""
 
 
-def test_load_shared_conversation_max_lines(temp_cclaw_home):
+def test_load_shared_conversation_max_lines(temp_abyss_home):
     """load_shared_conversation respects max_lines limit."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
 
@@ -414,21 +414,21 @@ def test_load_shared_conversation_max_lines(temp_cclaw_home):
 # --- Shared Workspace ---
 
 
-def test_shared_workspace_path(temp_cclaw_home):
+def test_shared_workspace_path(temp_abyss_home):
     """shared_workspace_path returns and creates workspace directory."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     workspace = shared_workspace_path("dev_team")
     assert workspace.is_dir()
 
 
-def test_list_workspace_files_empty(temp_cclaw_home):
+def test_list_workspace_files_empty(temp_abyss_home):
     """list_workspace_files returns empty list for empty workspace."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
     files = list_workspace_files("dev_team")
     assert files == []
 
 
-def test_list_workspace_files(temp_cclaw_home):
+def test_list_workspace_files(temp_abyss_home):
     """list_workspace_files returns relative file paths."""
     create_group(name="dev_team", orchestrator="dev_lead", members=["coder"])
 

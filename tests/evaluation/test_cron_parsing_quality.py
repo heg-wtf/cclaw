@@ -13,7 +13,7 @@ import re
 
 import pytest
 
-from cclaw.cron import parse_natural_language_schedule
+from abyss.cron import parse_natural_language_schedule
 
 TIMEZONE = "Asia/Seoul"
 

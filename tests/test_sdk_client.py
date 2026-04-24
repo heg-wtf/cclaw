@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from cclaw.sdk_client import (
+from abyss.sdk_client import (
     SDKClientPool,
     SDKQueryResult,
     _build_options,
@@ -76,7 +76,7 @@ def _sdk_patches(query_return_value):
 
 class TestSDKAvailability:
     def test_sdk_available(self):
-        import cclaw.sdk_client as module
+        import abyss.sdk_client as module
 
         module._sdk_available = None
         with patch.dict("sys.modules", {"claude_agent_sdk": MagicMock()}):
@@ -84,7 +84,7 @@ class TestSDKAvailability:
         module._sdk_available = None
 
     def test_sdk_not_available(self):
-        import cclaw.sdk_client as module
+        import abyss.sdk_client as module
 
         module._sdk_available = None
         with patch.dict("sys.modules", {"claude_agent_sdk": None}):
@@ -93,7 +93,7 @@ class TestSDKAvailability:
         module._sdk_available = None
 
     def test_sdk_available_cached(self):
-        import cclaw.sdk_client as module
+        import abyss.sdk_client as module
 
         module._sdk_available = True
         assert is_sdk_available() is True
@@ -668,7 +668,7 @@ class TestSDKClientPool:
 
 class TestPoolSingleton:
     def test_get_pool_creates_singleton(self):
-        import cclaw.sdk_client as module
+        import abyss.sdk_client as module
 
         module._pool = None
         pool = get_pool()
@@ -678,7 +678,7 @@ class TestPoolSingleton:
 
     @pytest.mark.asyncio
     async def test_close_pool_clears_singleton(self):
-        import cclaw.sdk_client as module
+        import abyss.sdk_client as module
 
         module._pool = None
         pool = get_pool()
@@ -689,7 +689,7 @@ class TestPoolSingleton:
 
     @pytest.mark.asyncio
     async def test_close_pool_when_none(self):
-        import cclaw.sdk_client as module
+        import abyss.sdk_client as module
 
         module._pool = None
         await close_pool()  # should not raise

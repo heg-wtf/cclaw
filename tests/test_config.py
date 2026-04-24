@@ -1,14 +1,14 @@
-"""Tests for cclaw.config module."""
+"""Tests for abyss.config module."""
 
 from pathlib import Path
 
 import pytest
 
-from cclaw.config import (
+from abyss.config import (
+    abyss_home,
     add_bot_to_config,
     bot_directory,
     bot_exists,
-    cclaw_home,
     default_config,
     detect_local_timezone,
     generate_claude_md,
@@ -23,32 +23,32 @@ from cclaw.config import (
 
 
 @pytest.fixture
-def temp_cclaw_home(tmp_path, monkeypatch):
-    """Set CCLAW_HOME to a temporary directory."""
-    home = tmp_path / ".cclaw"
-    monkeypatch.setenv("CCLAW_HOME", str(home))
+def temp_abyss_home(tmp_path, monkeypatch):
+    """Set ABYSS_HOME to a temporary directory."""
+    home = tmp_path / ".abyss"
+    monkeypatch.setenv("ABYSS_HOME", str(home))
     return home
 
 
-def test_cclaw_home_default(monkeypatch):
-    """cclaw_home defaults to ~/.cclaw/."""
-    monkeypatch.delenv("CCLAW_HOME", raising=False)
-    assert cclaw_home() == Path.home() / ".cclaw"
+def test_abyss_home_default(monkeypatch):
+    """abyss_home defaults to ~/.abyss/."""
+    monkeypatch.delenv("ABYSS_HOME", raising=False)
+    assert abyss_home() == Path.home() / ".abyss"
 
 
-def test_cclaw_home_override(monkeypatch, tmp_path):
-    """cclaw_home can be overridden via CCLAW_HOME env var."""
+def test_abyss_home_override(monkeypatch, tmp_path):
+    """abyss_home can be overridden via ABYSS_HOME env var."""
     custom = tmp_path / "custom"
-    monkeypatch.setenv("CCLAW_HOME", str(custom))
-    assert cclaw_home() == custom
+    monkeypatch.setenv("ABYSS_HOME", str(custom))
+    assert abyss_home() == custom
 
 
-def test_load_config_missing(temp_cclaw_home):
+def test_load_config_missing(temp_abyss_home):
     """load_config returns None when config.yaml doesn't exist."""
     assert load_config() is None
 
 
-def test_save_and_load_config(temp_cclaw_home):
+def test_save_and_load_config(temp_abyss_home):
     """save_config creates config.yaml that load_config can read."""
     config = default_config()
     save_config(config)
@@ -58,12 +58,12 @@ def test_save_and_load_config(temp_cclaw_home):
     assert loaded["bots"] == []
 
 
-def test_bot_directory(temp_cclaw_home):
+def test_bot_directory(temp_abyss_home):
     """bot_directory returns correct path."""
-    assert bot_directory("test-bot") == temp_cclaw_home / "bots" / "test-bot"
+    assert bot_directory("test-bot") == temp_abyss_home / "bots" / "test-bot"
 
 
-def test_save_and_load_bot_config(temp_cclaw_home):
+def test_save_and_load_bot_config(temp_abyss_home):
     """save_bot_config creates bot.yaml and CLAUDE.md."""
     bot_config = {
         "telegram_token": "fake-token",
@@ -93,14 +93,14 @@ def test_save_and_load_bot_config(temp_cclaw_home):
     assert sessions_directory.exists()
 
 
-def test_load_bot_config_missing(temp_cclaw_home):
+def test_load_bot_config_missing(temp_abyss_home):
     """load_bot_config returns None when bot doesn't exist."""
     assert load_bot_config("nonexistent") is None
 
 
 def test_generate_claude_md(monkeypatch):
     """generate_claude_md produces expected markdown with config language."""
-    monkeypatch.setattr("cclaw.config.load_config", lambda: {"language": "English"})
+    monkeypatch.setattr("abyss.config.load_config", lambda: {"language": "English"})
     result = generate_claude_md(
         "my-bot",
         "Careful and thorough",
@@ -116,12 +116,12 @@ def test_generate_claude_md(monkeypatch):
 
 def test_generate_claude_md_without_goal(monkeypatch):
     """generate_claude_md omits Goal section when goal is empty."""
-    monkeypatch.setattr("cclaw.config.load_config", lambda: {"language": "Korean"})
+    monkeypatch.setattr("abyss.config.load_config", lambda: {"language": "Korean"})
     result = generate_claude_md("my-bot", "Friendly", role="Helper")
     assert "## Goal" not in result
 
 
-def test_add_and_remove_bot_from_config(temp_cclaw_home):
+def test_add_and_remove_bot_from_config(temp_abyss_home):
     """add_bot_to_config and remove_bot_from_config manage bot entries."""
     add_bot_to_config("bot-a")
     config = load_config()
@@ -142,7 +142,7 @@ def test_add_and_remove_bot_from_config(temp_cclaw_home):
     assert config["bots"][0]["name"] == "bot-b"
 
 
-def test_bot_exists(temp_cclaw_home):
+def test_bot_exists(temp_abyss_home):
     """bot_exists checks config for existing bots."""
     assert not bot_exists("test-bot")
     add_bot_to_config("test-bot")
@@ -161,7 +161,7 @@ def test_default_config():
 
 def test_valid_models():
     """VALID_MODELS and is_valid_model work correctly."""
-    from cclaw.config import DEFAULT_MODEL, VALID_MODELS, is_valid_model
+    from abyss.config import DEFAULT_MODEL, VALID_MODELS, is_valid_model
 
     assert DEFAULT_MODEL == "sonnet"
     assert "sonnet" in VALID_MODELS
@@ -174,10 +174,10 @@ def test_valid_models():
     assert is_valid_model("") is False
 
 
-def test_save_bot_config_with_skills(temp_cclaw_home):
+def test_save_bot_config_with_skills(temp_abyss_home):
     """save_bot_config includes skill content in CLAUDE.md when skills are present."""
     # Create a skill first
-    skill_dir = temp_cclaw_home / "skills" / "test-skill"
+    skill_dir = temp_abyss_home / "skills" / "test-skill"
     skill_dir.mkdir(parents=True)
     (skill_dir / "SKILL.md").write_text("# test-skill\n\nDo something useful.")
 
@@ -198,7 +198,7 @@ def test_save_bot_config_with_skills(temp_cclaw_home):
     assert "Do something useful" in claude_md
 
 
-def test_save_bot_config_without_skills(temp_cclaw_home):
+def test_save_bot_config_without_skills(temp_abyss_home):
     """save_bot_config without skills produces CLAUDE.md without skill section."""
     bot_config = {
         "telegram_token": "fake-token",
@@ -218,7 +218,7 @@ def test_save_bot_config_without_skills(temp_cclaw_home):
 # --- Timezone tests ---
 
 
-def test_get_timezone_from_config(temp_cclaw_home):
+def test_get_timezone_from_config(temp_abyss_home):
     """get_timezone reads timezone from config.yaml."""
     config = default_config()
     config["timezone"] = "Asia/Seoul"
@@ -226,18 +226,18 @@ def test_get_timezone_from_config(temp_cclaw_home):
     assert get_timezone() == "Asia/Seoul"
 
 
-def test_get_timezone_default_utc(temp_cclaw_home):
+def test_get_timezone_default_utc(temp_abyss_home):
     """get_timezone returns UTC when no config exists."""
     assert get_timezone() == "UTC"
 
 
-def test_get_timezone_missing_key(temp_cclaw_home):
+def test_get_timezone_missing_key(temp_abyss_home):
     """get_timezone returns UTC when config has no timezone key."""
     save_config({"bots": [], "settings": {}})
     assert get_timezone() == "UTC"
 
 
-def test_get_timezone_invalid_value(temp_cclaw_home):
+def test_get_timezone_invalid_value(temp_abyss_home):
     """get_timezone returns UTC when config has invalid timezone."""
     config = default_config()
     config["timezone"] = "Invalid/Timezone"
@@ -254,7 +254,7 @@ def test_detect_local_timezone_returns_string():
 
 def test_detect_local_timezone_kst(monkeypatch):
     """detect_local_timezone maps KST to Asia/Seoul."""
-    monkeypatch.setattr("cclaw.config.time", type("FakeTime", (), {"tzname": ("KST", "KDT")})())
+    monkeypatch.setattr("abyss.config.time", type("FakeTime", (), {"tzname": ("KST", "KDT")})())
     # Need to also make os.readlink fail so it doesn't try /etc/localtime
     monkeypatch.setattr("os.readlink", lambda _: (_ for _ in ()).throw(OSError()))
     result = detect_local_timezone()
@@ -264,7 +264,7 @@ def test_detect_local_timezone_kst(monkeypatch):
 # --- Language tests ---
 
 
-def test_get_language_from_config(temp_cclaw_home):
+def test_get_language_from_config(temp_abyss_home):
     """get_language reads language from config.yaml."""
     config = default_config()
     config["language"] = "English"
@@ -272,12 +272,12 @@ def test_get_language_from_config(temp_cclaw_home):
     assert get_language() == "English"
 
 
-def test_get_language_default_korean(temp_cclaw_home):
+def test_get_language_default_korean(temp_abyss_home):
     """get_language returns Korean when no config exists."""
     assert get_language() == "Korean"
 
 
-def test_get_language_missing_key(temp_cclaw_home):
+def test_get_language_missing_key(temp_abyss_home):
     """get_language returns Korean when config has no language key."""
     save_config({"bots": [], "settings": {}})
     assert get_language() == "Korean"

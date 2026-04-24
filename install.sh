@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# cclaw installer
-# Usage: curl -sSL https://raw.githubusercontent.com/heg-wtf/cclaw/main/install.sh | bash
+# abyss installer
+# Usage: curl -sSL https://raw.githubusercontent.com/heg-wtf/abyss/main/install.sh | bash
 #
 set -euo pipefail
 
-REPO="https://github.com/heg-wtf/cclaw.git"
+REPO="https://github.com/heg-wtf/abyss.git"
 MIN_PYTHON_MAJOR=3
 MIN_PYTHON_MINOR=11
 
@@ -72,7 +72,7 @@ if command -v claude &>/dev/null; then
     ok "Claude Code CLI found ($(command -v claude))"
 else
     warn "Claude Code CLI not found."
-    echo "   cclaw requires Claude Code CLI to function."
+    echo "   abyss requires Claude Code CLI to function."
     echo "   Install it: npm install -g @anthropic-ai/claude-code"
     echo ""
 fi
@@ -98,10 +98,10 @@ else
 fi
 
 # ─── Install ──────────────────────────────────────────────────────────
-info "Installing cclaw..."
+info "Installing abyss..."
 
 if [ "$USE_UV" = true ]; then
-    uv tool install "cclaw @ git+${REPO}" --force
+    uv tool install "abyss @ git+${REPO}" --force
 elif [ "$USE_PIPX" = true ]; then
     pipx install "git+${REPO}" --force --python "$PYTHON"
 else
@@ -110,17 +110,17 @@ fi
 
 # ─── Verify ───────────────────────────────────────────────────────────
 echo ""
-if command -v cclaw &>/dev/null; then
-    ok "cclaw installed successfully!"
+if command -v abyss &>/dev/null; then
+    ok "abyss installed successfully!"
     echo ""
     info "Getting started:"
     echo ""
-    echo "   ${BOLD}cclaw init${RESET}       — initial setup (timezone, language)"
-    echo "   ${BOLD}cclaw bot add${RESET}    — create your first bot"
-    echo "   ${BOLD}cclaw start${RESET}      — run bots"
+    echo "   ${BOLD}abyss init${RESET}       — initial setup (timezone, language)"
+    echo "   ${BOLD}abyss bot add${RESET}    — create your first bot"
+    echo "   ${BOLD}abyss start${RESET}      — run bots"
     echo ""
 else
-    warn "cclaw was installed but is not in your PATH."
+    warn "abyss was installed but is not in your PATH."
     echo ""
     if [ "$USE_UV" = true ]; then
         echo "   Try: uv tool update-shell"
@@ -129,6 +129,6 @@ else
     else
         echo "   Make sure your Python scripts directory is in PATH."
     fi
-    echo "   Then restart your terminal and try: cclaw --help"
+    echo "   Then restart your terminal and try: abyss --help"
     echo ""
 fi

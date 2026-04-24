@@ -1,8 +1,8 @@
-"""Tests for cclaw.session module."""
+"""Tests for abyss.session module."""
 
 import pytest
 
-from cclaw.session import (
+from abyss.session import (
     clear_bot_memory,
     clear_claude_session_id,
     collect_session_chat_ids,
@@ -185,7 +185,7 @@ def test_load_conversation_history_empty(tmp_path):
 def test_load_conversation_history_empty_file(bot_path):
     """load_conversation_history returns None when conversation file is empty."""
     directory = ensure_session(bot_path, 12345)
-    from cclaw.session import _conversation_file_for_today
+    from abyss.session import _conversation_file_for_today
 
     _conversation_file_for_today(directory).write_text("")
     assert load_conversation_history(directory) is None
@@ -448,59 +448,59 @@ def test_load_conversation_history_truncates_across_files(bot_path):
 
 
 @pytest.fixture
-def cclaw_home(tmp_path, monkeypatch):
-    """Set CCLAW_HOME to a temporary directory."""
-    home = tmp_path / ".cclaw"
+def abyss_home(tmp_path, monkeypatch):
+    """Set ABYSS_HOME to a temporary directory."""
+    home = tmp_path / ".abyss"
     home.mkdir()
-    monkeypatch.setenv("CCLAW_HOME", str(home))
+    monkeypatch.setenv("ABYSS_HOME", str(home))
     return home
 
 
-def test_global_memory_file_path(cclaw_home):
+def test_global_memory_file_path(abyss_home):
     """global_memory_file_path returns expected path."""
-    from cclaw.session import global_memory_file_path
+    from abyss.session import global_memory_file_path
 
     result = global_memory_file_path()
-    assert result == cclaw_home / "GLOBAL_MEMORY.md"
+    assert result == abyss_home / "GLOBAL_MEMORY.md"
 
 
-def test_load_global_memory_none(cclaw_home):
+def test_load_global_memory_none(abyss_home):
     """load_global_memory returns None when file doesn't exist."""
-    from cclaw.session import load_global_memory
+    from abyss.session import load_global_memory
 
     assert load_global_memory() is None
 
 
-def test_load_global_memory_empty(cclaw_home):
+def test_load_global_memory_empty(abyss_home):
     """load_global_memory returns None when file is empty."""
-    from cclaw.session import load_global_memory
+    from abyss.session import load_global_memory
 
-    (cclaw_home / "GLOBAL_MEMORY.md").write_text("")
+    (abyss_home / "GLOBAL_MEMORY.md").write_text("")
     assert load_global_memory() is None
 
 
-def test_load_global_memory_whitespace_only(cclaw_home):
+def test_load_global_memory_whitespace_only(abyss_home):
     """load_global_memory returns None when file is whitespace only."""
-    from cclaw.session import load_global_memory
+    from abyss.session import load_global_memory
 
-    (cclaw_home / "GLOBAL_MEMORY.md").write_text("   \n\n  ")
+    (abyss_home / "GLOBAL_MEMORY.md").write_text("   \n\n  ")
     assert load_global_memory() is None
 
 
-def test_save_and_load_global_memory(cclaw_home):
+def test_save_and_load_global_memory(abyss_home):
     """save_global_memory and load_global_memory round-trip."""
-    from cclaw.session import load_global_memory, save_global_memory
+    from abyss.session import load_global_memory, save_global_memory
 
     save_global_memory("# Global\n\n- Timezone: Asia/Seoul")
     content = load_global_memory()
     assert content == "# Global\n\n- Timezone: Asia/Seoul"
 
 
-def test_clear_global_memory(cclaw_home):
+def test_clear_global_memory(abyss_home):
     """clear_global_memory removes the GLOBAL_MEMORY.md file."""
-    from cclaw.session import clear_global_memory, load_global_memory, save_global_memory
+    from abyss.session import clear_global_memory, load_global_memory, save_global_memory
 
     save_global_memory("some global memory")
     clear_global_memory()
     assert load_global_memory() is None
-    assert not (cclaw_home / "GLOBAL_MEMORY.md").exists()
+    assert not (abyss_home / "GLOBAL_MEMORY.md").exists()

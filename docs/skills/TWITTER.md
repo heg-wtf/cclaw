@@ -1,6 +1,6 @@
 # Twitter Skill Guide
 
-A guide to installing and using the built-in Twitter/X skill for cclaw.
+A guide to installing and using the built-in Twitter/X skill for abyss.
 
 ## Overview
 
@@ -45,13 +45,13 @@ Save all 4 credentials securely. You'll need them during skill setup.
 ### 1. Install the Built-in Skill
 
 ```bash
-cclaw skills install twitter
+abyss skills install twitter
 ```
 
 ### 2. Setup (Activate)
 
 ```bash
-cclaw skills setup twitter
+abyss skills setup twitter
 ```
 
 During setup, you'll be prompted to enter:
@@ -70,7 +70,7 @@ Via Telegram:
 ### 4. Verify
 
 ```bash
-cclaw skills
+abyss skills
 ```
 
 ## Usage
@@ -80,7 +80,7 @@ After attaching the skill, send natural language requests via Telegram.
 ### Post a Tweet
 
 ```
-Tweet "Hello from cclaw!"
+Tweet "Hello from abyss!"
 Post to twitter: Today's weather is great
 ```
 
@@ -108,7 +108,7 @@ allowed_tools:
 
 ### Environment Variable Mapping
 
-The MCP package expects generic env var names (`API_KEY`, etc.), but cclaw uses `TWITTER_`-prefixed names to avoid namespace collision. The `mcp.json` uses a `/bin/sh -c` wrapper to map them:
+The MCP package expects generic env var names (`API_KEY`, etc.), but abyss uses `TWITTER_`-prefixed names to avoid namespace collision. The `mcp.json` uses a `/bin/sh -c` wrapper to map them:
 
 ```
 TWITTER_API_KEY      -> API_KEY
@@ -149,7 +149,7 @@ which npx
 
 ### Authentication error (401 Unauthorized)
 
-**Solution**: Verify your credentials are correct in the X Developer Portal. Ensure the app has "Read and Write" permissions. Regenerate Access Token and Secret if needed, then re-run `cclaw skills setup twitter`.
+**Solution**: Verify your credentials are correct in the X Developer Portal. Ensure the app has "Read and Write" permissions. Regenerate Access Token and Secret if needed, then re-run `abyss skills setup twitter`.
 
 ### Rate limit exceeded (429 Too Many Requests)
 

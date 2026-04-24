@@ -1,6 +1,6 @@
 # Gmail Skill Guide
 
-A guide to installing and using the built-in Gmail skill for cclaw.
+A guide to installing and using the built-in Gmail skill for abyss.
 
 ## Overview
 
@@ -55,13 +55,13 @@ gog gmail labels list
 ### 1. Install the Built-in Skill
 
 ```bash
-cclaw skills install gmail
+abyss skills install gmail
 ```
 
 ### 2. Setup (Activate)
 
 ```bash
-cclaw skills setup gmail
+abyss skills setup gmail
 ```
 
 During setup, you'll be prompted to enter your `GOG_ACCOUNT` (Google account email).
@@ -77,7 +77,7 @@ Via Telegram:
 ### 4. Verify
 
 ```bash
-cclaw skills
+abyss skills
 ```
 
 ## Usage
@@ -133,7 +133,7 @@ This allows all `gog` commands to run without permission prompts in Claude Code'
 
 ### Environment Variable Injection
 
-The `GOG_ACCOUNT` environment variable is stored during `cclaw skills setup` and injected into the Claude Code subprocess at runtime. The `gog` CLI uses this to select which Google account to operate on.
+The `GOG_ACCOUNT` environment variable is stored during `abyss skills setup` and injected into the Claude Code subprocess at runtime. The `gog` CLI uses this to select which Google account to operate on.
 
 ### Safety Rules
 
@@ -178,4 +178,4 @@ gog auth add you@gmail.com --services gmail --force-consent
 
 The bot says "Please approve in terminal":
 
-**Solution**: Verify `Bash(gog:*)` is in `allowed_tools` in skill.yaml, then re-run `cclaw skills setup gmail`.
+**Solution**: Verify `Bash(gog:*)` is in `allowed_tools` in skill.yaml, then re-run `abyss skills setup gmail`.

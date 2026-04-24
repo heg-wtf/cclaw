@@ -1,6 +1,6 @@
 # Jira Skill Guide
 
-A guide to installing and using the built-in Jira skill for cclaw.
+A guide to installing and using the built-in Jira skill for abyss.
 
 ## Overview
 
@@ -33,7 +33,7 @@ uvx --version
 
 1. Go to [Atlassian API Token page](https://id.atlassian.com/manage-profile/security/api-tokens)
 2. Click **"Create API token"**
-3. Give it a label (e.g., "cclaw bot") and click **"Create"**
+3. Give it a label (e.g., "abyss bot") and click **"Create"**
 4. Copy the token immediately (it won't be shown again)
 
 You'll need:
@@ -46,13 +46,13 @@ You'll need:
 ### 1. Install the Built-in Skill
 
 ```bash
-cclaw skills install jira
+abyss skills install jira
 ```
 
 ### 2. Setup (Activate)
 
 ```bash
-cclaw skills setup jira
+abyss skills setup jira
 ```
 
 During setup, you'll be prompted to enter:
@@ -70,7 +70,7 @@ Via Telegram:
 ### 4. Verify
 
 ```bash
-cclaw skills
+abyss skills
 ```
 
 ## Usage
@@ -137,7 +137,7 @@ allowed_tools:
 
 ### Environment Variables
 
-The environment variables (`JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`) are stored during `cclaw skills setup` and injected into the Claude Code subprocess at runtime. The MCP server inherits them from the process environment.
+The environment variables (`JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN`) are stored during `abyss skills setup` and injected into the Claude Code subprocess at runtime. The MCP server inherits them from the process environment.
 
 ### Safety Rules
 
@@ -178,7 +178,7 @@ which uvx
 **Solution**: Verify your credentials:
 1. Check that `JIRA_URL` is correct (e.g., `https://your-company.atlassian.net`, not `https://your-company.atlassian.net/jira`)
 2. Verify `JIRA_USERNAME` is your email address
-3. Regenerate the API token and re-run `cclaw skills setup jira`
+3. Regenerate the API token and re-run `abyss skills setup jira`
 
 ### Permission denied (403 Forbidden)
 

@@ -1,7 +1,7 @@
-# cclaw (claude-claw)
+# abyss (claude-claw)
 
 <p align="center">
-  <img src="cclaw-logo.png" width="160" alt="cclaw logo" />
+  <img src="abyss-logo.png" width="160" alt="abyss logo" />
 </p>
 
 Personal AI assistant powered by Telegram + Claude Code.
@@ -21,7 +21,7 @@ A multi-bot, file-based session system that runs locally on Mac.
 - [CLI Commands](#cli-commands)
 - [Project Structure](#project-structure)
 - [Runtime Data](#runtime-data)
-- [ClawHouse Dashboard](#clawhouse-dashboard)
+- [Abysscope Dashboard](#abysscope-dashboard)
 - [Testing](#testing)
 - [License](#license)
 
@@ -43,7 +43,7 @@ A multi-bot, file-based session system that runs locally on Mac.
 ### Quick Install (Recommended)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/heg-wtf/cclaw/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/heg-wtf/abyss/main/install.sh | bash
 ```
 
 Auto-detects `uv` / `pipx` / `pip` and installs from GitHub.
@@ -63,30 +63,30 @@ pipx install .
 
 ```bash
 # Check environment
-cclaw doctor                    # pip/pipx install
-uv run cclaw doctor             # uv
+abyss doctor                    # pip/pipx install
+uv run abyss doctor             # uv
 
 # Initial setup (environment check + timezone + language)
-cclaw init
+abyss init
 
 # Bot management
-cclaw bot add                  # Create a bot (Telegram token required)
-cclaw bot list
-cclaw bot remove <name>
+abyss bot add                  # Create a bot (Telegram token required)
+abyss bot list
+abyss bot remove <name>
 
 # Run bots
-cclaw start              # Foreground
-cclaw start --daemon     # Background (launchd)
-cclaw stop               # Stop daemon
-cclaw status             # Show running status
+abyss start              # Foreground
+abyss start --daemon     # Background (launchd)
+abyss stop               # Stop daemon
+abyss status             # Show running status
 ```
 
 ## Skills
 
-cclaw has a **skill system** that extends your bot's capabilities with tools and knowledge. Skills are modular — attach or detach them per bot as needed.
+abyss has a **skill system** that extends your bot's capabilities with tools and knowledge. Skills are modular — attach or detach them per bot as needed.
 
-- **Built-in skills**: Pre-packaged skill templates bundled with cclaw, installable with `cclaw skills install <name>`.
-- **Custom skills**: User-created skills added via `cclaw skills add`. Can be markdown-only or tool-based (CLI, MCP, browser).
+- **Built-in skills**: Pre-packaged skill templates bundled with abyss, installable with `abyss skills install <name>`.
+- **Custom skills**: User-created skills added via `abyss skills add`. Can be markdown-only or tool-based (CLI, MCP, browser).
 
 ### Built-in Skills
 
@@ -110,20 +110,20 @@ cclaw has a **skill system** that extends your bot's capabilities with tools and
 | 📚 QMD | Search markdown knowledge bases (BM25 + vector) via [QMD](https://github.com/tobi/qmd) MCP | [Guide](docs/skills/QMD.md) |
 
 ```bash
-cclaw skills builtins          # List available built-in skills
-cclaw skills install <name>    # Install a built-in skill
-cclaw skills setup <name>      # Activate (check requirements)
+abyss skills builtins          # List available built-in skills
+abyss skills install <name>    # Install a built-in skill
+abyss skills setup <name>      # Activate (check requirements)
 ```
 
 ## Group Collaboration
 
-cclaw supports **multi-bot collaboration** via Telegram groups. One orchestrator bot manages missions, delegating tasks to member bots via @mention.
+abyss supports **multi-bot collaboration** via Telegram groups. One orchestrator bot manages missions, delegating tasks to member bots via @mention.
 
 ### Setup
 
 ```bash
 # 1. Create a group (orchestrator + members must be registered bots)
-cclaw group create dev_team --orchestrator dev_lead --members coder,tester
+abyss group create dev_team --orchestrator dev_lead --members coder,tester
 
 # 2. Add all bots to a Telegram group chat
 # 3. Disable Group Privacy in BotFather for each bot
@@ -143,9 +143,9 @@ cclaw group create dev_team --orchestrator dev_lead --members coder,tester
 - `/cancel` in group: Orchestrator cancels all running processes
 
 ```bash
-cclaw group list                # List all groups
-cclaw group show dev_team       # Show group details
-cclaw group delete dev_team     # Delete a group
+abyss group list                # List all groups
+abyss group show dev_team       # Show group details
+abyss group delete dev_team     # Delete a group
 ```
 
 ## Telegram Commands
@@ -211,91 +211,91 @@ Use the `/send` command to retrieve workspace files back via Telegram.
 
 ```bash
 # Banner
-cclaw                          # Show ASCII art banner
+abyss                          # Show ASCII art banner
 
 # Onboarding
-cclaw init                     # Initial setup (environment check + timezone)
-cclaw doctor                   # Environment check (shows timezone)
+abyss init                     # Initial setup (environment check + timezone)
+abyss doctor                   # Environment check (shows timezone)
 
 # Bot management
-cclaw bot list                 # List bots (with model info)
-cclaw bot add                  # Add a bot
-cclaw bot remove <name>        # Remove a bot
-cclaw bot edit <name>          # Edit bot.yaml
-cclaw bot model <name>         # Show current model
-cclaw bot model <name> opus    # Change model
-cclaw bot streaming <name>     # Show streaming status
-cclaw bot streaming <name> off # Toggle streaming on/off
-cclaw bot compact <name>       # Compact MD files to save tokens
-cclaw bot compact <name> -y    # Compact without confirmation
+abyss bot list                 # List bots (with model info)
+abyss bot add                  # Add a bot
+abyss bot remove <name>        # Remove a bot
+abyss bot edit <name>          # Edit bot.yaml
+abyss bot model <name>         # Show current model
+abyss bot model <name> opus    # Change model
+abyss bot streaming <name>     # Show streaming status
+abyss bot streaming <name> off # Toggle streaming on/off
+abyss bot compact <name>       # Compact MD files to save tokens
+abyss bot compact <name> -y    # Compact without confirmation
 
 # Skill management
-cclaw skills                   # List all skills (installed + available builtins)
-cclaw skills add               # Create a skill interactively
-cclaw skills remove <name>     # Remove a skill
-cclaw skills setup <name>      # Setup skill (check requirements, activate)
-cclaw skills test <name>       # Test skill requirements
-cclaw skills edit <name>       # Edit SKILL.md ($EDITOR)
-cclaw skills builtins          # List available built-in skills
-cclaw skills install           # List available built-in skills
-cclaw skills install <name>    # Install a built-in skill
+abyss skills                   # List all skills (installed + available builtins)
+abyss skills add               # Create a skill interactively
+abyss skills remove <name>     # Remove a skill
+abyss skills setup <name>      # Setup skill (check requirements, activate)
+abyss skills test <name>       # Test skill requirements
+abyss skills edit <name>       # Edit SKILL.md ($EDITOR)
+abyss skills builtins          # List available built-in skills
+abyss skills install           # List available built-in skills
+abyss skills install <name>    # Install a built-in skill
 
 # Cron job management
-cclaw cron list <bot>          # List cron jobs
-cclaw cron add <bot>           # Add a cron job interactively
-cclaw cron remove <bot> <job>  # Remove a cron job
-cclaw cron enable <bot> <job>  # Enable a cron job
-cclaw cron disable <bot> <job> # Disable a cron job
-cclaw cron run <bot> <job>     # Run a cron job immediately (test)
+abyss cron list <bot>          # List cron jobs
+abyss cron add <bot>           # Add a cron job interactively
+abyss cron remove <bot> <job>  # Remove a cron job
+abyss cron enable <bot> <job>  # Enable a cron job
+abyss cron disable <bot> <job> # Disable a cron job
+abyss cron run <bot> <job>     # Run a cron job immediately (test)
 
 # Memory management
-cclaw memory show <bot>        # Show memory contents
-cclaw memory edit <bot>        # Edit MEMORY.md ($EDITOR)
-cclaw memory clear <bot>       # Clear memory
+abyss memory show <bot>        # Show memory contents
+abyss memory edit <bot>        # Edit MEMORY.md ($EDITOR)
+abyss memory clear <bot>       # Clear memory
 
 # Global memory (shared across all bots, read-only for bots)
-cclaw global-memory show       # Show global memory contents
-cclaw global-memory edit       # Edit GLOBAL_MEMORY.md ($EDITOR)
-cclaw global-memory clear      # Clear global memory
+abyss global-memory show       # Show global memory contents
+abyss global-memory edit       # Edit GLOBAL_MEMORY.md ($EDITOR)
+abyss global-memory clear      # Clear global memory
 
 # Heartbeat management
-cclaw heartbeat status         # Show heartbeat status for all bots
-cclaw heartbeat enable <bot>   # Enable heartbeat
-cclaw heartbeat disable <bot>  # Disable heartbeat
-cclaw heartbeat run <bot>      # Run heartbeat immediately (test)
-cclaw heartbeat edit <bot>     # Edit HEARTBEAT.md ($EDITOR)
+abyss heartbeat status         # Show heartbeat status for all bots
+abyss heartbeat enable <bot>   # Enable heartbeat
+abyss heartbeat disable <bot>  # Disable heartbeat
+abyss heartbeat run <bot>      # Run heartbeat immediately (test)
+abyss heartbeat edit <bot>     # Edit HEARTBEAT.md ($EDITOR)
 
 # Run
-cclaw start                    # Foreground
-cclaw start --daemon           # Background (launchd)
-cclaw stop                     # Stop daemon
-cclaw restart                  # Stop then start
-cclaw status                   # Show status
+abyss start                    # Foreground
+abyss start --daemon           # Background (launchd)
+abyss stop                     # Stop daemon
+abyss restart                  # Stop then start
+abyss status                   # Show status
 
 # Logs
-cclaw logs                     # Show today's log
-cclaw logs -f                  # Tail mode
-cclaw logs clean               # Delete logs older than 7 days
-cclaw logs clean -d 30         # Keep last 30 days
-cclaw logs clean --dry-run     # Preview without deleting
+abyss logs                     # Show today's log
+abyss logs -f                  # Tail mode
+abyss logs clean               # Delete logs older than 7 days
+abyss logs clean -d 30         # Keep last 30 days
+abyss logs clean --dry-run     # Preview without deleting
 
 # Group management
-cclaw group create <name> -o <orchestrator> -m <members>  # Create group
-cclaw group list               # List all groups
-cclaw group show <name>        # Show group details
-cclaw group delete <name>      # Delete a group
+abyss group create <name> -o <orchestrator> -m <members>  # Create group
+abyss group list               # List all groups
+abyss group show <name>        # Show group details
+abyss group delete <name>      # Delete a group
 
 # Backup
-cclaw backup                   # Backup ~/.cclaw/ to AES-256 encrypted zip
+abyss backup                   # Backup ~/.abyss/ to AES-256 encrypted zip
 ```
 
 ## Project Structure
 
 ```
-cclaw/
+abyss/
 ├── pyproject.toml
-├── clawhouse/              # ClawHouse web dashboard (Next.js)
-├── src/cclaw/
+├── abysscope/              # Abysscope web dashboard (Next.js)
+├── src/abyss/
 │   ├── cli.py              # Typer CLI entry point (ASCII art banner)
 │   ├── config.py           # Configuration load/save, timezone/language management
 │   ├── onboarding.py       # Setup wizard (init: timezone/language, bot add: Telegram + bot)
@@ -332,21 +332,21 @@ cclaw/
 └── tests/
 ```
 
-## ClawHouse Dashboard
+## Abysscope Dashboard
 
-ClawHouse is a web-based dashboard for managing `~/.cclaw/` configuration, bots, skills, cron jobs, sessions, and logs. No terminal required.
+Abysscope is a web-based dashboard for managing `~/.abyss/` configuration, bots, skills, cron jobs, sessions, and logs. No terminal required.
 
 ```bash
-cclaw dashboard start              # Foreground (port 3847)
-cclaw dashboard start --daemon     # Background
-cclaw dashboard start --port 8080  # Custom port
-cclaw dashboard stop               # Stop
-cclaw dashboard restart             # Restart
-cclaw dashboard restart --daemon   # Restart as background
-cclaw dashboard status             # Show status
+abyss dashboard start              # Foreground (port 3847)
+abyss dashboard start --daemon     # Background
+abyss dashboard start --port 8080  # Custom port
+abyss dashboard stop               # Stop
+abyss dashboard restart             # Restart
+abyss dashboard restart --daemon   # Restart as background
+abyss dashboard status             # Show status
 
 # Or directly
-cd clawhouse && npx next dev --port 3847
+cd abysscope && npx next dev --port 3847
 ```
 
 | Feature | Description |
@@ -359,16 +359,16 @@ cd clawhouse && npx next dev --port 3847
 | Logs | Date picker, text filter, delete (single/bulk/by-age), daemon log truncate |
 | Conversations | Per-chat conversation viewer with date navigation, individual file delete |
 
-**Tech Stack**: Next.js 16 + shadcn/ui + Tailwind CSS + js-yaml. Reads `~/.cclaw/` directly (no database).
+**Tech Stack**: Next.js 16 + shadcn/ui + Tailwind CSS + js-yaml. Reads `~/.abyss/` directly (no database).
 
-See [docs/PLAN-26-0311-CLAWHOUSE.md](docs/PLAN-26-0311-CLAWHOUSE.md) for full plan.
+See [docs/PLAN-26-0311-ABYSSCOPE.md](docs/PLAN-26-0311-ABYSSCOPE.md) for full plan.
 
 ## Runtime Data
 
-Configuration and session data are stored in `~/.cclaw/`. Override the path with the `CCLAW_HOME` environment variable.
+Configuration and session data are stored in `~/.abyss/`. Override the path with the `ABYSS_HOME` environment variable.
 
 ```
-~/.cclaw/
+~/.abyss/
 ├── config.yaml               # Global config (timezone, language, bot list, settings)
 ├── GLOBAL_MEMORY.md          # Global memory (shared across all bots, read-only)
 ├── bots/
@@ -410,6 +410,38 @@ uv run pytest -v             # Verbose
 # Evaluation tests (real Claude API, excluded from CI)
 uv run pytest tests/evaluation/ -v
 ```
+
+## Migration from cclaw
+
+abyss was previously called `cclaw`. If you had `cclaw` installed, follow these steps to keep your bot data:
+
+```bash
+# 1. Stop the old daemon (if running as a launchd service)
+launchctl unload ~/Library/LaunchAgents/com.cclaw.daemon.plist 2>/dev/null || true
+rm -f ~/Library/LaunchAgents/com.cclaw.daemon.plist
+
+# 2. Uninstall the old package
+pipx uninstall cclaw || uv tool uninstall cclaw || pip uninstall cclaw
+
+# 3. Move your data directory
+mv ~/.cclaw ~/.abyss
+
+# 4. If you set CCLAW_HOME in your shell rc, rename it to ABYSS_HOME
+
+# 5. Install abyss
+uv tool install abyss   # or: pipx install abyss
+
+# 6. Verify
+abyss doctor
+
+# 7. Re-register the QMD collection (name changed from cclaw-conversations to abyss-conversations)
+abyss skills setup qmd
+
+# 8. Re-start the daemon
+abyss start --daemon
+```
+
+Telegram bot tokens, conversation history, cron jobs, skills, and memory are preserved when you `mv ~/.cclaw ~/.abyss`.
 
 ## License
 

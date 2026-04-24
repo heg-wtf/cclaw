@@ -1,6 +1,6 @@
 # Supabase Skill Guide
 
-A guide to installing and using the built-in Supabase MCP skill for cclaw.
+A guide to installing and using the built-in Supabase MCP skill for abyss.
 
 ## Overview
 
@@ -47,15 +47,15 @@ npx --version
 ### 1. Install the Built-in Skill
 
 ```bash
-cclaw skills install supabase
+abyss skills install supabase
 ```
 
-This creates `SKILL.md`, `skill.yaml`, and `mcp.json` in `~/.cclaw/skills/supabase/`.
+This creates `SKILL.md`, `skill.yaml`, and `mcp.json` in `~/.abyss/skills/supabase/`.
 
 ### 2. Setup (Activate)
 
 ```bash
-cclaw skills setup supabase
+abyss skills setup supabase
 ```
 
 This checks if `npx` is available, then prompts for `SUPABASE_ACCESS_TOKEN`. Enter your access token when prompted.
@@ -70,7 +70,7 @@ Via Telegram:
 ### 4. Verify
 
 ```bash
-cclaw skills
+abyss skills
 ```
 
 Expected output:
@@ -184,7 +184,7 @@ For tools that are allowed but can be used destructively (notably `execute_sql`)
 
 ```
 skill.yaml (environment_variables: SUPABASE_ACCESS_TOKEN)
-  -> cclaw skills setup (user enters token)
+  -> abyss skills setup (user enters token)
   -> skill.yaml (environment_variable_values: {SUPABASE_ACCESS_TOKEN: "sb-xxx..."})
   -> collect_skill_environment_variables()
   -> subprocess env injection
@@ -196,7 +196,7 @@ skill.yaml (environment_variables: SUPABASE_ACCESS_TOKEN)
 ### npx command not found
 
 ```
-cclaw skills setup supabase
+abyss skills setup supabase
 # Error: required command 'npx' not found
 ```
 
@@ -215,11 +215,11 @@ which npx
 **Solution**: Verify the skill is properly attached:
 
 ```bash
-cclaw skills          # Check supabase is active and attached
-cclaw skills setup supabase  # Re-run setup if needed
+abyss skills          # Check supabase is active and attached
+abyss skills setup supabase  # Re-run setup if needed
 ```
 
-If the issue persists, restart the bot (`cclaw stop && cclaw start`).
+If the issue persists, restart the bot (`abyss stop && abyss start`).
 
 ### MCP server fails to start
 
@@ -240,5 +240,5 @@ Check for network issues or package name changes.
 **Solution**: Re-run setup to enter a new token:
 
 ```bash
-cclaw skills setup supabase
+abyss skills setup supabase
 ```

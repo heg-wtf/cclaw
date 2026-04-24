@@ -1,4 +1,4 @@
-"""Tests for cclaw.claude_runner module."""
+"""Tests for abyss.claude_runner module."""
 
 import asyncio
 import json
@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from cclaw.claude_runner import (
+from abyss.claude_runner import (
     _extract_assistant_text,
     _extract_result_text,
     _extract_text_delta,
@@ -21,14 +21,14 @@ from cclaw.claude_runner import (
     unregister_process,
 )
 
-MOCK_SUBPROCESS = "cclaw.claude_runner.asyncio.create_subprocess_exec"
-MOCK_WHICH = "cclaw.claude_runner.shutil.which"
+MOCK_SUBPROCESS = "abyss.claude_runner.asyncio.create_subprocess_exec"
+MOCK_WHICH = "abyss.claude_runner.shutil.which"
 
 
 @pytest.fixture(autouse=True)
 def mock_claude_path():
     """Mock shutil.which to always return a claude path and reset cache."""
-    import cclaw.claude_runner as runner_module
+    import abyss.claude_runner as runner_module
 
     def _which_claude_only(name, *args, **kwargs):
         if name == "claude":
@@ -89,7 +89,7 @@ async def test_run_claude_timeout():
         mock_exec.return_value = mock_process
 
         with patch(
-            "cclaw.claude_runner.asyncio.wait_for",
+            "abyss.claude_runner.asyncio.wait_for",
             side_effect=asyncio.TimeoutError(),
         ):
             mock_process.communicate = AsyncMock(return_value=(b"", b""))
@@ -131,7 +131,7 @@ async def test_run_claude_working_directory():
 @pytest.mark.asyncio
 async def test_run_claude_not_found():
     """run_claude raises RuntimeError when claude CLI is not found."""
-    import cclaw.claude_runner as runner_module
+    import abyss.claude_runner as runner_module
 
     runner_module._cached_claude_path = None
     with patch(MOCK_WHICH, return_value=None):
@@ -274,11 +274,11 @@ async def test_run_claude_with_skill_names_mcp(tmp_path):
     with (
         patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec,
         patch(
-            "cclaw.skill.merge_mcp_configs",
+            "abyss.skill.merge_mcp_configs",
             return_value=mcp_config,
         ),
         patch(
-            "cclaw.skill.collect_skill_environment_variables",
+            "abyss.skill.collect_skill_environment_variables",
             return_value={},
         ),
     ):
@@ -303,9 +303,9 @@ async def test_run_claude_with_skill_names_env(tmp_path):
 
     with (
         patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec,
-        patch("cclaw.skill.merge_mcp_configs", return_value=None),
+        patch("abyss.skill.merge_mcp_configs", return_value=None),
         patch(
-            "cclaw.skill.collect_skill_environment_variables",
+            "abyss.skill.collect_skill_environment_variables",
             return_value={"API_KEY": "test-key"},
         ),
     ):
@@ -326,10 +326,10 @@ async def test_run_claude_with_allowed_tools(tmp_path):
 
     with (
         patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec,
-        patch("cclaw.skill.merge_mcp_configs", return_value=None),
-        patch("cclaw.skill.collect_skill_environment_variables", return_value={}),
+        patch("abyss.skill.merge_mcp_configs", return_value=None),
+        patch("abyss.skill.collect_skill_environment_variables", return_value={}),
         patch(
-            "cclaw.skill.collect_skill_allowed_tools",
+            "abyss.skill.collect_skill_allowed_tools",
             return_value=["Bash(imsg:*)", "Read(*)"],
         ),
     ):
@@ -745,7 +745,7 @@ async def test_run_claude_streaming_with_allowed_tools(tmp_path):
     with (
         patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec,
         patch(
-            "cclaw.claude_runner._prepare_skill_config",
+            "abyss.claude_runner._prepare_skill_config",
             return_value=(["Bash(imsg:*)"], None),
         ),
     ):
@@ -934,8 +934,8 @@ class TestSDKAwareRunner:
     @pytest.mark.asyncio
     async def test_run_with_sdk_pool_success(self, tmp_path):
         """Uses SDK pool when available."""
-        from cclaw.claude_runner import run_claude_with_sdk
-        from cclaw.sdk_client import SDKClientPool, SDKQueryResult
+        from abyss.claude_runner import run_claude_with_sdk
+        from abyss.sdk_client import SDKClientPool, SDKQueryResult
 
         mock_result = SDKQueryResult(text="pool response", session_id="sess-1")
         mock_pool = MagicMock(spec=SDKClientPool)
@@ -943,8 +943,8 @@ class TestSDKAwareRunner:
         mock_pool.query = AsyncMock(return_value=mock_result)
 
         with (
-            patch("cclaw.sdk_client.is_sdk_available", return_value=True),
-            patch("cclaw.sdk_client.get_pool", return_value=mock_pool),
+            patch("abyss.sdk_client.is_sdk_available", return_value=True),
+            patch("abyss.sdk_client.get_pool", return_value=mock_pool),
         ):
             result = await run_claude_with_sdk(
                 working_directory=str(tmp_path),
@@ -958,8 +958,8 @@ class TestSDKAwareRunner:
     @pytest.mark.asyncio
     async def test_run_with_sdk_pool_saves_session_id(self, tmp_path):
         """Pool result session_id is saved to session_directory."""
-        from cclaw.claude_runner import run_claude_with_sdk
-        from cclaw.sdk_client import SDKClientPool, SDKQueryResult
+        from abyss.claude_runner import run_claude_with_sdk
+        from abyss.sdk_client import SDKClientPool, SDKQueryResult
 
         session_dir = tmp_path / "session"
         session_dir.mkdir()
@@ -970,8 +970,8 @@ class TestSDKAwareRunner:
         mock_pool.query = AsyncMock(return_value=mock_result)
 
         with (
-            patch("cclaw.sdk_client.is_sdk_available", return_value=True),
-            patch("cclaw.sdk_client.get_pool", return_value=mock_pool),
+            patch("abyss.sdk_client.is_sdk_available", return_value=True),
+            patch("abyss.sdk_client.get_pool", return_value=mock_pool),
         ):
             await run_claude_with_sdk(
                 working_directory=str(tmp_path),
@@ -986,11 +986,11 @@ class TestSDKAwareRunner:
     @pytest.mark.asyncio
     async def test_run_with_sdk_fallback_when_unavailable(self, tmp_path):
         """Falls back to subprocess when SDK is not available."""
-        from cclaw.claude_runner import run_claude_with_sdk
+        from abyss.claude_runner import run_claude_with_sdk
 
         with (
-            patch("cclaw.sdk_client.is_sdk_available", return_value=False),
-            patch("cclaw.claude_runner.run_claude", new_callable=AsyncMock) as mock_run,
+            patch("abyss.sdk_client.is_sdk_available", return_value=False),
+            patch("abyss.claude_runner.run_claude", new_callable=AsyncMock) as mock_run,
         ):
             mock_run.return_value = "subprocess response"
             result = await run_claude_with_sdk(
@@ -1007,8 +1007,8 @@ class TestSDKAwareRunner:
     @pytest.mark.asyncio
     async def test_run_with_sdk_pool_error_falls_back(self, tmp_path):
         """Falls back to subprocess when pool query fails."""
-        from cclaw.claude_runner import run_claude_with_sdk
-        from cclaw.sdk_client import SDKClientPool
+        from abyss.claude_runner import run_claude_with_sdk
+        from abyss.sdk_client import SDKClientPool
 
         mock_pool = MagicMock(spec=SDKClientPool)
         mock_pool.has_session.return_value = False
@@ -1016,9 +1016,9 @@ class TestSDKAwareRunner:
         mock_pool.close_session = AsyncMock()
 
         with (
-            patch("cclaw.sdk_client.is_sdk_available", return_value=True),
-            patch("cclaw.sdk_client.get_pool", return_value=mock_pool),
-            patch("cclaw.claude_runner.run_claude", new_callable=AsyncMock) as mock_run,
+            patch("abyss.sdk_client.is_sdk_available", return_value=True),
+            patch("abyss.sdk_client.get_pool", return_value=mock_pool),
+            patch("abyss.claude_runner.run_claude", new_callable=AsyncMock) as mock_run,
         ):
             mock_run.return_value = "fallback response"
             result = await run_claude_with_sdk(
@@ -1034,11 +1034,11 @@ class TestSDKAwareRunner:
     @pytest.mark.asyncio
     async def test_run_with_sdk_no_session_key_uses_subprocess(self, tmp_path):
         """Uses subprocess when no session_key."""
-        from cclaw.claude_runner import run_claude_with_sdk
+        from abyss.claude_runner import run_claude_with_sdk
 
         with (
-            patch("cclaw.sdk_client.is_sdk_available", return_value=True),
-            patch("cclaw.claude_runner.run_claude", new_callable=AsyncMock) as mock_run,
+            patch("abyss.sdk_client.is_sdk_available", return_value=True),
+            patch("abyss.claude_runner.run_claude", new_callable=AsyncMock) as mock_run,
         ):
             mock_run.return_value = "subprocess response"
             result = await run_claude_with_sdk(
@@ -1052,8 +1052,8 @@ class TestSDKAwareRunner:
     @pytest.mark.asyncio
     async def test_run_streaming_with_sdk_pool_success(self, tmp_path):
         """Uses SDK pool streaming when available."""
-        from cclaw.claude_runner import run_claude_streaming_with_sdk
-        from cclaw.sdk_client import SDKClientPool, SDKQueryResult
+        from abyss.claude_runner import run_claude_streaming_with_sdk
+        from abyss.sdk_client import SDKClientPool, SDKQueryResult
 
         mock_result = SDKQueryResult(text="streamed", session_id="sess-2")
         mock_pool = MagicMock(spec=SDKClientPool)
@@ -1061,8 +1061,8 @@ class TestSDKAwareRunner:
         mock_pool.query_streaming = AsyncMock(return_value=mock_result)
 
         with (
-            patch("cclaw.sdk_client.is_sdk_available", return_value=True),
-            patch("cclaw.sdk_client.get_pool", return_value=mock_pool),
+            patch("abyss.sdk_client.is_sdk_available", return_value=True),
+            patch("abyss.sdk_client.get_pool", return_value=mock_pool),
         ):
             result = await run_claude_streaming_with_sdk(
                 working_directory=str(tmp_path),
@@ -1076,18 +1076,18 @@ class TestSDKAwareRunner:
     @pytest.mark.asyncio
     async def test_run_streaming_with_sdk_fallback(self, tmp_path):
         """Falls back to subprocess streaming when pool fails."""
-        from cclaw.claude_runner import run_claude_streaming_with_sdk
-        from cclaw.sdk_client import SDKClientPool
+        from abyss.claude_runner import run_claude_streaming_with_sdk
+        from abyss.sdk_client import SDKClientPool
 
         mock_pool = MagicMock(spec=SDKClientPool)
         mock_pool.has_session.return_value = False
         mock_pool.query_streaming = AsyncMock(side_effect=ConnectionError("pool down"))
 
         with (
-            patch("cclaw.sdk_client.is_sdk_available", return_value=True),
-            patch("cclaw.sdk_client.get_pool", return_value=mock_pool),
+            patch("abyss.sdk_client.is_sdk_available", return_value=True),
+            patch("abyss.sdk_client.get_pool", return_value=mock_pool),
             patch(
-                "cclaw.claude_runner.run_claude_streaming",
+                "abyss.claude_runner.run_claude_streaming",
                 new_callable=AsyncMock,
             ) as mock_stream,
         ):
@@ -1108,16 +1108,16 @@ class TestSDKAwareRunner:
 class TestCancelSDKSession:
     @pytest.mark.asyncio
     async def test_cancel_sdk_session_success(self):
-        from cclaw.claude_runner import cancel_sdk_session
-        from cclaw.sdk_client import SDKClientPool
+        from abyss.claude_runner import cancel_sdk_session
+        from abyss.sdk_client import SDKClientPool
 
         mock_pool = MagicMock(spec=SDKClientPool)
         mock_pool.has_session.return_value = True
         mock_pool.interrupt = AsyncMock(return_value=True)
 
         with (
-            patch("cclaw.sdk_client.is_sdk_available", return_value=True),
-            patch("cclaw.sdk_client.get_pool", return_value=mock_pool),
+            patch("abyss.sdk_client.is_sdk_available", return_value=True),
+            patch("abyss.sdk_client.get_pool", return_value=mock_pool),
         ):
             result = await cancel_sdk_session("bot:1")
 
@@ -1126,15 +1126,15 @@ class TestCancelSDKSession:
 
     @pytest.mark.asyncio
     async def test_cancel_sdk_session_no_session(self):
-        from cclaw.claude_runner import cancel_sdk_session
-        from cclaw.sdk_client import SDKClientPool
+        from abyss.claude_runner import cancel_sdk_session
+        from abyss.sdk_client import SDKClientPool
 
         mock_pool = MagicMock(spec=SDKClientPool)
         mock_pool.has_session.return_value = False
 
         with (
-            patch("cclaw.sdk_client.is_sdk_available", return_value=True),
-            patch("cclaw.sdk_client.get_pool", return_value=mock_pool),
+            patch("abyss.sdk_client.is_sdk_available", return_value=True),
+            patch("abyss.sdk_client.get_pool", return_value=mock_pool),
         ):
             result = await cancel_sdk_session("bot:999")
 
@@ -1142,9 +1142,9 @@ class TestCancelSDKSession:
 
     @pytest.mark.asyncio
     async def test_cancel_sdk_session_sdk_unavailable(self):
-        from cclaw.claude_runner import cancel_sdk_session
+        from abyss.claude_runner import cancel_sdk_session
 
-        with patch("cclaw.sdk_client.is_sdk_available", return_value=False):
+        with patch("abyss.sdk_client.is_sdk_available", return_value=False):
             result = await cancel_sdk_session("bot:1")
 
         assert result is False

@@ -1,6 +1,6 @@
 # Naver Search Skill Guide
 
-A guide to installing and using the built-in Naver Search skill for cclaw.
+A guide to installing and using the built-in Naver Search skill for abyss.
 
 ## Overview
 
@@ -41,13 +41,13 @@ naver-cli --help
 ### 1. Install the Built-in Skill
 
 ```bash
-cclaw skills install naver-search
+abyss skills install naver-search
 ```
 
 ### 2. Setup (Activate)
 
 ```bash
-cclaw skills setup naver-search
+abyss skills setup naver-search
 ```
 
 During setup, you'll be prompted to enter:
@@ -64,7 +64,7 @@ Via Telegram:
 ### 4. Verify
 
 ```bash
-cclaw skills
+abyss skills
 ```
 
 ## Usage
@@ -121,7 +121,7 @@ This allows all `naver-cli` and `naver` commands to run without permission promp
 
 ### Environment Variable Injection
 
-`NAVER_CLIENT_ID` and `NAVER_CLIENT_SECRET` are stored during `cclaw skills setup` and injected into the Claude Code subprocess at runtime. The `naver-cli` uses these for Naver Open API authentication.
+`NAVER_CLIENT_ID` and `NAVER_CLIENT_SECRET` are stored during `abyss skills setup` and injected into the Claude Code subprocess at runtime. The `naver-cli` uses these for Naver Open API authentication.
 
 ## Troubleshooting
 
@@ -140,7 +140,7 @@ which naver-cli
 Error: 401 Unauthorized
 ```
 
-**Solution**: Verify your API keys at [Naver Developer Center](https://developers.naver.com/apps), then re-run `cclaw skills setup naver-search`.
+**Solution**: Verify your API keys at [Naver Developer Center](https://developers.naver.com/apps), then re-run `abyss skills setup naver-search`.
 
 ### No search results
 

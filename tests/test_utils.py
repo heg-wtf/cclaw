@@ -1,10 +1,10 @@
-"""Tests for cclaw.utils module."""
+"""Tests for abyss.utils module."""
 
 from __future__ import annotations
 
 from unittest.mock import patch
 
-from cclaw.utils import (
+from abyss.utils import (
     markdown_to_telegram_html,
     prompt_input,
     prompt_multiline,

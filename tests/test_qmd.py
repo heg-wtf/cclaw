@@ -11,9 +11,9 @@ import yaml
 
 
 @pytest.fixture()
-def temp_cclaw_home(tmp_path, monkeypatch):
-    """Set up a temporary cclaw home directory."""
-    monkeypatch.setenv("CCLAW_HOME", str(tmp_path))
+def temp_abyss_home(tmp_path, monkeypatch):
+    """Set up a temporary abyss home directory."""
+    monkeypatch.setenv("ABYSS_HOME", str(tmp_path))
     return tmp_path
 
 
@@ -22,7 +22,7 @@ def temp_cclaw_home(tmp_path, monkeypatch):
 
 def test_qmd_in_builtin_skills_list():
     """QMD should appear in the built-in skills list."""
-    from cclaw.builtin_skills import list_builtin_skills
+    from abyss.builtin_skills import list_builtin_skills
 
     skills = list_builtin_skills()
     names = [s["name"] for s in skills]
@@ -31,7 +31,7 @@ def test_qmd_in_builtin_skills_list():
 
 def test_qmd_builtin_skill_metadata():
     """QMD builtin skill should have correct metadata."""
-    from cclaw.builtin_skills import get_builtin_skill_path
+    from abyss.builtin_skills import get_builtin_skill_path
 
     path = get_builtin_skill_path("qmd")
     assert path is not None
@@ -51,7 +51,7 @@ def test_qmd_builtin_skill_metadata():
 
 def test_qmd_mcp_config_is_http_type():
     """QMD mcp.json should use HTTP transport, not stdio."""
-    from cclaw.builtin_skills import get_builtin_skill_path
+    from abyss.builtin_skills import get_builtin_skill_path
 
     path = get_builtin_skill_path("qmd")
     mcp_json = path / "mcp.json"
@@ -73,9 +73,9 @@ def test_qmd_mcp_config_is_http_type():
 # --- Skill Installation ---
 
 
-def test_install_qmd_skill(temp_cclaw_home):
+def test_install_qmd_skill(temp_abyss_home):
     """Installing QMD skill should copy all template files."""
-    from cclaw.skill import install_builtin_skill
+    from abyss.skill import install_builtin_skill
 
     path = install_builtin_skill("qmd")
 
@@ -89,9 +89,9 @@ def test_install_qmd_skill(temp_cclaw_home):
     assert config["mcpServers"]["qmd"]["type"] == "http"
 
 
-def test_install_qmd_skill_already_exists(temp_cclaw_home):
+def test_install_qmd_skill_already_exists(temp_abyss_home):
     """Installing QMD skill twice should raise FileExistsError."""
-    from cclaw.skill import install_builtin_skill
+    from abyss.skill import install_builtin_skill
 
     install_builtin_skill("qmd")
     with pytest.raises(FileExistsError):
@@ -101,9 +101,9 @@ def test_install_qmd_skill_already_exists(temp_cclaw_home):
 # --- MCP Config Merging ---
 
 
-def test_qmd_mcp_config_merges(temp_cclaw_home):
+def test_qmd_mcp_config_merges(temp_abyss_home):
     """QMD MCP config should merge correctly with other skills."""
-    from cclaw.skill import install_builtin_skill, merge_mcp_configs
+    from abyss.skill import install_builtin_skill, merge_mcp_configs
 
     install_builtin_skill("qmd")
     result = merge_mcp_configs(["qmd"])
@@ -117,9 +117,9 @@ def test_qmd_mcp_config_merges(temp_cclaw_home):
 # --- Allowed Tools ---
 
 
-def test_qmd_allowed_tools_collected(temp_cclaw_home):
+def test_qmd_allowed_tools_collected(temp_abyss_home):
     """QMD allowed tools should be collected correctly."""
-    from cclaw.skill import collect_skill_allowed_tools, install_builtin_skill
+    from abyss.skill import collect_skill_allowed_tools, install_builtin_skill
 
     install_builtin_skill("qmd")
     tools = collect_skill_allowed_tools(["qmd"])
@@ -135,13 +135,13 @@ def test_qmd_allowed_tools_collected(temp_cclaw_home):
 # --- Auto-inject: claude_runner ---
 
 
-def test_prepare_skill_config_injects_qmd_when_available(temp_cclaw_home):
+def test_prepare_skill_config_injects_qmd_when_available(temp_abyss_home):
     """QMD MCP should be auto-injected when qmd CLI is available."""
     import json
 
-    from cclaw.claude_runner import _prepare_skill_config
+    from abyss.claude_runner import _prepare_skill_config
 
-    working_directory = str(temp_cclaw_home / "work")
+    working_directory = str(temp_abyss_home / "work")
     Path(working_directory).mkdir()
 
     with patch("shutil.which", return_value="/usr/local/bin/qmd"):
@@ -159,11 +159,11 @@ def test_prepare_skill_config_injects_qmd_when_available(temp_cclaw_home):
     assert config["mcpServers"]["qmd"]["type"] == "http"
 
 
-def test_prepare_skill_config_no_qmd_when_not_installed(temp_cclaw_home):
+def test_prepare_skill_config_no_qmd_when_not_installed(temp_abyss_home):
     """QMD should not be injected when qmd CLI is not available."""
-    from cclaw.claude_runner import _prepare_skill_config
+    from abyss.claude_runner import _prepare_skill_config
 
-    working_directory = str(temp_cclaw_home / "work")
+    working_directory = str(temp_abyss_home / "work")
     Path(working_directory).mkdir()
 
     with patch("shutil.which", return_value=None):
@@ -172,19 +172,19 @@ def test_prepare_skill_config_no_qmd_when_not_installed(temp_cclaw_home):
     assert allowed_tools is None
 
 
-def test_prepare_skill_config_qmd_merges_with_skills(temp_cclaw_home):
+def test_prepare_skill_config_qmd_merges_with_skills(temp_abyss_home):
     """QMD should merge with other skill MCP configs."""
     import json
 
-    from cclaw.claude_runner import _prepare_skill_config
-    from cclaw.skill import install_builtin_skill
+    from abyss.claude_runner import _prepare_skill_config
+    from abyss.skill import install_builtin_skill
 
     install_builtin_skill("supabase")
 
-    working_directory = str(temp_cclaw_home / "work")
+    working_directory = str(temp_abyss_home / "work")
     Path(working_directory).mkdir()
 
-    with patch("cclaw.claude_runner.shutil.which", return_value="/usr/local/bin/qmd"):
+    with patch("abyss.claude_runner.shutil.which", return_value="/usr/local/bin/qmd"):
         allowed_tools, _ = _prepare_skill_config(working_directory, ["supabase"])
 
     assert allowed_tools is not None
@@ -204,9 +204,9 @@ def test_prepare_skill_config_qmd_merges_with_skills(temp_cclaw_home):
 
 def test_compose_claude_md_includes_qmd_when_available():
     """QMD instructions should be included in CLAUDE.md when CLI is available."""
-    from cclaw.skill import compose_claude_md
+    from abyss.skill import compose_claude_md
 
-    with patch("cclaw.skill.shutil.which", return_value="/usr/local/bin/qmd"):
+    with patch("abyss.skill.shutil.which", return_value="/usr/local/bin/qmd"):
         result = compose_claude_md("testbot", "friendly", "assistant")
 
     assert "qmd" in result.lower()
@@ -215,9 +215,9 @@ def test_compose_claude_md_includes_qmd_when_available():
 
 def test_compose_claude_md_excludes_qmd_when_not_available():
     """QMD instructions should not be in CLAUDE.md when CLI is not available."""
-    from cclaw.skill import compose_claude_md
+    from abyss.skill import compose_claude_md
 
-    with patch("cclaw.skill.shutil.which", return_value=None):
+    with patch("abyss.skill.shutil.which", return_value=None):
         result = compose_claude_md("testbot", "friendly", "assistant")
 
     assert "qmd" not in result.lower()
@@ -229,7 +229,7 @@ def test_compose_claude_md_excludes_qmd_when_not_available():
 @pytest.mark.asyncio
 async def test_start_qmd_daemon_no_cli():
     """Should return False when qmd CLI is not found."""
-    from cclaw.bot_manager import _start_qmd_daemon
+    from abyss.bot_manager import _start_qmd_daemon
 
     with patch("shutil.which", return_value=None):
         result = await _start_qmd_daemon()
@@ -239,11 +239,11 @@ async def test_start_qmd_daemon_no_cli():
 @pytest.mark.asyncio
 async def test_start_qmd_daemon_already_running():
     """Should return True when daemon is already running."""
-    from cclaw.bot_manager import _start_qmd_daemon
+    from abyss.bot_manager import _start_qmd_daemon
 
     with (
         patch("shutil.which", return_value="/usr/local/bin/qmd"),
-        patch("cclaw.bot_manager._qmd_health_check", new_callable=AsyncMock, return_value=True),
+        patch("abyss.bot_manager._qmd_health_check", new_callable=AsyncMock, return_value=True),
     ):
         result = await _start_qmd_daemon()
     assert result is True
@@ -252,7 +252,7 @@ async def test_start_qmd_daemon_already_running():
 @pytest.mark.asyncio
 async def test_start_qmd_daemon_starts_successfully():
     """Should start daemon and wait for health check."""
-    from cclaw.bot_manager import _start_qmd_daemon
+    from abyss.bot_manager import _start_qmd_daemon
 
     health_call_count = 0
 
@@ -264,7 +264,7 @@ async def test_start_qmd_daemon_starts_successfully():
 
     with (
         patch("shutil.which", return_value="/usr/local/bin/qmd"),
-        patch("cclaw.bot_manager._qmd_health_check", side_effect=mock_health),
+        patch("abyss.bot_manager._qmd_health_check", side_effect=mock_health),
         patch("subprocess.run") as mock_run,
     ):
         mock_run.return_value.returncode = 0
@@ -281,11 +281,11 @@ async def test_start_qmd_daemon_starts_successfully():
 @pytest.mark.asyncio
 async def test_start_qmd_daemon_fails():
     """Should return False when daemon fails to start."""
-    from cclaw.bot_manager import _start_qmd_daemon
+    from abyss.bot_manager import _start_qmd_daemon
 
     with (
         patch("shutil.which", return_value="/usr/local/bin/qmd"),
-        patch("cclaw.bot_manager._qmd_health_check", new_callable=AsyncMock, return_value=False),
+        patch("abyss.bot_manager._qmd_health_check", new_callable=AsyncMock, return_value=False),
         patch("subprocess.run") as mock_run,
     ):
         mock_run.return_value.returncode = 1
@@ -297,7 +297,7 @@ async def test_start_qmd_daemon_fails():
 
 def test_stop_qmd_daemon_calls_stop():
     """Should call 'qmd mcp stop' when stopping."""
-    from cclaw.bot_manager import _stop_qmd_daemon
+    from abyss.bot_manager import _stop_qmd_daemon
 
     with (
         patch("shutil.which", return_value="/usr/local/bin/qmd"),
@@ -315,7 +315,7 @@ def test_stop_qmd_daemon_calls_stop():
 
 def test_stop_qmd_daemon_no_cli():
     """Should do nothing when qmd CLI is not found."""
-    from cclaw.bot_manager import _stop_qmd_daemon
+    from abyss.bot_manager import _stop_qmd_daemon
 
     with (
         patch("shutil.which", return_value=None),
@@ -329,11 +329,11 @@ def test_stop_qmd_daemon_no_cli():
 # --- Collection Setup ---
 
 
-def test_ensure_qmd_conversations_collection(temp_cclaw_home):
-    """Should register cclaw-conversations collection on start."""
-    from cclaw.bot_manager import _ensure_qmd_conversations_collection
+def test_ensure_qmd_conversations_collection(temp_abyss_home):
+    """Should register abyss-conversations collection on start."""
+    from abyss.bot_manager import _ensure_qmd_conversations_collection
 
-    (temp_cclaw_home / "bots" / "testbot" / "sessions").mkdir(parents=True)
+    (temp_abyss_home / "bots" / "testbot" / "sessions").mkdir(parents=True)
 
     with patch("subprocess.run") as mock_run:
         mock_run.return_value.returncode = 0
@@ -343,13 +343,13 @@ def test_ensure_qmd_conversations_collection(temp_cclaw_home):
     add_call = mock_run.call_args[0][0]
     assert "collection" in add_call
     assert "add" in add_call
-    assert "cclaw-conversations" in add_call
+    assert "abyss-conversations" in add_call
     assert "**/conversation-*.md" in add_call
 
 
-def test_ensure_qmd_conversations_no_bots_directory(temp_cclaw_home):
+def test_ensure_qmd_conversations_no_bots_directory(temp_abyss_home):
     """Should do nothing when bots directory doesn't exist."""
-    from cclaw.bot_manager import _ensure_qmd_conversations_collection
+    from abyss.bot_manager import _ensure_qmd_conversations_collection
 
     with patch("subprocess.run") as mock_run:
         _ensure_qmd_conversations_collection()
@@ -357,11 +357,11 @@ def test_ensure_qmd_conversations_no_bots_directory(temp_cclaw_home):
     mock_run.assert_not_called()
 
 
-def test_setup_qmd_conversations_collection(temp_cclaw_home):
-    """Should register cclaw-conversations collection via skill.py."""
-    from cclaw.skill import setup_qmd_conversations_collection
+def test_setup_qmd_conversations_collection(temp_abyss_home):
+    """Should register abyss-conversations collection via skill.py."""
+    from abyss.skill import setup_qmd_conversations_collection
 
-    (temp_cclaw_home / "bots" / "testbot" / "sessions").mkdir(parents=True)
+    (temp_abyss_home / "bots" / "testbot" / "sessions").mkdir(parents=True)
 
     with patch("subprocess.run") as mock_run:
         mock_run.return_value.returncode = 0
@@ -371,12 +371,12 @@ def test_setup_qmd_conversations_collection(temp_cclaw_home):
     assert mock_run.call_count == 2
 
     add_call = mock_run.call_args_list[0]
-    assert "cclaw-conversations" in add_call[0][0]
+    assert "abyss-conversations" in add_call[0][0]
 
 
-def test_setup_qmd_conversations_no_bots_directory(temp_cclaw_home):
+def test_setup_qmd_conversations_no_bots_directory(temp_abyss_home):
     """Should return False when bots directory doesn't exist."""
-    from cclaw.skill import setup_qmd_conversations_collection
+    from abyss.skill import setup_qmd_conversations_collection
 
     result = setup_qmd_conversations_collection()
     assert result is False

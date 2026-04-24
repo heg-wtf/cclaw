@@ -5,7 +5,7 @@ A skill that searches for the lowest product price across major Korean price com
 ## Installation
 
 ```bash
-cclaw skills install best-price
+abyss skills install best-price
 ```
 
 ## Usage
