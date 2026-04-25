@@ -389,8 +389,13 @@ def test_search_role_filter(initialized_db: Path) -> None:
 
 
 def test_append_blank_content_rejected(initialized_db: Path) -> None:
-    assert ci.append(initialized_db, chat_id="chat_1", role="user", content="") is False
-    assert ci.append(initialized_db, chat_id="chat_1", role="user", content="   ") is False
+    # Pull the side-effecting calls out of `assert` so they execute under
+    # `python -O` (which strips assert statements) and so a future
+    # refactor of `assert` can't silently skip the test body.
+    empty_result = ci.append(initialized_db, chat_id="chat_1", role="user", content="")
+    blank_result = ci.append(initialized_db, chat_id="chat_1", role="user", content="   ")
+    assert empty_result is False
+    assert blank_result is False
     with sqlite3.connect(initialized_db) as conn:
         count = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
     assert count == 0
@@ -409,3 +414,33 @@ def test_db_path_for_group(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setenv("ABYSS_HOME", str(tmp_path))
     expected = tmp_path / "groups" / "team_one" / "conversation.db"
     assert ci.db_path_for_group("team_one") == expected
+
+
+# ─── reindex wipes index even when source dir is missing ─────────────────
+
+
+def test_reindex_session_dir_wipes_when_source_missing(tmp_path: Path) -> None:
+    """Stale rows must not survive when the markdown source disappears.
+
+    Regression for Codex review on PR #7: previously
+    ``reindex_session_dir`` returned 0 without clearing the DB, so
+    deleting the markdown source left rows still searchable.
+    """
+    db = tmp_path / "conversation.db"
+    ci.append(db, chat_id="chat_1", role="user", content="stale message")
+    assert len(ci.search(db, query="stale")) == 1
+
+    inserted = ci.reindex_session_dir(db, tmp_path / "missing-sessions")
+    assert inserted == 0
+    assert ci.search(db, query="stale") == []
+
+
+def test_reindex_group_dir_wipes_when_source_missing(tmp_path: Path) -> None:
+    """Group reindex must clear stale rows when the source dir vanishes."""
+    db = tmp_path / "group.db"
+    ci.append(db, chat_id="group", role="user", content="stale group message")
+    assert len(ci.search(db, query="stale")) == 1
+
+    inserted = ci.reindex_group_dir(db, tmp_path / "missing-conv")
+    assert inserted == 0
+    assert ci.search(db, query="stale") == []

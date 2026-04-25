@@ -262,38 +262,42 @@ def reindex_session_dir(db_path: Path, sessions_root: Path) -> int:
     """Rebuild the bot index from ``sessions/chat_*/conversation-*.md``.
 
     Wipes existing rows in a single transaction, then bulk-inserts.
-    Returns the number of messages inserted.
+    Returns the number of messages inserted. When ``sessions_root`` is
+    missing the index is still wiped (zero rows inserted) so a stale
+    DB does not survive deletion of its source markdown.
     """
     ensure_schema(db_path)
-    if not sessions_root.exists():
-        return 0
 
-    rows = []
-    for chat_dir in sorted(sessions_root.iterdir()):
-        if not chat_dir.is_dir() or not chat_dir.name.startswith("chat_"):
-            continue
-        chat_id = chat_dir.name
-        for md_file in sorted(chat_dir.glob("conversation-*.md")):
-            for role, ts_str, content, date_key in _iter_session_messages(md_file):
-                rows.append((content, chat_id, role, ts_str, date_key))
+    rows: list[tuple] = []
+    if sessions_root.exists():
+        for chat_dir in sorted(sessions_root.iterdir()):
+            if not chat_dir.is_dir() or not chat_dir.name.startswith("chat_"):
+                continue
+            chat_id = chat_dir.name
+            for md_file in sorted(chat_dir.glob("conversation-*.md")):
+                for role, ts_str, content, date_key in _iter_session_messages(md_file):
+                    rows.append((content, chat_id, role, ts_str, date_key))
 
     return _replace_rows(db_path, rows)
 
 
 def reindex_group_dir(db_path: Path, conversation_dir: Path) -> int:
-    """Rebuild the group index from ``groups/<name>/conversation/YYMMDD.md``."""
-    ensure_schema(db_path)
-    if not conversation_dir.exists():
-        return 0
+    """Rebuild the group index from ``groups/<name>/conversation/YYMMDD.md``.
 
-    rows = []
-    for md_file in sorted(conversation_dir.glob("[0-9][0-9][0-9][0-9][0-9][0-9].md")):
-        try:
-            date_key = datetime.strptime(md_file.stem, "%y%m%d").strftime("%Y-%m-%d")
-        except ValueError:
-            continue
-        for sender, ts_str, content in _iter_group_messages(md_file, date_key):
-            rows.append((content, "group", sender, ts_str, date_key))
+    Wipes existing rows even when ``conversation_dir`` is missing so a
+    deleted source directory does not leave stale searchable rows.
+    """
+    ensure_schema(db_path)
+
+    rows: list[tuple] = []
+    if conversation_dir.exists():
+        for md_file in sorted(conversation_dir.glob("[0-9][0-9][0-9][0-9][0-9][0-9].md")):
+            try:
+                date_key = datetime.strptime(md_file.stem, "%y%m%d").strftime("%Y-%m-%d")
+            except ValueError:
+                continue
+            for sender, ts_str, content in _iter_group_messages(md_file, date_key):
+                rows.append((content, "group", sender, ts_str, date_key))
 
     return _replace_rows(db_path, rows)
 
