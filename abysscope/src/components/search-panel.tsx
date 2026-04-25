@@ -56,6 +56,14 @@ function formatTs(ts: string | null): string {
   }
 }
 
+function dateKeyToFileSlug(dateKey: string): string | null {
+  // date_key in the FTS5 index is YYYY-MM-DD; conversation files on disk
+  // use YYMMDD. Convert so deep links land on the right day.
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
+  if (!match) return null;
+  return `${match[1].slice(2)}${match[2]}${match[3]}`;
+}
+
 function renderSnippet(snippet: string) {
   const parts = snippet.split(/(<<.*?>>)/g);
   return parts.map((part, idx) => {
@@ -238,9 +246,11 @@ export function SearchPanel({ botName }: SearchPanelProps) {
               const chatLabel = hit.chatId
                 ? hit.chatId.replace(/^chat_/, "")
                 : "";
-              const href = chatLabel
-                ? `/bots/${botName}/conversations/${chatLabel}?date=${hit.dateKey}`
-                : null;
+              const fileSlug = dateKeyToFileSlug(hit.dateKey);
+              const href =
+                chatLabel && fileSlug
+                  ? `/bots/${botName}/conversations/${chatLabel}?date=${fileSlug}`
+                  : null;
               const headline = (
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span>{formatTs(hit.ts)}</span>
