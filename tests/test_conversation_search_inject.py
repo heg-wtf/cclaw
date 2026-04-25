@@ -56,16 +56,64 @@ def test_prepare_skill_config_skips_when_fts5_unavailable(
 def test_prepare_skill_config_skips_for_invalid_session_path(
     tmp_path: Path,
 ) -> None:
-    """Working directories without a parent bot dir get no MCP injection."""
+    """Working directories with no ``bots/<name>/`` ancestor are silently skipped."""
     from abyss.claude_runner import _prepare_skill_config
 
     shallow = tmp_path / "shallow"
     shallow.mkdir()
     allowed_tools, _ = _prepare_skill_config(str(shallow), None)
+    # No ``bots/`` ancestor → MCP injection skipped, no .mcp.json written.
+    assert allowed_tools is None
+    assert not (shallow / ".mcp.json").exists()
 
-    # ``parents[1]`` exists for any path so we still write the MCP entry,
-    # but the DB path simply points to the parent's parent. The function
-    # must not crash; we just assert no exception and a sensible config.
-    if allowed_tools is not None:
-        config = json.loads((shallow / ".mcp.json").read_text())
-        assert "conversation_search" in config["mcpServers"]
+
+# ─── regression: Codex P2 — bot dir resolution across context types ─────
+
+
+@pytest.mark.enable_conversation_search
+def test_prepare_skill_config_resolves_bot_dir_for_heartbeat(
+    tmp_path: Path,
+) -> None:
+    """Heartbeat working dir is shallower than DM sessions — bot dir
+    must still resolve to ``bots/<name>/conversation.db``, not
+    ``bots/conversation.db``. Regression for PR #7 review.
+    """
+    import sys
+
+    from abyss.claude_runner import _prepare_skill_config
+
+    bot_path = tmp_path / "bots" / "alpha"
+    heartbeat_dir = bot_path / "heartbeat_sessions"
+    heartbeat_dir.mkdir(parents=True)
+
+    allowed_tools, _ = _prepare_skill_config(str(heartbeat_dir), None)
+
+    assert allowed_tools is not None
+    config = json.loads((heartbeat_dir / ".mcp.json").read_text())
+    server = config["mcpServers"]["conversation_search"]
+    assert server["command"] == sys.executable
+    db_env = Path(server["env"]["ABYSS_CONVERSATION_DB"]).resolve()
+    expected_db = (bot_path / "conversation.db").resolve()
+    assert db_env == expected_db
+
+
+@pytest.mark.enable_conversation_search
+def test_prepare_skill_config_resolves_bot_dir_for_cron(
+    tmp_path: Path,
+) -> None:
+    """Cron sessions sit at ``bots/<name>/cron_sessions/<job>/`` —
+    DB path must still target the bot's own directory."""
+    from abyss.claude_runner import _prepare_skill_config
+
+    bot_path = tmp_path / "bots" / "alpha"
+    cron_dir = bot_path / "cron_sessions" / "morning_report"
+    cron_dir.mkdir(parents=True)
+
+    allowed_tools, _ = _prepare_skill_config(str(cron_dir), None)
+
+    assert allowed_tools is not None
+    config = json.loads((cron_dir / ".mcp.json").read_text())
+    server = config["mcpServers"]["conversation_search"]
+    db_env = Path(server["env"]["ABYSS_CONVERSATION_DB"]).resolve()
+    expected_db = (bot_path / "conversation.db").resolve()
+    assert db_env == expected_db

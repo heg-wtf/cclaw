@@ -255,20 +255,38 @@ CONVERSATION_SEARCH_ALLOWED_TOOLS = [
 ]
 
 
+def _resolve_bot_dir_from_working_directory(working_directory: str) -> Path | None:
+    """Walk parents of ``working_directory`` to find the bot root.
+
+    The bot root is the directory whose parent is named ``bots`` — this
+    works regardless of which subfolder the call originated from
+    (``sessions/chat_*``, ``cron_sessions/<job>``, ``heartbeat_sessions``).
+    Returns ``None`` when no such ancestor exists (e.g., test
+    environments using ``/tmp`` paths).
+    """
+    work_path = Path(working_directory).resolve()
+    candidates = [work_path, *work_path.parents]
+    for candidate in candidates:
+        parent = candidate.parent
+        if parent.name == "bots":
+            return candidate
+    return None
+
+
 def _conversation_search_mcp_server(working_directory: str) -> dict | None:
     """Build the conversation_search MCP entry for ``working_directory``.
 
-    Returns ``None`` when the working directory does not look like a bot
-    session path (we expect ``<bot_dir>/sessions/chat_*/`` so the bot dir
-    is at ``parents[1]``). The MCP server is invoked via ``sys.executable``
-    so it inherits the abyss venv and can ``import abyss``.
+    Resolves the bot directory by walking up the working-directory tree
+    until a ``bots/<name>/`` ancestor is found. This works for DM
+    sessions (``bots/<name>/sessions/chat_*/``), cron sessions
+    (``bots/<name>/cron_sessions/<job>/``) and heartbeat sessions
+    (``bots/<name>/heartbeat_sessions/``) alike. Returns ``None`` when
+    the bot root cannot be located so the caller skips the MCP entry.
     """
     import sys
 
-    work_path = Path(working_directory).resolve()
-    try:
-        bot_dir = work_path.parents[1]
-    except IndexError:
+    bot_dir = _resolve_bot_dir_from_working_directory(working_directory)
+    if bot_dir is None:
         return None
 
     db_path = bot_dir / "conversation.db"
