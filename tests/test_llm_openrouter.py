@@ -338,9 +338,7 @@ def test_base_url_trailing_slash_stripped() -> None:
 # ─── regression: PR #8 review (Codex P1 + P2) ─────────────────────────────
 
 
-def test_build_messages_dedupes_trailing_user_match(
-    tmp_path: Path, env_api_key: None
-) -> None:
+def test_build_messages_dedupes_trailing_user_match(tmp_path: Path, env_api_key: None) -> None:
     """The current user turn must not appear twice when it's already the
     last entry in the markdown log (the abyss handler logs user input
     *before* calling backend.run). Regression for Codex P1 on PR #8.
@@ -386,9 +384,7 @@ def test_build_messages_dedupes_only_when_content_matches(
     assert [m["content"] for m in user_turns] == ["이전 질문", "새로운 질문"]
 
 
-def test_build_messages_respects_backend_max_history(
-    tmp_path: Path, env_api_key: None
-) -> None:
+def test_build_messages_respects_backend_max_history(tmp_path: Path, env_api_key: None) -> None:
     """``backend.max_history`` from bot.yaml must take effect. Regression
     for Codex P2 on PR #8 — previously the dataclass default of 20 was
     used regardless of the configured cap.
@@ -434,8 +430,7 @@ def test_build_messages_request_override_wins_over_backend_cap(
     log = request.session_directory / "conversation-260425.md"
     log.write_text(
         "".join(
-            f"\n## user (2026-04-25 09:30:{index:02d} UTC)\n\nmsg-{index}\n"
-            for index in range(8)
+            f"\n## user (2026-04-25 09:30:{index:02d} UTC)\n\nmsg-{index}\n" for index in range(8)
         ),
         encoding="utf-8",
     )

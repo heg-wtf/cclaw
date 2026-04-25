@@ -236,9 +236,7 @@ class OpenRouterBackend(LLMBackend):
         # token usage and biases responses toward the repeated text).
         current = request.user_prompt.strip()
         while (
-            history
-            and history[-1]["role"] == "user"
-            and history[-1]["content"].strip() == current
+            history and history[-1]["role"] == "user" and history[-1]["content"].strip() == current
         ):
             history.pop()
 
