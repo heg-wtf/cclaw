@@ -228,9 +228,25 @@ class OpenRouterBackend(LLMBackend):
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
 
-        for entry in self._load_history(request):
-            messages.append(entry)
+        history = self._load_history(request)
+        # abyss's Telegram handlers call ``log_conversation`` *before*
+        # ``backend.run``, so the markdown log already contains the
+        # current user message. Drop any matching trailing user turn so
+        # the model doesn't see the same input twice (which inflates
+        # token usage and biases responses toward the repeated text).
+        current = request.user_prompt.strip()
+        while (
+            history
+            and history[-1]["role"] == "user"
+            and history[-1]["content"].strip() == current
+        ):
+            history.pop()
 
+        cap = self._resolve_max_history(request)
+        if cap > 0 and len(history) > cap:
+            history = history[-cap:]
+
+        messages.extend(history)
         messages.append({"role": "user", "content": request.user_prompt})
         return messages
 
@@ -249,23 +265,46 @@ class OpenRouterBackend(LLMBackend):
                 logger.warning("could not read system prompt %s: %s", path, exc)
         return ""
 
+    def _resolve_max_history(self, request: LLMRequest) -> int:
+        """Return the active history cap for this turn.
+
+        Precedence: explicit override on ``request.max_history`` (when
+        the caller raises it above the dataclass default of 20) wins,
+        otherwise the bot-configured ``backend.max_history`` is used.
+        This keeps ``bot.yaml`` the source of truth while still letting
+        a one-off caller widen the window.
+        """
+        request_value = request.max_history
+        # 20 is the dataclass default — treat it as "unset" so the
+        # backend config takes effect for bots that lower the cap.
+        if request_value > 0 and request_value != 20:
+            return request_value
+        return max(0, self.max_history)
+
     def _load_history(self, request: LLMRequest) -> list[dict[str, str]]:
-        """Replay the last ``max_history`` user/assistant turns from disk."""
-        if request.max_history <= 0:
+        """Replay the last ``max_history`` user/assistant turns from disk.
+
+        Loads one extra entry beyond the cap so ``_build_messages`` can
+        drop a duplicate trailing user turn without dipping below the
+        configured window size. The final cap is enforced by the
+        caller after dedup.
+        """
+        cap = self._resolve_max_history(request)
+        if cap <= 0:
             return []
         files = sorted(
             request.session_directory.glob("conversation-[0-9][0-9][0-9][0-9][0-9][0-9].md")
         )
         if not files:
             return []
-        # Newest file first — we only need ``max_history`` *messages* total.
+        target = cap + 1
         turns: list[dict[str, str]] = []
         for md_file in reversed(files):
             for entry in reversed(list(_iter_messages(md_file))):
                 turns.append(entry)
-                if len(turns) >= request.max_history:
+                if len(turns) >= target:
                     break
-            if len(turns) >= request.max_history:
+            if len(turns) >= target:
                 break
         turns.reverse()
         return turns

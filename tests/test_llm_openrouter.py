@@ -333,3 +333,115 @@ def test_base_url_trailing_slash_stripped() -> None:
         {"backend": {"type": "openrouter", "base_url": "https://example.com/v1/"}}
     )
     assert backend.base_url == "https://example.com/v1"
+
+
+# ─── regression: PR #8 review (Codex P1 + P2) ─────────────────────────────
+
+
+def test_build_messages_dedupes_trailing_user_match(
+    tmp_path: Path, env_api_key: None
+) -> None:
+    """The current user turn must not appear twice when it's already the
+    last entry in the markdown log (the abyss handler logs user input
+    *before* calling backend.run). Regression for Codex P1 on PR #8.
+    """
+    backend = OpenRouterBackend(_bot_config())
+    request = _request(tmp_path, user_prompt="오늘 점심 뭐 먹지")
+    log = request.session_directory / "conversation-260425.md"
+    log.write_text(
+        "\n## user (2026-04-25 09:30:00 UTC)\n\n어제 저녁\n"
+        "\n## assistant (2026-04-25 09:30:01 UTC)\n\n뭐였나요?\n"
+        # The handler logs the current user message before backend.run:
+        "\n## user (2026-04-25 09:31:00 UTC)\n\n오늘 점심 뭐 먹지\n",
+        encoding="utf-8",
+    )
+
+    messages = backend._build_messages(request)
+    user_turns = [m for m in messages if m["role"] == "user"]
+    matching = [m for m in user_turns if m["content"] == "오늘 점심 뭐 먹지"]
+    assert len(matching) == 1, (
+        f"current user prompt should appear once, got {len(matching)}: {matching}"
+    )
+    # Older user turn survives.
+    assert any(m["content"] == "어제 저녁" for m in user_turns)
+    assert any(m["role"] == "assistant" for m in messages)
+
+
+def test_build_messages_dedupes_only_when_content_matches(
+    tmp_path: Path, env_api_key: None
+) -> None:
+    """A trailing user turn whose text differs from request.user_prompt
+    must NOT be dropped — that would lose context.
+    """
+    backend = OpenRouterBackend(_bot_config())
+    request = _request(tmp_path, user_prompt="새로운 질문")
+    log = request.session_directory / "conversation-260425.md"
+    log.write_text(
+        "\n## user (2026-04-25 09:31:00 UTC)\n\n이전 질문\n",
+        encoding="utf-8",
+    )
+
+    messages = backend._build_messages(request)
+    user_turns = [m for m in messages if m["role"] == "user"]
+    assert [m["content"] for m in user_turns] == ["이전 질문", "새로운 질문"]
+
+
+def test_build_messages_respects_backend_max_history(
+    tmp_path: Path, env_api_key: None
+) -> None:
+    """``backend.max_history`` from bot.yaml must take effect. Regression
+    for Codex P2 on PR #8 — previously the dataclass default of 20 was
+    used regardless of the configured cap.
+    """
+    backend = OpenRouterBackend(_bot_config(backend={"max_history": 2}))
+    # Use the dataclass default for request.max_history (callers don't set it).
+    request = _request(tmp_path, user_prompt="현재 메시지")
+    # The fixture sets max_history=5 explicitly; reset to dataclass
+    # default so we exercise the precedence path that falls back to
+    # ``backend.max_history``.
+    object.__setattr__(request, "max_history", 20)
+
+    log = request.session_directory / "conversation-260425.md"
+    log.write_text(
+        "\n## user (2026-04-25 09:30:00 UTC)\n\nmsg-1\n"
+        "\n## assistant (2026-04-25 09:30:01 UTC)\n\nreply-1\n"
+        "\n## user (2026-04-25 09:30:02 UTC)\n\nmsg-2\n"
+        "\n## assistant (2026-04-25 09:30:03 UTC)\n\nreply-2\n"
+        "\n## user (2026-04-25 09:30:04 UTC)\n\nmsg-3\n"
+        "\n## assistant (2026-04-25 09:30:05 UTC)\n\nreply-3\n",
+        encoding="utf-8",
+    )
+
+    messages = backend._build_messages(request)
+    history = [m for m in messages if m["role"] in ("user", "assistant")]
+    # cap=2 history + 1 current user = 3 user/assistant entries total.
+    assert len(history) == 3, history
+    contents = [m["content"] for m in history]
+    assert contents[-1] == "현재 메시지"
+    assert contents[-2] == "reply-3"
+    assert contents[-3] == "msg-3"
+
+
+def test_build_messages_request_override_wins_over_backend_cap(
+    tmp_path: Path, env_api_key: None
+) -> None:
+    """A caller that explicitly raises ``request.max_history`` above the
+    dataclass default of 20 wins over the bot-configured cap so one-off
+    callers (cron, heartbeat) can widen the window for their own runs.
+    """
+    backend = OpenRouterBackend(_bot_config(backend={"max_history": 2}))
+    request = _request(tmp_path, user_prompt="now", max_history=10)
+    log = request.session_directory / "conversation-260425.md"
+    log.write_text(
+        "".join(
+            f"\n## user (2026-04-25 09:30:{index:02d} UTC)\n\nmsg-{index}\n"
+            for index in range(8)
+        ),
+        encoding="utf-8",
+    )
+
+    # max_history=10 means we keep up to 10 history items; we only have
+    # 8 in the log so all of them survive plus the current message.
+    messages = backend._build_messages(request)
+    user_turns = [m for m in messages if m["role"] == "user"]
+    assert len(user_turns) == 9
