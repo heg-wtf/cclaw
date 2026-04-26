@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,8 +14,10 @@ interface SessionData {
 
 export default function ConversationPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const name = params.name as string;
   const chatId = params.chatId as string;
+  const requestedDate = searchParams.get("date") ?? "";
 
   const [conversationFiles, setConversationFiles] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -32,13 +34,19 @@ export default function ConversationPage() {
           const files = session.conversationFiles as string[];
           setConversationFiles(files);
           if (files.length > 0) {
-            const latest = files[files.length - 1];
-            const date = latest.replace("conversation-", "").replace(".md", "");
-            setSelectedDate(date);
+            const dates = files.map((f) =>
+              f.replace("conversation-", "").replace(".md", ""),
+            );
+            const fallback = dates[dates.length - 1];
+            const initial =
+              requestedDate && dates.includes(requestedDate)
+                ? requestedDate
+                : fallback;
+            setSelectedDate(initial);
           }
         }
       });
-  }, [name, chatId]);
+  }, [name, chatId, requestedDate]);
 
   useEffect(() => {
     if (!selectedDate) return;
