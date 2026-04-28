@@ -47,7 +47,7 @@ export default async function BotDetailPage({
         <BotAvatar
           botName={name}
           displayName={bot.display_name || bot.telegram_botname || bot.name}
-          size="lg"
+          size="sm"
         />
         <h1 className="text-2xl font-bold">
           {bot.display_name || bot.telegram_botname || bot.name}
