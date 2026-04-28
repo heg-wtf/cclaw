@@ -5,11 +5,12 @@ import { useState } from "react";
 interface BotAvatarProps {
   botName: string;
   displayName: string;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   className?: string;
 }
 
 const SIZE_CLASSES = {
+  xs: "w-5 h-5 text-xs",
   sm: "w-8 h-8 text-sm",
   md: "w-12 h-12 text-base",
   lg: "w-16 h-16 text-xl",
