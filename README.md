@@ -116,18 +116,18 @@ abyss skills setup <name>      # Activate (check requirements)
 
 ## LLM Backends
 
-Each bot picks its LLM backend in `bot.yaml`. The default is **Claude Code** (no config change required for existing bots); **OpenRouter** is opt-in for cheap / fast text-only chat.
+Each bot picks its LLM backend in `bot.yaml`. The default is **Claude Code** (no config change required for existing bots); **OpenAI-compatible** is opt-in for cheap / fast text-only chat via OpenRouter, MiniMax, or any OpenAI-compatible endpoint.
 
-| | Claude Code (default) | OpenRouter |
+| | Claude Code (default) | OpenAI-Compatible (opt-in) |
 |---|---|---|
-| Driver | `claude -p` + Python Agent SDK | OpenRouter chat completions API |
+| Driver | `claude -p` + Python Agent SDK | httpx → any OpenAI-compatible chat completions API |
 | Tools (Bash / Read / Write / Edit / Grep) | ✅ | ❌ |
 | MCP servers (skills with `mcp.json`) | ✅ | ❌ |
 | Session continuity (`--resume`) | ✅ | replays last `max_history` turns from disk |
 | Streaming | SDK pool (per-token) | SSE chunks |
 | Cancellation | SDK interrupt + subprocess kill | cancels in-flight HTTPX task |
 
-OpenRouter sits in front of 200+ models (Anthropic / OpenAI / DeepSeek / Qwen / etc.). Pick it for bots where you want speed and cost over agent capabilities. The `abyss bot add` wizard prompts for the choice. Step-by-step setup: [docs/OPENROUTER_SETUP.md](docs/OPENROUTER_SETUP.md).
+**OpenRouter** sits in front of 200+ models (Anthropic / OpenAI / DeepSeek / Qwen / etc.). **MiniMax** offers fast, cost-effective multilingual models. Any OpenAI-compatible endpoint is supported via `provider: custom`. Step-by-step setup: [docs/OPENROUTER_SETUP.md](docs/OPENROUTER_SETUP.md) · [docs/MINIMAX_SETUP.md](docs/MINIMAX_SETUP.md).
 
 ```yaml
 # bot.yaml — opt-in OpenRouter
@@ -135,6 +135,15 @@ backend:
   type: openrouter
   api_key_env: OPENROUTER_API_KEY
   model: anthropic/claude-haiku-4.5
+  max_history: 20
+  max_tokens: 4096
+
+# bot.yaml — opt-in MiniMax (direct)
+backend:
+  type: openai_compat
+  provider: minimax
+  api_key_env: MINIMAX_API_KEY
+  model: MiniMax-Text-01
   max_history: 20
   max_tokens: 4096
 ```
@@ -237,7 +246,7 @@ Use the `/send` command to retrieve workspace files back via Telegram.
 | Cron Scheduler | croniter |
 | Encrypted Backup | pyzipper (AES-256) |
 | LLM Backend (default) | Claude Code CLI (`claude -p`, streaming) + Python Agent SDK persistent session pool |
-| LLM Backend (opt-in) | OpenRouter via httpx (200+ models, text-only chat, SSE streaming) |
+| LLM Backend (opt-in) | OpenAI-compatible via httpx — OpenRouter (200+ models), MiniMax (direct), or any custom endpoint (text-only chat, SSE streaming) |
 | Conversation Index | SQLite FTS5 (stdlib, no extra dependency) |
 | Logging | Rich (RichHandler, colorized console) |
 | Process Manager | launchd (macOS) |
@@ -381,12 +390,12 @@ abyss dashboard restart --daemon   # Restart as background
 abyss dashboard status             # Show status
 
 # Or directly
-cd abysscope && npx next dev --port 3847
+cd abysscope && npx next build && npx next start --port 3847
 ```
 
 | Feature | Description |
 |---------|-------------|
-| Dashboard | Bot cards, quick stats, disk usage, system status |
+| Dashboard | Frequency heatmap (GitHub-style, all bots merged), disk usage breakdown, bot cards with profile photos, system status, abyss version |
 | Bot Detail | Profile, cron editor (recurring/one-shot), session management (delete), memory editor (markdown view) |
 | Bot Editor | Edit bot.yaml fields (model, skills, personality, heartbeat) |
 | Skills | Built-in (read-only) / Custom (add, edit, delete), skill cards with usage info |

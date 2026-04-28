@@ -223,17 +223,28 @@ QMD (local markdown search engine) is automatically available to all bots when t
 
 ### 13.6. LLM Backend Abstraction
 
-abyss routes every model call through `abyss.llm.LLMBackend`. Two backends ship today; new ones drop in by registering a class with `abyss.llm.register`.
+abyss routes every model call through `abyss.llm.LLMBackend`. New backends drop in by registering a class with `abyss.llm.register`.
 
 - **`claude_code` (default)** — `ClaudeCodeBackend` wraps `claude_runner.run_claude_with_sdk` and `run_claude_streaming_with_sdk`. Full agent capabilities preserved: built-in tools, MCP, skills, `/resume`, `/cancel`. No bot.yaml change required.
-- **`openrouter` (opt-in)** — `OpenRouterBackend` talks to OpenRouter's OpenAI-compatible chat completions endpoint via `httpx`. Text-only: no tool invocation, no MCP, no `/resume` continuity. Conversation history is replayed from `conversation-YYMMDD.md` (capped at `max_history`) and `CLAUDE.md` is sent as the system prompt.
+- **`openai_compat` (opt-in)** — `OpenAICompatBackend` in `llm/openai_compat.py`. Talks to any OpenAI-compatible chat completions endpoint via `httpx`. Text-only: no tool invocation, no MCP, no `/resume` continuity. Conversation history replayed from `conversation-YYMMDD.md` (capped at `max_history`); `CLAUDE.md` sent as system prompt. Built-in `PROVIDER_PRESETS` for `openrouter`, `minimax` (international), `minimax_china`.
+- **`openrouter` (backward-compat alias)** — `OpenRouterBackend` in `llm/openrouter.py` is a thin subclass of `OpenAICompatBackend` with `type="openrouter"` and `_default_provider="openrouter"`. Existing `bot.yaml` files with `type: openrouter` continue to work unchanged.
 - **Per-bot selection** via `bot.yaml`:
 
   ```yaml
+  # OpenRouter
   backend:
     type: openrouter
     api_key_env: OPENROUTER_API_KEY
     model: anthropic/claude-haiku-4.5
+    max_history: 20
+    max_tokens: 4096
+
+  # MiniMax (direct)
+  backend:
+    type: openai_compat
+    provider: minimax
+    api_key_env: MINIMAX_API_KEY
+    model: MiniMax-Text-01
     max_history: 20
     max_tokens: 4096
   ```
@@ -241,8 +252,8 @@ abyss routes every model call through `abyss.llm.LLMBackend`. Two backends ship 
 - **Per-bot caching** — `get_or_create(bot_name, bot_config)` keeps one backend instance per bot for the process lifetime so HTTPX clients / SDK pools are shared across handler / cron / heartbeat call sites. The instance's `bot_config` is refreshed on each lookup so config changes take effect without process restart (backend type changes still recreate).
 - **Cancellation** — `/cancel` looks up the cached backend (`cached_backend(bot_name)`) and calls `backend.cancel(session_key)`. Falls through to legacy Claude Code cancel paths for bots that haven't yet warmed up a backend.
 - **Shutdown** — `bot_manager` calls `abyss.llm.close_all()` before stopping the SDK pool so HTTPX clients release sockets cleanly.
-- **OpenRouter user-message dedup** — abyss handlers call `log_conversation` *before* `backend.run`, so the markdown log already contains the current user message. `OpenRouterBackend._build_messages` drops a trailing user turn whose content matches `request.user_prompt` so the model never sees the same input twice (which inflates tokens and biases responses).
-- **OpenRouter `max_history` precedence** — explicit caller override (`request.max_history` set above the dataclass default of 20) wins, otherwise `bot.yaml`'s `backend.max_history` is honored, otherwise the dataclass default applies. `_load_history` reads `cap + 1` so dedup never trims below the configured window.
+- **User-message dedup** — abyss handlers call `log_conversation` *before* `backend.run`, so the markdown log already contains the current user message. `OpenAICompatBackend._build_messages` drops a trailing user turn whose content matches `request.user_prompt` to avoid sending the same input twice.
+- **`max_history` precedence** — explicit caller override (above the dataclass default of 20) wins, otherwise `bot.yaml`'s `backend.max_history` is honored, otherwise the dataclass default applies. `_load_history` reads `cap + 1` so dedup never trims below the configured window.
 - **Tests** — `tests/conftest.py::clear_llm_backend_cache` autouse fixture wipes the per-bot cache between tests. End-to-end OpenRouter tests under `tests/evaluation/test_openrouter_e2e.py` are gated on `OPENROUTER_API_KEY` and excluded from CI.
 
 ### 14. Session Continuity
