@@ -332,9 +332,16 @@ def _prepare_skill_config(
         )
         return None, None
 
+    from abyss.config import get_claude_code_env
+
     mcp_config = None
     allowed_tools: list[str] = []
-    environment_variables = None
+
+    # Always inject Claude Code feature env vars (prompt caching, fork
+    # subagent, MCP nonblocking, hide cwd, AI_AGENT). Skill env vars
+    # override these when keys collide.
+    claude_code_env = get_claude_code_env()
+    environment_variables: dict[str, str] = {**os.environ, **claude_code_env}
 
     # Process attached skills
     if skill_names:
@@ -342,7 +349,7 @@ def _prepare_skill_config(
 
         skill_environment_variables = collect_skill_environment_variables(skill_names)
         if skill_environment_variables:
-            environment_variables = {**os.environ, **skill_environment_variables}
+            environment_variables = {**environment_variables, **skill_environment_variables}
 
         allowed_tools = collect_skill_allowed_tools(skill_names)
 

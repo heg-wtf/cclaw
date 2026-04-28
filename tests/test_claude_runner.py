@@ -441,17 +441,69 @@ def test_write_session_settings_empty_tools(tmp_path):
 
 @pytest.mark.asyncio
 async def test_run_claude_without_skill_names():
-    """run_claude does not inject MCP/env when skill_names is None."""
+    """run_claude returns env=None when working_directory does not exist."""
     mock_process = MagicMock()
     mock_process.communicate = AsyncMock(return_value=(b"output", b""))
     mock_process.returncode = 0
 
     with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
         mock_exec.return_value = mock_process
-        await run_claude("/tmp/test", "Hello", skill_names=None)
+        # /tmp/does-not-exist-xyz triggers the early-return branch in
+        # _prepare_skill_config, so no env is composed.
+        await run_claude("/tmp/does-not-exist-xyz-abyss", "Hello", skill_names=None)
 
     call_kwargs = mock_exec.call_args[1]
     assert call_kwargs["env"] is None
+
+
+@pytest.mark.asyncio
+async def test_run_claude_injects_claude_code_env_without_skills(tmp_path, monkeypatch):
+    """Claude Code env vars are injected even when no skills are attached."""
+    # Use temp ABYSS_HOME so config defaults apply (all toggles on).
+    monkeypatch.setenv("ABYSS_HOME", str(tmp_path / ".abyss"))
+
+    mock_process = MagicMock()
+    mock_process.communicate = AsyncMock(return_value=(b"output", b""))
+    mock_process.returncode = 0
+
+    with patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = mock_process
+        await run_claude(str(tmp_path), "Hello", skill_names=None)
+
+    call_kwargs = mock_exec.call_args[1]
+    env = call_kwargs["env"]
+    assert env is not None
+    assert env["AI_AGENT"] == "abyss"
+    assert env["ENABLE_PROMPT_CACHING_1H"] == "1"
+    assert env["CLAUDE_CODE_FORK_SUBAGENT"] == "1"
+    assert env["MCP_CONNECTION_NONBLOCKING"] == "true"
+    assert env["CLAUDE_CODE_HIDE_CWD"] == "1"
+
+
+@pytest.mark.asyncio
+async def test_run_claude_skill_env_overrides_claude_code_env(tmp_path, monkeypatch):
+    """Skill env vars take precedence on key collision."""
+    monkeypatch.setenv("ABYSS_HOME", str(tmp_path / ".abyss"))
+
+    mock_process = MagicMock()
+    mock_process.communicate = AsyncMock(return_value=(b"output", b""))
+    mock_process.returncode = 0
+
+    with (
+        patch(MOCK_SUBPROCESS, new_callable=AsyncMock) as mock_exec,
+        patch("abyss.skill.merge_mcp_configs", return_value=None),
+        patch(
+            "abyss.skill.collect_skill_environment_variables",
+            return_value={"AI_AGENT": "custom-skill"},
+        ),
+    ):
+        mock_exec.return_value = mock_process
+        await run_claude(str(tmp_path), "Hello", skill_names=["override-skill"])
+
+    env = mock_exec.call_args[1]["env"]
+    assert env["AI_AGENT"] == "custom-skill"
+    # Other Claude Code env still injected
+    assert env["ENABLE_PROMPT_CACHING_1H"] == "1"
 
 
 # --- Streaming helper tests ---

@@ -37,10 +37,35 @@ Shared function that handles skill-related file setup for both SDK pool and subp
 
 - Writes `.mcp.json` to working directory (merged MCP configs from all attached skills)
 - Writes `.claude/settings.json` with `allowedTools` list
-- Collects environment variables from all attached skills
+- Always merges Claude Code feature env vars (see below) on top of `os.environ`
+- Collects environment variables from all attached skills (skills override Claude Code env on key collision)
 - **QMD auto-injection**: When `shutil.which("qmd")` returns non-None, auto-appends QMD HTTP MCP server config and allowed tools regardless of skill attachment
 - Returns `(allowed_tools, environment_variables)` tuple
 - Used by `run_claude()`, `run_claude_streaming()`, `run_claude_with_sdk()`, `run_claude_streaming_with_sdk()`
+
+### Claude Code Feature Env Vars
+
+`config.get_claude_code_env()` returns env vars injected into every `claude -p` subprocess and Python Agent SDK call. The `claude_code` section of `~/.abyss/config.yaml` toggles each one (default: all on):
+
+| `config.yaml` key       | Env var                       | Value  | Effect |
+|-------------------------|-------------------------------|--------|--------|
+| `prompt_caching_1h`     | `ENABLE_PROMPT_CACHING_1H`    | `1`    | Switches Claude Code prompt cache TTL from 5m to 1h. Reduces re-prompt cost for idle bots and multi-call heartbeat/cron flows |
+| `fork_subagent`         | `CLAUDE_CODE_FORK_SUBAGENT`   | `1`    | Enables forked subagents in non-interactive (`-p`) mode. Lets bots run parallel sub-tasks |
+| `mcp_nonblocking`       | `MCP_CONNECTION_NONBLOCKING`  | `true` | `claude -p` no longer blocks startup waiting on slow MCP servers (auto-retry handles transient failures) |
+| `hide_cwd`              | `CLAUDE_CODE_HIDE_CWD`        | `1`    | Masks the working-directory path from system prompts. Hides `~/.abyss/bots/<name>/sessions/...` from the model |
+| (always-on, not toggle) | `AI_AGENT`                    | `abyss`| Marks subprocesses as launched by abyss. Used by hook scripts (Phase 3+) to short-circuit when fired outside abyss |
+
+Example `config.yaml`:
+
+```yaml
+claude_code:
+  prompt_caching_1h: true
+  fork_subagent: true
+  mcp_nonblocking: true
+  hide_cwd: true
+```
+
+A missing or invalid `claude_code` section falls back to all-on defaults. `bot_manager._run_bots` logs the active env at startup.
 
 ## Python Agent SDK Client Pool
 
