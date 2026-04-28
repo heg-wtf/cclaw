@@ -329,6 +329,7 @@ def dashboard_start(
     _ensure_node_modules(abysscope_directory)
 
     import importlib.metadata
+
     abyss_version = importlib.metadata.version("abyss")
     next_env = {**os.environ, "NEXT_PUBLIC_ABYSS_VERSION": abyss_version}
 
