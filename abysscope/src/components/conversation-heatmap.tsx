@@ -4,10 +4,10 @@ const WEEKS = 52;
 
 function getColorClass(count: number): string {
   if (count === 0) return "bg-muted";
-  if (count <= 2) return "bg-emerald-200 dark:bg-emerald-900";
-  if (count <= 5) return "bg-emerald-400 dark:bg-emerald-700";
-  if (count <= 10) return "bg-emerald-600 dark:bg-emerald-500";
-  return "bg-emerald-800 dark:bg-emerald-300";
+  if (count <= 2) return "bg-blue-200 dark:bg-blue-900";
+  if (count <= 5) return "bg-blue-400 dark:bg-blue-700";
+  if (count <= 10) return "bg-blue-600 dark:bg-blue-500";
+  return "bg-blue-800 dark:bg-blue-300";
 }
 
 function buildGrid(data: Record<string, number>): { date: string; count: number }[][] {
@@ -95,7 +95,7 @@ export function ConversationHeatmap({ data, total }: Props) {
                   return (
                     <div
                       key={week}
-                      className={`flex-1 aspect-square rounded-none ${getColorClass(cell.count)}`}
+                      className={`flex-1 aspect-square rounded-full ${getColorClass(cell.count)}`}
                       title={cell.date ? `${cell.date}: ${cell.count}` : ""}
                     />
                   );
