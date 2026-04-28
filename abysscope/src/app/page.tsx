@@ -38,7 +38,7 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">~/.abyss Disk Breakdown</CardTitle>
+          <CardTitle className="text-base">Disk Breakdown</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
