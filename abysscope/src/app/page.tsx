@@ -26,7 +26,14 @@ export default function DashboardPage() {
   const bots = listBots();
   const status = getSystemStatus();
   const diskUsage = getDiskUsage();
-  const frequency = getConversationFrequency();
+  const frequencyByBot = getConversationFrequency();
+  const mergedFrequency = frequencyByBot.reduce<Record<string, number>>((acc, bot) => {
+    for (const [date, count] of Object.entries(bot.data)) {
+      acc[date] = (acc[date] || 0) + count;
+    }
+    return acc;
+  }, {});
+  const totalConversations = frequencyByBot.reduce((sum, bot) => sum + bot.total, 0);
 
   return (
     <div className="space-y-6">
@@ -41,10 +48,8 @@ export default function DashboardPage() {
       <div>
         <h2 className="text-lg font-semibold mb-4">Frequency</h2>
         <Card>
-          <CardContent className="pt-4 space-y-6">
-            {frequency.map((bot) => (
-              <ConversationHeatmap key={bot.botName} bot={bot} />
-            ))}
+          <CardContent className="pt-4">
+            <ConversationHeatmap data={mergedFrequency} total={totalConversations} />
           </CardContent>
         </Card>
       </div>

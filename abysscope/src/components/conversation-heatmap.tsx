@@ -1,4 +1,3 @@
-import type { BotConversationFrequency } from "@/lib/abyss";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKS = 52;
@@ -58,18 +57,18 @@ function getMonthLabels(columns: { date: string; count: number }[][]): { label: 
 }
 
 interface Props {
-  bot: BotConversationFrequency;
+  data: Record<string, number>;
+  total: number;
 }
 
-export function ConversationHeatmap({ bot }: Props) {
-  const columns = buildGrid(bot.data);
+export function ConversationHeatmap({ data, total }: Props) {
+  const columns = buildGrid(data);
   const monthLabels = getMonthLabels(columns);
 
   return (
     <div className="space-y-1">
-      <div className="flex items-baseline justify-between">
-        <span className="text-sm font-medium">{bot.displayName}</span>
-        <span className="text-xs text-muted-foreground">{bot.total} conversations</span>
+      <div className="flex items-baseline justify-end">
+        <span className="text-xs text-muted-foreground">{total} conversations</span>
       </div>
       <div className="overflow-x-auto">
         <div className="inline-flex flex-col gap-1 min-w-max">
