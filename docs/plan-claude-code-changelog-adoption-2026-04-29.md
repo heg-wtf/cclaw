@@ -94,10 +94,10 @@ claude_code:
 
 `alwaysLoad` 옵션과 `_meta["anthropic/maxResultSizeChars"]` 응답 헤더 적용.
 
-- [ ] Step 2.1: `skill.py` 에서 conversation_search MCP entry 에 `alwaysLoad: true` 부여 (옵션화)
-- [ ] Step 2.2: `mcp_servers/conversation_search.py` 응답에 `_meta = {"anthropic/maxResultSizeChars": 500000}` 추가
-- [ ] Step 2.3: skill mcp.json 스펙 문서에 `alwaysLoad` 키 설명 추가 (`docs/TECHNICAL-NOTES.md`)
-- [ ] Step 2.4: QMD MCP 도 동일 처리 검토 (대용량 쿼리 응답 잘림 방지)
+- [x] Step 2.1: conversation_search 와 QMD MCP 엔트리에 `alwaysLoad: true` 옵션화 — `claude_code.mcp_always_load` 토글 (default on)
+- [x] Step 2.2: `mcp_servers/conversation_search.py` 응답에 `_meta = {"anthropic/maxResultSizeChars": 500000}` 추가 (정상 + 에러 분기 모두)
+- [x] Step 2.3: `docs/TECHNICAL-NOTES.md` 에 `alwaysLoad` / `_meta` 섹션 추가
+- [x] Step 2.4: QMD MCP 동일 처리 — `_qmd_mcp_server(always_load)` 헬퍼로 옵션 적용. QMD 자체 응답의 `_meta` 는 외부 서버라 abyss 측에서 손댈 수 없음 → 호출자 측 `alwaysLoad` 만 적용
 
 ### Phase 3: PreCompact Hook 도입
 
@@ -157,8 +157,12 @@ abysscope 에 도구별 실행시간 패널 추가 + skill 별 hook 게이팅.
 - [ ] `tests/test_sdk_client.py::test_sdk_env_injection` — `_prepare_skill_config` 단일 진입점이라 별도 SDK 테스트 불필요 (기존 테스트가 plumbing 검증)
 
 **Phase 2**
-- [ ] `tests/test_conversation_search.py::test_response_meta_size` — `_meta` 필드 존재
-- [ ] `tests/test_skill.py::test_mcp_alwaysload_propagation` — skill mcp.json 의 alwaysLoad 가 최종 MCP config 에 보존
+- [x] `tests/test_conversation_search_mcp.py::test_tools_call_result_carries_max_size_meta` — 성공 분기 `_meta` 검증
+- [x] `tests/test_conversation_search_mcp.py::test_tools_call_meta_present_on_error_branches` — 에러 분기 `_meta` 검증
+- [x] `tests/test_conversation_search_inject.py::test_conversation_search_marked_always_load_by_default` — alwaysLoad 기본 주입
+- [x] `tests/test_conversation_search_inject.py::test_conversation_search_omits_always_load_when_disabled` — 토글 false 시 미주입
+- [x] `tests/test_conversation_search_inject.py::test_qmd_mcp_server_helper_marks_always_load` — QMD 헬퍼 동작
+- [x] `tests/test_config.py::test_default_claude_code_config_includes_mcp_always_load` + `test_is_mcp_always_load_enabled_*` 3종 — config 헬퍼
 
 **Phase 3**
 - [ ] `tests/test_token_compact.py::test_compact_callable_via_hook` — hook 진입점 시그니처 호환

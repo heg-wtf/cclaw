@@ -27,6 +27,14 @@ PROTOCOL_VERSION = "2024-11-05"
 SERVER_NAME = "abyss-conversation-search"
 SERVER_VERSION = "1.0.0"
 
+# Tool result persistence ceiling, per Claude Code 2.1.91 changelog.
+# ``_meta["anthropic/maxResultSizeChars"]`` lets large search payloads
+# survive transcript persistence without truncation (default ceiling
+# would otherwise force the host to drop characters from the result).
+# 500_000 is the documented upper bound.
+MAX_RESULT_SIZE_CHARS = 500_000
+RESULT_META: dict[str, Any] = {"anthropic/maxResultSizeChars": MAX_RESULT_SIZE_CHARS}
+
 TOOL_NAME = "search_conversations"
 TOOL_DESCRIPTION = (
     "Full-text search over the bot's past conversations (BM25 ranking). "
@@ -160,6 +168,7 @@ def _handle_tools_call(
                     }
                 ],
                 "isError": True,
+                "_meta": dict(RESULT_META),
             },
         )
 
@@ -170,6 +179,7 @@ def _handle_tools_call(
             {
                 "content": [{"type": "text", "text": "Empty query — no search performed."}],
                 "isError": True,
+                "_meta": dict(RESULT_META),
             },
         )
 
@@ -193,7 +203,10 @@ def _handle_tools_call(
         limit=limit,
     )
 
-    return _result(request_id, {"content": _format_hits(hits, query)})
+    return _result(
+        request_id,
+        {"content": _format_hits(hits, query), "_meta": dict(RESULT_META)},
+    )
 
 
 def _parse_date(value: Any) -> datetime | None:

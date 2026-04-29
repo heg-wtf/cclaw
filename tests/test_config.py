@@ -17,6 +17,7 @@ from abyss.config import (
     get_claude_code_env,
     get_language,
     get_timezone,
+    is_mcp_always_load_enabled,
     load_bot_config,
     load_config,
     remove_bot_from_config,
@@ -328,13 +329,14 @@ def test_get_claude_code_env_invalid_section_falls_back(temp_abyss_home):
 
 
 def test_default_claude_code_config_keys():
-    """default_claude_code_config exposes all four toggles."""
+    """default_claude_code_config exposes all toggles, all on."""
     config = default_claude_code_config()
     assert set(config.keys()) == {
         "prompt_caching_1h",
         "fork_subagent",
         "mcp_nonblocking",
         "hide_cwd",
+        "mcp_always_load",
     }
     assert all(value is True for value in config.values())
 
@@ -384,3 +386,29 @@ def test_apply_claude_code_env_overwrites_host_value_when_enabled(temp_abyss_hom
     base = {"ENABLE_PROMPT_CACHING_1H": "stale-host-value"}
     result = apply_claude_code_env(base)
     assert result["ENABLE_PROMPT_CACHING_1H"] == "1"
+
+
+def test_default_claude_code_config_includes_mcp_always_load():
+    """default_claude_code_config exposes mcp_always_load alongside env toggles."""
+    config = default_claude_code_config()
+    assert "mcp_always_load" in config
+    assert config["mcp_always_load"] is True
+
+
+def test_is_mcp_always_load_enabled_default(temp_abyss_home):
+    """Default returns True when no config exists."""
+    assert is_mcp_always_load_enabled() is True
+
+
+def test_is_mcp_always_load_enabled_user_disable(temp_abyss_home):
+    """Setting mcp_always_load=false flips the helper to False."""
+    config = default_config()
+    config["claude_code"]["mcp_always_load"] = False
+    save_config(config)
+    assert is_mcp_always_load_enabled() is False
+
+
+def test_is_mcp_always_load_enabled_invalid_section(temp_abyss_home):
+    """Invalid claude_code section falls back to True."""
+    save_config({"bots": [], "claude_code": "not-a-dict"})
+    assert is_mcp_always_load_enabled() is True

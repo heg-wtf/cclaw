@@ -127,15 +127,21 @@ def default_config() -> dict[str, Any]:
 def default_claude_code_config() -> dict[str, bool]:
     """Default toggles for Claude Code env injection.
 
-    Each key maps to an environment variable injected into ``claude -p``
-    subprocess and the Python Agent SDK. Users can disable any of them
-    by setting the value to ``false`` in ``config.yaml``.
+    Each ``*_env`` key maps to an environment variable injected into
+    ``claude -p`` subprocess and the Python Agent SDK. ``mcp_always_load``
+    flips on the ``alwaysLoad`` flag for abyss auto-injected MCP servers
+    (qmd, conversation_search) so the host preconnects them at startup
+    instead of lazily on first call.
+
+    Users can disable any toggle by setting the value to ``false`` in
+    ``config.yaml``.
     """
     return {
         "prompt_caching_1h": True,
         "fork_subagent": True,
         "mcp_nonblocking": True,
         "hide_cwd": True,
+        "mcp_always_load": True,
     }
 
 
@@ -171,6 +177,19 @@ def get_claude_code_env() -> dict[str, str]:
         if raw.get(toggle, True):
             env[var_name] = value
     return env
+
+
+def is_mcp_always_load_enabled() -> bool:
+    """Return whether abyss auto-injected MCP servers should set ``alwaysLoad``.
+
+    Reads the ``claude_code.mcp_always_load`` toggle. Default ``True``.
+    Set ``false`` in ``config.yaml`` to revert to lazy MCP connection.
+    """
+    config = load_config() or {}
+    raw = config.get("claude_code")
+    if not isinstance(raw, dict):
+        return True
+    return bool(raw.get("mcp_always_load", True))
 
 
 def apply_claude_code_env(base: dict[str, str]) -> dict[str, str]:
