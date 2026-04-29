@@ -120,7 +120,84 @@ def default_config() -> dict[str, Any]:
             "log_level": "INFO",
             "command_timeout": 300,
         },
+        "claude_code": default_claude_code_config(),
     }
+
+
+def default_claude_code_config() -> dict[str, bool]:
+    """Default toggles for Claude Code env injection.
+
+    Each key maps to an environment variable injected into ``claude -p``
+    subprocess and the Python Agent SDK. Users can disable any of them
+    by setting the value to ``false`` in ``config.yaml``.
+    """
+    return {
+        "prompt_caching_1h": True,
+        "fork_subagent": True,
+        "mcp_nonblocking": True,
+        "hide_cwd": True,
+    }
+
+
+# Map config toggle name -> (env var name, env value when enabled)
+CLAUDE_CODE_ENV_TOGGLES: dict[str, tuple[str, str]] = {
+    "prompt_caching_1h": ("ENABLE_PROMPT_CACHING_1H", "1"),
+    "fork_subagent": ("CLAUDE_CODE_FORK_SUBAGENT", "1"),
+    "mcp_nonblocking": ("MCP_CONNECTION_NONBLOCKING", "true"),
+    "hide_cwd": ("CLAUDE_CODE_HIDE_CWD", "1"),
+}
+
+# Always-on env vars (cannot be disabled).
+CLAUDE_CODE_ENV_ALWAYS: dict[str, str] = {
+    "AI_AGENT": "abyss",
+}
+
+
+def get_claude_code_env() -> dict[str, str]:
+    """Return Claude Code env vars to inject into subprocess and SDK calls.
+
+    Reads the ``claude_code`` section of ``config.yaml`` and returns the
+    enabled env vars merged with always-on entries (``AI_AGENT``).
+
+    Missing or invalid config falls back to defaults (all toggles on).
+    """
+    config = load_config() or {}
+    raw = config.get("claude_code")
+    if not isinstance(raw, dict):
+        raw = default_claude_code_config()
+
+    env: dict[str, str] = dict(CLAUDE_CODE_ENV_ALWAYS)
+    for toggle, (var_name, value) in CLAUDE_CODE_ENV_TOGGLES.items():
+        if raw.get(toggle, True):
+            env[var_name] = value
+    return env
+
+
+def apply_claude_code_env(base: dict[str, str]) -> dict[str, str]:
+    """Return ``base`` env merged with Claude Code toggles.
+
+    Enabled toggles overwrite the corresponding key in ``base`` with the
+    abyss-controlled value. Disabled toggles **remove** the key from
+    ``base`` so that a stray host-shell export (e.g. ``ENABLE_PROMPT_CACHING_1H=1``
+    in ``~/.zshrc``) cannot resurrect the feature after the user has turned
+    it off in ``config.yaml``. Always-on entries are always set.
+
+    The input dict is not mutated.
+    """
+    config = load_config() or {}
+    raw = config.get("claude_code")
+    if not isinstance(raw, dict):
+        raw = default_claude_code_config()
+
+    result = dict(base)
+    for toggle, (var_name, value) in CLAUDE_CODE_ENV_TOGGLES.items():
+        if raw.get(toggle, True):
+            result[var_name] = value
+        else:
+            result.pop(var_name, None)
+    for var_name, value in CLAUDE_CODE_ENV_ALWAYS.items():
+        result[var_name] = value
+    return result
 
 
 def add_bot_to_config(name: str) -> None:

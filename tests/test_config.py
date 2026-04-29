@@ -7,11 +7,14 @@ import pytest
 from abyss.config import (
     abyss_home,
     add_bot_to_config,
+    apply_claude_code_env,
     bot_directory,
     bot_exists,
+    default_claude_code_config,
     default_config,
     detect_local_timezone,
     generate_claude_md,
+    get_claude_code_env,
     get_language,
     get_timezone,
     load_bot_config,
@@ -281,3 +284,103 @@ def test_get_language_missing_key(temp_abyss_home):
     """get_language returns Korean when config has no language key."""
     save_config({"bots": [], "settings": {}})
     assert get_language() == "Korean"
+
+
+# --- Claude Code env tests ---
+
+
+def test_get_claude_code_env_defaults_no_config(temp_abyss_home):
+    """All toggles enabled by default when config.yaml is missing."""
+    env = get_claude_code_env()
+    assert env["AI_AGENT"] == "abyss"
+    assert env["ENABLE_PROMPT_CACHING_1H"] == "1"
+    assert env["CLAUDE_CODE_FORK_SUBAGENT"] == "1"
+    assert env["MCP_CONNECTION_NONBLOCKING"] == "true"
+    assert env["CLAUDE_CODE_HIDE_CWD"] == "1"
+
+
+def test_get_claude_code_env_user_disable(temp_abyss_home):
+    """User can disable individual toggles via config.yaml."""
+    config = default_config()
+    config["claude_code"] = {
+        "prompt_caching_1h": False,
+        "fork_subagent": True,
+        "mcp_nonblocking": False,
+        "hide_cwd": True,
+    }
+    save_config(config)
+
+    env = get_claude_code_env()
+    assert "ENABLE_PROMPT_CACHING_1H" not in env
+    assert "MCP_CONNECTION_NONBLOCKING" not in env
+    assert env["CLAUDE_CODE_FORK_SUBAGENT"] == "1"
+    assert env["CLAUDE_CODE_HIDE_CWD"] == "1"
+    # AI_AGENT is always on, not user-toggleable
+    assert env["AI_AGENT"] == "abyss"
+
+
+def test_get_claude_code_env_invalid_section_falls_back(temp_abyss_home):
+    """Invalid claude_code section falls back to defaults."""
+    save_config({"bots": [], "claude_code": "not-a-dict"})
+    env = get_claude_code_env()
+    assert env["ENABLE_PROMPT_CACHING_1H"] == "1"
+    assert env["AI_AGENT"] == "abyss"
+
+
+def test_default_claude_code_config_keys():
+    """default_claude_code_config exposes all four toggles."""
+    config = default_claude_code_config()
+    assert set(config.keys()) == {
+        "prompt_caching_1h",
+        "fork_subagent",
+        "mcp_nonblocking",
+        "hide_cwd",
+    }
+    assert all(value is True for value in config.values())
+
+
+def test_apply_claude_code_env_strips_host_value_on_disable(temp_abyss_home):
+    """Disabled toggle removes the var even if host env exports it."""
+    config = default_config()
+    config["claude_code"] = {
+        "prompt_caching_1h": False,
+        "fork_subagent": True,
+        "mcp_nonblocking": False,
+        "hide_cwd": True,
+    }
+    save_config(config)
+
+    base = {
+        "PATH": "/usr/bin",
+        "ENABLE_PROMPT_CACHING_1H": "1",  # leftover from user shell profile
+        "MCP_CONNECTION_NONBLOCKING": "true",  # ditto
+        "UNRELATED": "keep",
+    }
+    result = apply_claude_code_env(base)
+
+    # Disabled toggles -> stripped, not preserved from host env
+    assert "ENABLE_PROMPT_CACHING_1H" not in result
+    assert "MCP_CONNECTION_NONBLOCKING" not in result
+    # Enabled toggles -> set
+    assert result["CLAUDE_CODE_FORK_SUBAGENT"] == "1"
+    assert result["CLAUDE_CODE_HIDE_CWD"] == "1"
+    # Always-on
+    assert result["AI_AGENT"] == "abyss"
+    # Unrelated host env preserved
+    assert result["PATH"] == "/usr/bin"
+    assert result["UNRELATED"] == "keep"
+
+
+def test_apply_claude_code_env_does_not_mutate_input(temp_abyss_home):
+    """apply_claude_code_env returns a new dict and leaves input intact."""
+    base = {"PATH": "/usr/bin", "ENABLE_PROMPT_CACHING_1H": "stale"}
+    snapshot = dict(base)
+    apply_claude_code_env(base)
+    assert base == snapshot
+
+
+def test_apply_claude_code_env_overwrites_host_value_when_enabled(temp_abyss_home):
+    """Enabled toggle overwrites whatever the host shell exported."""
+    base = {"ENABLE_PROMPT_CACHING_1H": "stale-host-value"}
+    result = apply_claude_code_env(base)
+    assert result["ENABLE_PROMPT_CACHING_1H"] == "1"

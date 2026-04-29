@@ -48,6 +48,14 @@ async def _run_bots(bot_names: list[str] | None = None) -> None:
     log_level = settings.get("log_level", "INFO")
     setup_logging(log_level)
 
+    from abyss.config import get_claude_code_env
+
+    claude_code_env = get_claude_code_env()
+    logger.info(
+        "Claude Code env injection enabled: %s",
+        ", ".join(sorted(claude_code_env.keys())),
+    )
+
     bots_to_run = config["bots"]
     if bot_names:
         bots_to_run = [b for b in bots_to_run if b["name"] in bot_names]
