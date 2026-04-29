@@ -117,3 +117,55 @@ def test_prepare_skill_config_resolves_bot_dir_for_cron(
     db_env = Path(server["env"]["ABYSS_CONVERSATION_DB"]).resolve()
     expected_db = (bot_path / "conversation.db").resolve()
     assert db_env == expected_db
+
+
+# ─── alwaysLoad: claude code 2.1.121 (Phase 2) ────────────────────────────
+
+
+@pytest.mark.enable_conversation_search
+def test_conversation_search_marked_always_load_by_default(
+    session_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Default config injects ``alwaysLoad: true`` for conversation_search."""
+    monkeypatch.setenv("ABYSS_HOME", str(session_dir.parent.parent.parent / ".abyss"))
+
+    from abyss.claude_runner import _prepare_skill_config
+
+    _prepare_skill_config(str(session_dir), None)
+
+    config = json.loads((session_dir / ".mcp.json").read_text())
+    assert config["mcpServers"]["conversation_search"]["alwaysLoad"] is True
+
+
+@pytest.mark.enable_conversation_search
+def test_conversation_search_omits_always_load_when_disabled(
+    session_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When mcp_always_load=false, the alwaysLoad key is not emitted."""
+    abyss_home = session_dir.parent.parent.parent / ".abyss"
+    monkeypatch.setenv("ABYSS_HOME", str(abyss_home))
+
+    from abyss.config import default_config, save_config
+
+    config = default_config()
+    config["claude_code"]["mcp_always_load"] = False
+    save_config(config)
+
+    from abyss.claude_runner import _prepare_skill_config
+
+    _prepare_skill_config(str(session_dir), None)
+
+    written = json.loads((session_dir / ".mcp.json").read_text())
+    assert "alwaysLoad" not in written["mcpServers"]["conversation_search"]
+
+
+def test_qmd_mcp_server_helper_marks_always_load() -> None:
+    """``_qmd_mcp_server(True)`` adds the alwaysLoad flag, ``False`` omits it."""
+    from abyss.claude_runner import _qmd_mcp_server
+
+    on = _qmd_mcp_server(True)
+    assert on["qmd"]["alwaysLoad"] is True
+    assert on["qmd"]["url"] == "http://localhost:8181/mcp"
+
+    off = _qmd_mcp_server(False)
+    assert "alwaysLoad" not in off["qmd"]

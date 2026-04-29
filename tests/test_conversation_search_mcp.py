@@ -239,3 +239,65 @@ def test_blank_query_reports_error(tmp_path: Path, monkeypatch: pytest.MonkeyPat
         monkeypatch,
     )
     assert responses[0]["result"]["isError"] is True
+
+
+# ─── case 8: tool result includes _meta size ceiling ──────────────────────
+
+
+def test_tools_call_result_carries_max_size_meta(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """All tools/call responses set ``_meta["anthropic/maxResultSizeChars"]``."""
+    db = tmp_path / "convo.db"
+    conversation_index.append(db, chat_id="chat_1", role="user", content="hello")
+    responses = _serve_lines(
+        db,
+        [
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "search_conversations", "arguments": {"query": "hello"}},
+            }
+        ],
+        monkeypatch,
+    )
+    meta = responses[0]["result"].get("_meta")
+    assert meta is not None
+    assert meta["anthropic/maxResultSizeChars"] == srv.MAX_RESULT_SIZE_CHARS
+    assert srv.MAX_RESULT_SIZE_CHARS == 500_000
+
+
+def test_tools_call_meta_present_on_error_branches(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``_meta`` is set on error paths (no DB env, blank query) too."""
+    no_env = _serve_lines(
+        None,
+        [
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "search_conversations", "arguments": {"query": "x"}},
+            }
+        ],
+        monkeypatch,
+    )
+    assert no_env[0]["result"]["_meta"]["anthropic/maxResultSizeChars"] == 500_000
+
+    db = tmp_path / "convo.db"
+    conversation_index.append(db, chat_id="chat_1", role="user", content="apple")
+    blank = _serve_lines(
+        db,
+        [
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "search_conversations", "arguments": {"query": ""}},
+            }
+        ],
+        monkeypatch,
+    )
+    assert blank[0]["result"]["_meta"]["anthropic/maxResultSizeChars"] == 500_000

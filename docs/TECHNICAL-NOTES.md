@@ -55,6 +55,16 @@ Shared function that handles skill-related file setup for both SDK pool and subp
 | `hide_cwd`              | `CLAUDE_CODE_HIDE_CWD`        | `1`    | Masks the working-directory path from system prompts. Hides `~/.abyss/bots/<name>/sessions/...` from the model |
 | (always-on, not toggle) | `AI_AGENT`                    | `abyss`| Marks subprocesses as launched by abyss. Used by hook scripts (Phase 3+) to short-circuit when fired outside abyss |
 
+### MCP `alwaysLoad` (Phase 2 — Claude Code 2.1.121)
+
+`config.is_mcp_always_load_enabled()` reads `claude_code.mcp_always_load` (default `True`). When on, abyss-injected MCP entries (qmd, conversation_search) are written to `.mcp.json` with `"alwaysLoad": true` so Claude Code preconnects them at host startup instead of lazily on first call. Combined with `MCP_CONNECTION_NONBLOCKING=true`, this avoids both startup latency *and* first-call latency for these two heavy MCPs.
+
+`_qmd_mcp_server(always_load: bool)` and `_conversation_search_mcp_server(working_directory)` are the helpers that emit the flag conditionally. User skills' own `mcp.json` entries pass through untouched.
+
+### MCP Tool Result Size Ceiling (Phase 2 — Claude Code 2.1.91)
+
+The `conversation_search` MCP server (`abyss/mcp_servers/conversation_search.py`) sets `_meta["anthropic/maxResultSizeChars"] = 500_000` on every `tools/call` result (success and error). Claude Code uses this hint when persisting tool output to the transcript so large hit lists are not silently truncated. The constant `MAX_RESULT_SIZE_CHARS` lives next to `RESULT_META` in the server module.
+
 Example `config.yaml`:
 
 ```yaml

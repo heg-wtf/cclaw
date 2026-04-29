@@ -241,6 +241,21 @@ async def run_claude(
 
 
 QMD_MCP_SERVER = {"qmd": {"type": "http", "url": "http://localhost:8181/mcp"}}
+
+
+def _qmd_mcp_server(always_load: bool) -> dict[str, dict]:
+    """Return the QMD MCP entry, optionally tagged ``alwaysLoad``.
+
+    ``alwaysLoad`` is a Claude Code 2.1.121 option that pre-connects the
+    MCP server at host startup. Only applied when the abyss config
+    toggle ``mcp_always_load`` is on.
+    """
+    entry = {"type": "http", "url": "http://localhost:8181/mcp"}
+    if always_load:
+        entry["alwaysLoad"] = True
+    return {"qmd": entry}
+
+
 QMD_ALLOWED_TOOLS = [
     "mcp__qmd__search",
     "mcp__qmd__vector_search",
@@ -289,14 +304,17 @@ def _conversation_search_mcp_server(working_directory: str) -> dict | None:
     if bot_dir is None:
         return None
 
+    from abyss.config import is_mcp_always_load_enabled
+
     db_path = bot_dir / "conversation.db"
-    return {
-        "conversation_search": {
-            "command": sys.executable,
-            "args": ["-m", "abyss.mcp_servers.conversation_search"],
-            "env": {"ABYSS_CONVERSATION_DB": str(db_path)},
-        }
+    entry: dict = {
+        "command": sys.executable,
+        "args": ["-m", "abyss.mcp_servers.conversation_search"],
+        "env": {"ABYSS_CONVERSATION_DB": str(db_path)},
     }
+    if is_mcp_always_load_enabled():
+        entry["alwaysLoad"] = True
+    return {"conversation_search": entry}
 
 
 def _prepare_skill_config(
@@ -357,10 +375,13 @@ def _prepare_skill_config(
 
     # Auto-inject QMD MCP if CLI is available (system-wide, all bots)
     if shutil.which("qmd"):
+        from abyss.config import is_mcp_always_load_enabled
+
+        qmd_entry = _qmd_mcp_server(is_mcp_always_load_enabled())
         if mcp_config:
-            mcp_config["mcpServers"].update(QMD_MCP_SERVER)
+            mcp_config["mcpServers"].update(qmd_entry)
         else:
-            mcp_config = {"mcpServers": dict(QMD_MCP_SERVER)}
+            mcp_config = {"mcpServers": dict(qmd_entry)}
         for tool in QMD_ALLOWED_TOOLS:
             if tool not in allowed_tools:
                 allowed_tools.append(tool)
