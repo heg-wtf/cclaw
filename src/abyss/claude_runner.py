@@ -72,6 +72,50 @@ def _abyss_precompact_hook_entry() -> dict[str, Any]:
     return {"matcher": "", "hooks": [{"type": "command", "command": command}]}
 
 
+def _abyss_posttooluse_hook_entry() -> dict[str, Any]:
+    """Build the PostToolUse hook entry that records tool latency metrics.
+
+    Claude Code 2.1.119 surfaces ``duration_ms`` on PostToolUse payloads.
+    abyss's hook (``abyss.hooks.log_tool_metrics``) appends one JSONL
+    event per tool call so abysscope can graph latency without a DB.
+    Matcher is ``*`` to capture every tool.
+    """
+    import sys
+
+    command = f"{sys.executable} -m abyss.hooks.log_tool_metrics"
+    return {"matcher": "*", "hooks": [{"type": "command", "command": command}]}
+
+
+def _merge_skill_hooks(
+    working_directory: str,
+    event_name: str,
+    existing: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Append skill-declared hook entries to the baseline list.
+
+    Each attached skill may declare ``hooks.<EventName>`` in its
+    ``skill.yaml`` (Claude Code event names: ``PreToolUse``, ``PostToolUse``,
+    ``PreCompact``, etc.). Entries can use the ``if`` field added in
+    Claude Code 2.1.85 for conditional firing — abyss writes the field
+    through verbatim.
+    """
+    from abyss.config import load_bot_config
+
+    bot_dir = _resolve_bot_dir_from_working_directory(working_directory)
+    if bot_dir is None:
+        return existing
+
+    bot_config = load_bot_config(bot_dir.name) or {}
+    skill_names = bot_config.get("skills") or []
+    if not skill_names:
+        return existing
+
+    from abyss.skill import collect_skill_hooks
+
+    skill_entries = collect_skill_hooks(skill_names, event_name)
+    return existing + skill_entries
+
+
 def _hooks_enabled_for_working_directory(working_directory: str) -> bool:
     """Return whether abyss should inject hooks for the given session.
 
@@ -124,8 +168,14 @@ def _write_session_settings(working_directory: str, allowed_tools: list[str]) ->
 
     if _hooks_enabled_for_working_directory(working_directory):
         settings["hooks"]["PreCompact"] = [_abyss_precompact_hook_entry()]
+        settings["hooks"]["PostToolUse"] = _merge_skill_hooks(
+            working_directory,
+            "PostToolUse",
+            existing=[_abyss_posttooluse_hook_entry()],
+        )
     else:
         settings["hooks"].pop("PreCompact", None)
+        settings["hooks"].pop("PostToolUse", None)
 
     # Disable all plugins for bot subprocess sessions.
     # Plugin hooks (e.g. context-mode) are loaded from
