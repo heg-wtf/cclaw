@@ -374,7 +374,8 @@ def test_write_session_settings_creates_file(tmp_path):
 
 def test_write_session_settings_blocks_inherited_hooks_with_clean_dict(tmp_path):
     """The hooks dict is clean-slate per session, blocking ~/.claude/settings.json
-    entries except the keys abyss explicitly populates (PreCompact + PostToolUse)."""
+    entries except the keys abyss explicitly populates (PreCompact +
+    PostToolUse + PostToolUseFailure)."""
     _write_session_settings(str(tmp_path), ["WebFetch"])
 
     settings_path = tmp_path / ".claude" / "settings.json"
@@ -383,7 +384,11 @@ def test_write_session_settings_blocks_inherited_hooks_with_clean_dict(tmp_path)
     assert "hooks" in settings
     # Only abyss-controlled events are present. User globals (e.g. UserPromptSubmit,
     # SessionStart) cannot leak into the bot subprocess.
-    assert set(settings["hooks"].keys()) == {"PreCompact", "PostToolUse"}
+    assert set(settings["hooks"].keys()) == {
+        "PreCompact",
+        "PostToolUse",
+        "PostToolUseFailure",
+    }
 
 
 def test_write_session_settings_disables_inherited_plugins(tmp_path):
@@ -501,7 +506,7 @@ def test_write_session_settings_command_uses_python_module(tmp_path):
 
 
 def test_write_session_settings_injects_post_tool_use(tmp_path):
-    """PostToolUse hook is registered for tool latency metrics."""
+    """PostToolUse hook is registered for tool latency metrics with outcome=success."""
     import sys
 
     _write_session_settings(str(tmp_path), ["WebFetch"])
@@ -513,7 +518,27 @@ def test_write_session_settings_injects_post_tool_use(tmp_path):
     assert entries[0]["matcher"] == "*"
     inner = entries[0]["hooks"][0]
     assert inner["type"] == "command"
-    assert inner["command"] == f"{sys.executable} -m abyss.hooks.log_tool_metrics"
+    assert "ABYSS_HOOK_OUTCOME=success" in inner["command"]
+    assert f"{sys.executable} -m abyss.hooks.log_tool_metrics" in inner["command"]
+
+
+def test_write_session_settings_injects_post_tool_use_failure(tmp_path):
+    """PostToolUseFailure hook is registered separately (CC fires the
+    failure channel for non-zero tool exits / exceptions; PostToolUse is
+    success-only). The hook command tags the event with outcome=failure
+    via ABYSS_HOOK_OUTCOME."""
+    import sys
+
+    _write_session_settings(str(tmp_path), ["WebFetch"])
+    with open(tmp_path / ".claude" / "settings.json") as file:
+        settings = json.load(file)
+
+    entries = settings["hooks"]["PostToolUseFailure"]
+    assert len(entries) == 1
+    assert entries[0]["matcher"] == "*"
+    inner = entries[0]["hooks"][0]
+    assert "ABYSS_HOOK_OUTCOME=failure" in inner["command"]
+    assert f"{sys.executable} -m abyss.hooks.log_tool_metrics" in inner["command"]
 
 
 def test_write_session_settings_omits_post_tool_use_when_bot_disables(tmp_path, monkeypatch):
@@ -542,6 +567,7 @@ def test_write_session_settings_omits_post_tool_use_when_bot_disables(tmp_path, 
         settings = json.load(file)
     assert "PreCompact" not in settings["hooks"]
     assert "PostToolUse" not in settings["hooks"]
+    assert "PostToolUseFailure" not in settings["hooks"]
 
 
 def test_write_session_settings_appends_skill_post_tool_use_hooks(tmp_path, monkeypatch):

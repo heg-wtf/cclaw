@@ -86,6 +86,47 @@ def test_records_event_for_resolved_bot(abyss_env: Path) -> None:
     assert rows[0]["duration_ms"] == 123.0
     assert rows[0]["exit_code"] == 0
     assert rows[0]["session_id"] == "abc-1"
+    # Default outcome is success when ABYSS_HOOK_OUTCOME is unset.
+    assert rows[0]["outcome"] == "success"
+
+
+def test_records_failure_outcome_from_env(abyss_env: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """When CC fires PostToolUseFailure, the wrapper sets
+    ABYSS_HOOK_OUTCOME=failure and the event is tagged accordingly."""
+    monkeypatch.setenv("ABYSS_HOOK_OUTCOME", "failure")
+
+    session = abyss_env / "bots" / "alpha" / "sessions" / "chat_1"
+    session.mkdir(parents=True)
+    payload = {
+        "cwd": str(session),
+        "tool_name": "Bash",
+        "duration_ms": 50.0,
+        "tool_response": {"error": "boom"},
+    }
+
+    assert log_tool_metrics.main(stdin=_stdin(payload)) == 0
+
+    rows_path = next((abyss_env / "bots" / "alpha" / "tool_metrics").glob("*.jsonl"))
+    rows = [json.loads(line) for line in rows_path.read_text().splitlines() if line.strip()]
+    assert rows[0]["outcome"] == "failure"
+
+
+def test_invalid_outcome_env_falls_back_to_success(
+    abyss_env: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A bogus ABYSS_HOOK_OUTCOME value defaults back to success rather
+    than corrupting the metrics with arbitrary strings."""
+    monkeypatch.setenv("ABYSS_HOOK_OUTCOME", "explosion")
+
+    session = abyss_env / "bots" / "alpha" / "sessions" / "chat_1"
+    session.mkdir(parents=True)
+    payload = {"cwd": str(session), "tool_name": "Bash", "duration_ms": 5.0}
+
+    assert log_tool_metrics.main(stdin=_stdin(payload)) == 0
+
+    rows_path = next((abyss_env / "bots" / "alpha" / "tool_metrics").glob("*.jsonl"))
+    rows = [json.loads(line) for line in rows_path.read_text().splitlines() if line.strip()]
+    assert rows[0]["outcome"] == "success"
 
 
 def test_reads_duration_from_nested_tool_response(abyss_env: Path) -> None:

@@ -118,6 +118,18 @@ def test_aggregate_groups_per_tool_and_counts_errors(abyss_home: Path) -> None:
     assert rows_in_order[0].tool == "Bash"
 
 
+def test_aggregate_counts_outcome_failure_without_exit_code(abyss_home: Path) -> None:
+    """PostToolUseFailure events have outcome=failure but no exit_code —
+    they must still count as errors."""
+    tool_metrics.append_event("alpha", "Bash", 10, exit_code=0, extra={"outcome": "success"})
+    tool_metrics.append_event("alpha", "Bash", 20, extra={"outcome": "failure"})
+    tool_metrics.append_event("alpha", "Bash", 30, extra={"outcome": "failure"})
+
+    rows = tool_metrics.aggregate("alpha")
+    assert rows[0].count == 3
+    assert rows[0].error_count == 2
+
+
 def test_aggregate_handles_missing_directory(abyss_home: Path) -> None:
     assert tool_metrics.aggregate("never-existed") == []
 

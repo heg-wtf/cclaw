@@ -81,7 +81,7 @@ A missing or invalid `claude_code` section falls back to all-on defaults. `bot_m
 
 ### PostToolUse Telemetry & Skill-Conditional Hooks (Phase 4 — Claude Code 2.1.85 / 2.1.119)
 
-`abyss/hooks/log_tool_metrics.py` is a stdin-driven Python script registered as a Claude Code PostToolUse hook (matcher `*`). For each tool call, Claude Code 2.1.119 surfaces `duration_ms` on the payload; the hook resolves the bot from `cwd`, then calls `abyss.tool_metrics.append_event(bot_name, tool, duration_ms, …)` to append one JSONL row per call.
+`abyss/hooks/log_tool_metrics.py` is a stdin-driven Python script registered as a Claude Code PostToolUse hook **and** PostToolUseFailure hook (matcher `*` for both). PostToolUse fires only on tool success — failed tool executions land on the separate `PostToolUseFailure` channel — so abyss registers the same script on both events and disambiguates via `ABYSS_HOOK_OUTCOME=success|failure` set in the hook command line. The recorded event carries an `outcome` field; aggregation counts a call as an error when `outcome == "failure"` **or** `exit_code != 0`. For each tool call, Claude Code 2.1.119 surfaces `duration_ms` on the payload; the hook resolves the bot from `cwd`, then calls `abyss.tool_metrics.append_event(bot_name, tool, duration_ms, …)` to append one JSONL row per call.
 
 Storage layout: `~/.abyss/bots/<name>/tool_metrics/YYMMDD.jsonl`. One file per UTC day, rotated on every append (files older than `RETENTION_DAYS = 7` days are deleted). Each row is `{"ts", "tool", "duration_ms", "exit_code"?, "session_id"?}`. Markdown is *not* the source of truth — these JSONL files are.
 

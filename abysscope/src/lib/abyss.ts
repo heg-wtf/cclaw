@@ -199,6 +199,7 @@ export interface ToolMetricEvent {
   duration_ms: number;
   exit_code?: number;
   session_id?: string;
+  outcome?: "success" | "failure";
 }
 
 export interface ToolMetricRow {
@@ -276,7 +277,10 @@ export function getToolMetrics(name: string): ToolMetricRow[] {
       errors[event.tool] = 0;
     }
     buckets[event.tool].push(event.duration_ms);
-    if (typeof event.exit_code === "number" && event.exit_code !== 0) {
+    const isFailure =
+      event.outcome === "failure"
+      || (typeof event.exit_code === "number" && event.exit_code !== 0);
+    if (isFailure) {
       errors[event.tool] = (errors[event.tool] ?? 0) + 1;
     }
   }

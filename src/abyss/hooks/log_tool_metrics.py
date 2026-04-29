@@ -93,6 +93,14 @@ def main(stdin: Any | None = None) -> int:
 
     session_id = payload.get("session_id")
 
+    # The PostToolUse vs PostToolUseFailure channel is selected by the
+    # settings.json hook entry — we receive that distinction via
+    # ``ABYSS_HOOK_OUTCOME`` (set in the hook command line). Default to
+    # success so legacy / standalone invocations still record sensibly.
+    outcome = os.environ.get("ABYSS_HOOK_OUTCOME") or "success"
+    if outcome not in ("success", "failure"):
+        outcome = "success"
+
     try:
         from abyss.tool_metrics import append_event
 
@@ -102,6 +110,7 @@ def main(stdin: Any | None = None) -> int:
             duration_ms=duration_ms,
             exit_code=exit_code,
             session_id=session_id if isinstance(session_id, str) else None,
+            extra={"outcome": outcome},
         )
     except Exception:  # noqa: BLE001
         logger.exception("log_tool_metrics hook failed for bot %s", bot_name)

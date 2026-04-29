@@ -165,7 +165,13 @@ def iter_events(bot_name: str) -> Iterable[dict[str, Any]]:
 
 
 def aggregate(bot_name: str) -> list[ToolMetricsRow]:
-    """Return per-tool latency rows sorted by descending count."""
+    """Return per-tool latency rows sorted by descending count.
+
+    A call counts as an error when the recorded ``outcome`` is
+    ``"failure"`` (set by the PostToolUseFailure channel) **or** when
+    ``exit_code`` is non-zero. Either signal is enough — they're not
+    always both present.
+    """
     buckets: dict[str, list[float]] = {}
     errors: dict[str, int] = {}
     for event in iter_events(bot_name):
@@ -178,8 +184,12 @@ def aggregate(bot_name: str) -> list[ToolMetricsRow]:
         except (TypeError, ValueError):
             continue
         buckets.setdefault(tool, []).append(value)
+
+        is_failure = event.get("outcome") == "failure"
         exit_code = event.get("exit_code")
-        if isinstance(exit_code, (int, float)) and exit_code != 0:
+        if not is_failure and isinstance(exit_code, (int, float)) and exit_code != 0:
+            is_failure = True
+        if is_failure:
             errors[tool] = errors.get(tool, 0) + 1
 
     rows: list[ToolMetricsRow] = []

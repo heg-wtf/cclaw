@@ -821,6 +821,19 @@ describe("getToolMetrics / readToolMetricEvents", () => {
     expect(rows.map((row) => row.tool)).toEqual(["Bash", "Read"]);
   });
 
+  it("counts outcome=failure as errors even without exit_code", () => {
+    setupBasicConfig();
+    writeMetricsFile("testbot", "20260430", [
+      JSON.stringify({ tool: "Bash", duration_ms: 10, outcome: "success" }),
+      JSON.stringify({ tool: "Bash", duration_ms: 20, outcome: "failure" }),
+      JSON.stringify({ tool: "Bash", duration_ms: 30, outcome: "failure" }),
+    ]);
+
+    const rows = getToolMetrics("testbot");
+    expect(rows[0].count).toBe(3);
+    expect(rows[0].errorCount).toBe(2);
+  });
+
   it("ignores malformed lines", () => {
     setupBasicConfig();
     writeMetricsFile("testbot", "20260430", [
