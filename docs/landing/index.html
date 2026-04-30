@@ -578,7 +578,7 @@
         "operatingSystem": "macOS",
         "url": "https://abyss.heg.wtf",
         "downloadUrl": "https://github.com/heg-wtf/abyss",
-        "softwareVersion": "2026.04.29",
+        "softwareVersion": "2026.04.30",
         "author": {
           "@type": "Organization",
           "name": "HEG",
@@ -594,7 +594,7 @@
       <div class="container">
         <div class="header-left">
           <span>abyss</span>
-          <span class="version-badge">v2026.04.29</span>
+          <span class="version-badge">v2026.04.30</span>
         </div>
         <div class="header-links">
           <a href="#features">Features</a>
@@ -887,6 +887,36 @@
       <div class="container">
         <h2>What's New</h2>
         <div class="changelog">
+          <div class="changelog-item">
+            <span class="changelog-ver">v2026.04.30</span>
+            <span class="changelog-desc"
+              ><strong>Claude Code 2.1.x Integration</strong> — six-phase
+              hardening + telemetry roll-up. 1-hour prompt cache, forked
+              subagents in non-interactive mode, MCP non-blocking startup +
+              <code style="font-family: 'JetBrains Mono', monospace;"
+                >alwaysLoad</code
+              >, hidden cwd. PreCompact hook drives MEMORY/HEARTBEAT compaction
+              from Claude Code's own pressure signal. PostToolUse +
+              PostToolUseFailure hooks record per-tool latency to JSONL — new
+              <strong>Metrics</strong> tab in abysscope shows p50/p95/p99 per
+              tool. Skills can declare conditional hooks via
+              <code style="font-family: 'JetBrains Mono', monospace;">if</code>
+              field. GitHub-imported skills run with
+              <code style="font-family: 'JetBrains Mono', monospace;"
+                >disableSkillShellExecution</code
+              >; cloud-metadata endpoints blocked by default via
+              <code style="font-family: 'JetBrains Mono', monospace;"
+                >sandbox.network.deniedDomains</code
+              >. New
+              <code style="font-family: 'JetBrains Mono', monospace;"
+                >run_ultrareview</code
+              >
+              wrapper + <strong>code_review</strong> builtin skill, per-bot
+              <code style="font-family: 'JetBrains Mono', monospace;">effort</code>
+              level. Avatar fetch resilience (try/catch + stale cache fallback +
+              IPv4 first).</span
+            >
+          </div>
           <div class="changelog-item">
             <span class="changelog-ver">v2026.04.29</span>
             <span class="changelog-desc"
