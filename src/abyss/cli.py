@@ -331,7 +331,12 @@ def dashboard_start(
     import importlib.metadata
 
     abyss_version = importlib.metadata.version("abyss")
-    next_env = {**os.environ, "NEXT_PUBLIC_ABYSS_VERSION": abyss_version}
+    existing_node_options = os.environ.get("NODE_OPTIONS", "")
+    next_env = {
+        **os.environ,
+        "NEXT_PUBLIC_ABYSS_VERSION": abyss_version,
+        "NODE_OPTIONS": f"{existing_node_options} --dns-result-order=ipv4first".strip(),
+    }
 
     console.print("[dim]Building dashboard...[/dim]")
     try:
