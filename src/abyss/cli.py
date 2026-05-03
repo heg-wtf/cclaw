@@ -470,7 +470,8 @@ def dashboard_start(
 
     # Foreground: hand off to next start. Output flows directly to the user.
     if abysscope_directory is None:
-        return  # unreachable; guards typing
+        # The Locate dashboard step would have raised before we got here.
+        raise RuntimeError("dashboard directory was not resolved before foreground start")
     pid_file = _dashboard_pid_file()
     try:
         subprocess.run(
@@ -482,7 +483,11 @@ def dashboard_start(
     except KeyboardInterrupt:
         console.print("\n[yellow]Dashboard stopped.[/yellow]")
     except subprocess.CalledProcessError as error:
+        # Surface a non-zero exit so automation that relies on the CLI status
+        # (CI scripts, supervisors, the abyss daemon) sees the failure.
         console.print(f"[red]Dashboard exited with code {error.returncode}[/red]")
+        pid_file.unlink(missing_ok=True)
+        raise typer.Exit(error.returncode) from error
     finally:
         pid_file.unlink(missing_ok=True)
 
@@ -543,7 +548,20 @@ def dashboard_restart(
 
     console = Console()
     running, pid = _is_dashboard_running()
-    if running and pid is not None:
+    if running:
+        if pid is None:
+            # Detected via port fallback — we cannot kill an unknown process.
+            # Bail out loudly so a "restart" never silently no-ops.
+            console.print(
+                "[red]Dashboard detected on port "
+                f"{_get_dashboard_port() or DASHBOARD_DEFAULT_PORT} but no PID is "
+                "tracked.[/red]"
+            )
+            console.print(
+                "[dim]Stop it manually (e.g. lsof -ti tcp:PORT | xargs kill) "
+                "and run `abyss dashboard start`.[/dim]"
+            )
+            raise typer.Exit(1)
         # Stop quickly outside the progress UI; start dashboard handles the
         # heavy lifting (and shows its own checklist).
         try:
@@ -552,6 +570,9 @@ def dashboard_restart(
             try:
                 os.kill(pid, signal.SIGTERM)
             except (ProcessLookupError, PermissionError):
+                # The process is already gone or unkillable from this user;
+                # the unlink below + dashboard_start's own running-check will
+                # catch any inconsistency.
                 pass
         _dashboard_pid_file().unlink(missing_ok=True)
         # Render a single confirmation row in the same vocabulary as the

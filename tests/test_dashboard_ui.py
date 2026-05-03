@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import io
 
-import pytest
 from rich.console import Console
 
 from abyss.dashboard_ui import (
@@ -40,10 +39,15 @@ def test_clean_step_marks_success_and_records_duration():
 
 def test_failing_step_marks_failed_and_reraises():
     progress, _ = _make_progress("alpha")
+    raised = None
     with progress.live():
-        with pytest.raises(RuntimeError, match="boom"):
+        try:
             with progress.step("alpha"):
                 raise RuntimeError("boom")
+        except RuntimeError as error:
+            raised = error
+    assert raised is not None
+    assert "boom" in str(raised)
     finalized = progress.get("alpha")
     assert finalized.status is StepStatus.FAILED
     assert finalized.detail == "boom"
