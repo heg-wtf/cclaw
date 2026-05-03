@@ -254,3 +254,102 @@ def test_get_local_ip_fallback_on_error():
         ip_address = _get_local_ip()
 
     assert ip_address == "127.0.0.1"
+
+
+# --- cli helper functions added with the build progress UI ---
+
+
+def test_format_size_boundaries():
+    from abyss.cli import _format_size
+
+    assert _format_size(0) == "0 B"
+    assert _format_size(512) == "512 B"
+    assert _format_size(1024) == "1.0 KB"
+    assert _format_size(1024 * 1024) == "1.0 MB"
+    assert _format_size(1024 * 1024 * 1024) == "1.00 GB"
+    assert _format_size(1024 * 1024 * 1024 * 5) == "5.00 GB"
+
+
+def test_format_directory_relative_when_inside_cwd(tmp_path, monkeypatch):
+    from abyss.cli import _format_directory
+
+    monkeypatch.chdir(tmp_path)
+    sub = tmp_path / "abysscope"
+    sub.mkdir()
+    assert _format_directory(sub) == "abysscope"
+
+
+def test_format_directory_absolute_when_outside_cwd(tmp_path, monkeypatch):
+    from abyss.cli import _format_directory
+
+    other = tmp_path / "elsewhere"
+    other.mkdir()
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    monkeypatch.chdir(cwd)
+    assert _format_directory(other) == str(other.resolve())
+
+
+def test_node_modules_present_detection(tmp_path):
+    from abyss.cli import _node_modules_present
+
+    assert _node_modules_present(tmp_path) is False
+    (tmp_path / "node_modules").mkdir()
+    assert _node_modules_present(tmp_path) is True
+
+
+def test_run_to_log_writes_command_header_and_returns_exit_code(tmp_path):
+    from abyss.cli import _run_to_log
+
+    log = tmp_path / "build.log"
+    code = _run_to_log(["true"], cwd=tmp_path, env=os.environ.copy(), log_path=log)
+    assert code == 0
+    contents = log.read_text()
+    assert contents.startswith("\n$ true\n")
+
+
+def test_run_to_log_captures_failure_exit_code(tmp_path):
+    from abyss.cli import _run_to_log
+
+    log = tmp_path / "build.log"
+    code = _run_to_log(
+        ["sh", "-c", "echo failing 1>&2; exit 7"],
+        cwd=tmp_path,
+        env=os.environ.copy(),
+        log_path=log,
+    )
+    assert code == 7
+    assert "failing" in log.read_text()
+
+
+def test_next_build_artifact_size_sums_files(tmp_path):
+    from abyss.cli import _next_build_artifact_size
+
+    assert _next_build_artifact_size(tmp_path) == 0  # no .next yet
+
+    next_dir = tmp_path / ".next"
+    (next_dir / "static" / "chunks").mkdir(parents=True)
+    (next_dir / "static" / "chunks" / "main.js").write_bytes(b"abc" * 1000)
+    (next_dir / "BUILD_ID").write_bytes(b"1")
+    assert _next_build_artifact_size(tmp_path) == 3 * 1000 + 1
+
+
+def test_dashboard_restart_fails_when_running_without_pid(temp_abyss_home, monkeypatch):
+    """If the dashboard is detected via port fallback (no PID file), the
+    restart command must surface a non-zero exit instead of silently
+    handing off to dashboard_start (which would no-op as 'already running')."""
+    from abyss import cli
+
+    # Simulate "running but PID unknown".
+    monkeypatch.setattr(cli, "_is_dashboard_running", lambda: (True, None))
+    monkeypatch.setattr(cli, "_get_dashboard_port", lambda: cli.DASHBOARD_DEFAULT_PORT)
+
+    # If dashboard_start is reached, the test fails — restart must short-circuit.
+    def _explode(*_args, **_kwargs):
+        raise AssertionError("dashboard_start should not be called when PID is missing")
+
+    monkeypatch.setattr(cli, "dashboard_start", _explode)
+
+    result = runner.invoke(app, ["dashboard", "restart"])
+    assert result.exit_code == 1
+    assert "no PID is tracked" in result.stdout
