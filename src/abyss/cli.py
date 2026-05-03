@@ -245,17 +245,59 @@ def _find_abysscope_directory() -> Path | None:
     return next((c for c in candidates if c.exists()), None)
 
 
-def _ensure_node_modules(abysscope_directory: Path) -> None:
-    """Install npm dependencies if not present."""
+def _node_modules_present(abysscope_directory: Path) -> bool:
+    return (abysscope_directory / "node_modules").exists()
+
+
+def _run_to_log(args: list[str], cwd: Path, env: dict[str, str], log_path: Path) -> int:
+    """Run a subprocess streaming stdout+stderr into ``log_path``."""
     import subprocess
 
-    from rich.console import Console
+    with log_path.open("ab") as log_file:
+        log_file.write(f"\n$ {' '.join(args)}\n".encode())
+        log_file.flush()
+        proc = subprocess.run(
+            args,
+            cwd=cwd,
+            env=env,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            check=False,
+        )
+    return proc.returncode
 
-    node_modules = abysscope_directory / "node_modules"
-    if not node_modules.exists():
-        console = Console()
-        console.print("[yellow]Installing dependencies...[/yellow]")
-        subprocess.run(["npm", "install"], cwd=abysscope_directory, check=True)
+
+def _format_directory(path: Path) -> str:
+    """Best-effort relative path string, falls back to absolute."""
+    try:
+        return str(path.resolve().relative_to(Path.cwd().resolve()))
+    except ValueError:
+        return str(path)
+
+
+def _format_size(num_bytes: int) -> str:
+    if num_bytes < 1024:
+        return f"{num_bytes} B"
+    if num_bytes < 1024 * 1024:
+        return f"{num_bytes / 1024:.1f} KB"
+    if num_bytes < 1024 * 1024 * 1024:
+        return f"{num_bytes / (1024 * 1024):.1f} MB"
+    return f"{num_bytes / (1024 * 1024 * 1024):.2f} GB"
+
+
+def _next_build_artifact_size(abysscope_directory: Path) -> int:
+    """Sum the size of files under ``.next/`` (best-effort, returns 0 on error)."""
+    artifact = abysscope_directory / ".next"
+    if not artifact.exists():
+        return 0
+    total = 0
+    try:
+        for path in artifact.rglob("*"):
+            if path.is_file():
+                total += path.stat().st_size
+    except OSError:
+        return total
+    return total
 
 
 def _is_port_in_use(port: int) -> bool:
@@ -303,82 +345,146 @@ def dashboard_start(
     port: int = typer.Option(DASHBOARD_DEFAULT_PORT, help="Port to run dashboard on"),
     daemon: bool = typer.Option(False, help="Run as background process"),
 ) -> None:
-    """Start Abysscope web dashboard."""
+    """Start Abysscope web dashboard with a step-by-step progress UI."""
+    import importlib.metadata
     import os
     import subprocess
 
     from rich.console import Console
+
+    from abyss.config import abyss_home
+    from abyss.dashboard_ui import (
+        BuildProgress,
+        BuildStep,
+        StepStatus,
+        open_build_log,
+        tail,
+    )
 
     console = Console()
 
     running, existing_pid = _is_dashboard_running()
     if running:
         existing_port = _get_dashboard_port()
-        message = "[yellow]Abysscope is already running"
-        message += f" (PID {existing_pid}, port {existing_port})[/yellow]"
-        console.print(message)
+        console.print(
+            f"[yellow]Abysscope already running (PID {existing_pid}, port {existing_port})[/yellow]"
+        )
         raise typer.Exit(0)
 
-    abysscope_directory = _find_abysscope_directory()
+    log_path = open_build_log(abyss_home())
+    progress = BuildProgress(
+        title=f"Starting Abysscope dashboard on port {port}",
+        steps=[
+            BuildStep("Locate dashboard"),
+            BuildStep("Install dependencies"),
+            BuildStep("Build dashboard"),
+            BuildStep("Start server"),
+        ],
+        console=console,
+    )
+
+    abysscope_directory: Path | None = None
+    next_env: dict[str, str] = {}
+
+    try:
+        with progress.live():
+            with progress.step("Locate dashboard") as step:
+                abysscope_directory = _find_abysscope_directory()
+                if abysscope_directory is None:
+                    step.detail = "directory not found"
+                    raise FileNotFoundError("abysscope directory not found")
+                step.detail = _format_directory(abysscope_directory)
+
+            with progress.step("Install dependencies") as step:
+                if _node_modules_present(abysscope_directory):
+                    step.status = StepStatus.SKIPPED
+                    step.detail = "cached"
+                else:
+                    step.detail = "running npm install"
+                    code = _run_to_log(
+                        ["npm", "install"],
+                        cwd=abysscope_directory,
+                        env=os.environ.copy(),
+                        log_path=log_path,
+                    )
+                    if code != 0:
+                        step.detail = f"npm install exited {code}"
+                        raise RuntimeError(step.detail)
+                    step.detail = "installed"
+
+            abyss_version = importlib.metadata.version("abyss")
+            existing_node_options = os.environ.get("NODE_OPTIONS", "")
+            next_env = {
+                **os.environ,
+                "NEXT_PUBLIC_ABYSS_VERSION": abyss_version,
+                "NODE_OPTIONS": (f"{existing_node_options} --dns-result-order=ipv4first".strip()),
+            }
+
+            with progress.step("Build dashboard") as step:
+                step.detail = "next build"
+                code = _run_to_log(
+                    ["npx", "next", "build"],
+                    cwd=abysscope_directory,
+                    env=next_env,
+                    log_path=log_path,
+                )
+                if code != 0:
+                    step.detail = f"exit {code} — see log"
+                    raise RuntimeError(step.detail)
+                bundle = _next_build_artifact_size(abysscope_directory)
+                step.detail = f"bundle {_format_size(bundle)}" if bundle else "built"
+
+            with progress.step("Start server") as step:
+                if daemon:
+                    process = subprocess.Popen(
+                        ["npx", "next", "start", "--port", str(port)],
+                        cwd=abysscope_directory,
+                        env=next_env,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        start_new_session=True,
+                    )
+                    pid_file = _dashboard_pid_file()
+                    pid_file.write_text(f"{process.pid}\n{port}\n")
+                    step.detail = f"PID {process.pid} (daemon)"
+                else:
+                    pid_file = _dashboard_pid_file()
+                    pid_file.write_text(f"{os.getpid()}\n{port}\n")
+                    step.detail = "foreground"
+    except (FileNotFoundError, RuntimeError):
+        console.print()
+        console.print(f"[dim]Build log: {log_path}[/dim]")
+        log_excerpt = tail(log_path, lines=30)
+        if log_excerpt:
+            console.print("[dim]── last 30 lines ─────────────[/dim]")
+            console.print(log_excerpt)
+        raise typer.Exit(1) from None
+
+    console.print()
+    console.print(f"[green]Abysscope is up at http://localhost:{port}[/green]")
+    console.print(f"[dim]Build log: {log_path}[/dim]")
+
+    if daemon:
+        console.print("[dim]Stop: abyss dashboard stop[/dim]")
+        return
+
+    # Foreground: hand off to next start. Output flows directly to the user.
     if abysscope_directory is None:
-        console.print("[red]Abysscope directory not found.[/red]")
-        console.print("[dim]Run this command from the abyss repo root,[/dim]")
-        console.print("[dim]or reinstall abyss to bundle Abysscope.[/dim]")
-        raise typer.Exit(1)
-
-    _ensure_node_modules(abysscope_directory)
-
-    import importlib.metadata
-
-    abyss_version = importlib.metadata.version("abyss")
-    existing_node_options = os.environ.get("NODE_OPTIONS", "")
-    next_env = {
-        **os.environ,
-        "NEXT_PUBLIC_ABYSS_VERSION": abyss_version,
-        "NODE_OPTIONS": f"{existing_node_options} --dns-result-order=ipv4first".strip(),
-    }
-
-    console.print("[dim]Building dashboard...[/dim]")
+        return  # unreachable; guards typing
+    pid_file = _dashboard_pid_file()
     try:
         subprocess.run(
-            ["npx", "next", "build"],
+            ["npx", "next", "start", "--port", str(port)],
             cwd=abysscope_directory,
             env=next_env,
             check=True,
         )
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Dashboard stopped.[/yellow]")
     except subprocess.CalledProcessError as error:
-        console.print(f"[red]Dashboard build failed (exit {error.returncode})[/red]")
-        raise typer.Exit(1) from error
-
-    if daemon:
-        process = subprocess.Popen(
-            ["npx", "next", "start", "--port", str(port)],
-            cwd=abysscope_directory,
-            env=next_env,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
-        pid_file = _dashboard_pid_file()
-        pid_file.write_text(f"{process.pid}\n{port}\n")
-        console.print(f"[green]Abysscope started on http://localhost:{port}[/green]")
-        console.print(f"  PID:  {process.pid}")
-        console.print("  Stop: abyss dashboard stop")
-    else:
-        pid_file = _dashboard_pid_file()
-        pid_file.write_text(f"{os.getpid()}\n{port}\n")
-        console.print(f"[green]Starting Abysscope on http://localhost:{port}[/green]")
-        try:
-            subprocess.run(
-                ["npx", "next", "start", "--port", str(port)],
-                cwd=abysscope_directory,
-                env=next_env,
-                check=True,
-            )
-        except KeyboardInterrupt:
-            console.print("\n[yellow]Dashboard stopped.[/yellow]")
-        finally:
-            pid_file.unlink(missing_ok=True)
+        console.print(f"[red]Dashboard exited with code {error.returncode}[/red]")
+    finally:
+        pid_file.unlink(missing_ok=True)
 
 
 @dashboard_app.command("stop")
@@ -421,12 +527,39 @@ def dashboard_restart(
     port: int = typer.Option(DASHBOARD_DEFAULT_PORT, help="Port to run dashboard on"),
     daemon: bool = typer.Option(False, help="Run as background process"),
 ) -> None:
-    """Restart Abysscope web dashboard."""
+    """Restart Abysscope web dashboard.
+
+    The stop step shows up in the same checklist as the start sequence so
+    the user gets a single coherent view instead of two separate command
+    outputs.
+    """
+    import os
+    import signal
     import time
 
-    running, _ = _is_dashboard_running()
-    if running:
-        dashboard_stop()
+    from rich.console import Console
+
+    from abyss.dashboard_ui import BuildStep, StepStatus
+
+    console = Console()
+    running, pid = _is_dashboard_running()
+    if running and pid is not None:
+        # Stop quickly outside the progress UI; start dashboard handles the
+        # heavy lifting (and shows its own checklist).
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except (ProcessLookupError, PermissionError):
+                pass
+        _dashboard_pid_file().unlink(missing_ok=True)
+        # Render a single confirmation row in the same vocabulary as the
+        # build checklist to keep the UX consistent.
+        stop_step = BuildStep(
+            "Stop running dashboard", status=StepStatus.SUCCESS, detail=f"PID {pid}"
+        )
+        console.print(stop_step.render())
         time.sleep(1)
     dashboard_start(port=port, daemon=daemon)
 
