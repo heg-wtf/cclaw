@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BotAvatar } from "@/components/bot-avatar";
@@ -14,11 +15,30 @@ interface BotSummary {
   telegram_botname: string;
 }
 
+const STORAGE_KEY = "abysscope.sidebar.collapsed";
+
 export function Sidebar() {
   const pathname = usePathname();
   const [bots, setBots] = useState<BotSummary[]>([]);
   const [botsOpen, setBotsOpen] = useState(true);
   const [skillsOpen, setSkillsOpen] = useState(true);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem(STORAGE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleCollapsed = (next: boolean) => {
+    setCollapsed(next);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+    } catch {
+      // ignore (private mode etc.)
+    }
+  };
 
   useEffect(() => {
     fetch("/api/bots")
@@ -30,12 +50,80 @@ export function Sidebar() {
   const botsActive = pathname.startsWith("/bots");
   const skillsActive = pathname.startsWith("/skills");
 
+  if (collapsed) {
+    return (
+      <aside className="flex h-screen w-14 flex-col border-r bg-muted/30">
+        <div className="flex h-14 items-center justify-center border-b">
+          <button
+            type="button"
+            onClick={() => toggleCollapsed(false)}
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+            aria-label="Expand sidebar"
+            title="Expand sidebar"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+        <nav className="flex-1 space-y-1 overflow-auto p-2">
+          <CollapsedLink
+            href="/"
+            label="Dashboard"
+            icon="🏠"
+            active={pathname === "/"}
+          />
+          <CollapsedLink
+            href="/chat"
+            label="Chat"
+            icon="💬"
+            active={pathname === "/chat" || pathname.startsWith("/chat/")}
+          />
+          <CollapsedLink
+            href="/bots"
+            label="Bots"
+            icon="🤖"
+            active={botsActive}
+          />
+          <CollapsedLink
+            href="/skills/builtin"
+            label="Skills"
+            icon="🔧"
+            active={skillsActive}
+          />
+          <CollapsedLink
+            href="/settings"
+            label="Settings"
+            icon="⚙️"
+            active={pathname === "/settings"}
+          />
+          <CollapsedLink
+            href="/logs"
+            label="Logs"
+            icon="📋"
+            active={pathname === "/logs"}
+          />
+        </nav>
+        <div className="flex flex-col items-center gap-2 border-t p-2">
+          <ThemeToggle />
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside className="flex h-screen w-56 flex-col border-r bg-muted/30">
-      <div className="flex h-14 items-center border-b px-4">
+      <div className="flex h-14 items-center justify-between border-b px-4">
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <span>Abysscope</span>
         </Link>
+        <button
+          type="button"
+          onClick={() => toggleCollapsed(true)}
+          className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+          aria-label="Collapse sidebar"
+          title="Collapse sidebar"
+        >
+          <ChevronLeft className="size-4" />
+        </button>
       </div>
       <nav className="flex-1 space-y-1 overflow-auto p-3">
         <Link
@@ -194,5 +282,30 @@ export function Sidebar() {
         <ThemeToggle />
       </div>
     </aside>
+  );
+}
+
+interface CollapsedLinkProps {
+  href: string;
+  label: string;
+  icon: string;
+  active: boolean;
+}
+
+function CollapsedLink({ href, label, icon, active }: CollapsedLinkProps) {
+  return (
+    <Link
+      href={href}
+      title={label}
+      aria-label={label}
+      className={cn(
+        "flex h-9 items-center justify-center rounded-md text-base transition-colors",
+        active
+          ? "bg-accent text-accent-foreground"
+          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+      )}
+    >
+      <span>{icon}</span>
+    </Link>
   );
 }

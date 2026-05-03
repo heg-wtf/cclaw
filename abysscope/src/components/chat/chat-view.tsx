@@ -118,7 +118,8 @@ export function ChatView({ initialBots, apiOnline }: Props) {
   };
 
   const handleDelete = async (session: ChatSession) => {
-    if (!confirm(`Delete chat with ${session.bot}?`)) return;
+    const label = session.bot_display_name || session.bot;
+    if (!confirm(`Delete chat with ${label}?`)) return;
     await fetch(
       `/api/chat/sessions/${encodeURIComponent(session.bot)}/${encodeURIComponent(session.id)}`,
       { method: "DELETE" }

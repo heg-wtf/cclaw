@@ -4,6 +4,7 @@ import * as React from "react";
 import { MessageSquarePlus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { BotAvatar } from "@/components/bot-avatar";
 import { cn } from "@/lib/utils";
 import type { ChatSession } from "@/lib/abyss-api";
 
@@ -63,9 +64,17 @@ export function ChatSessionList({
                   activeId === session.id && "bg-muted"
                 )}
               >
+                <BotAvatar
+                  botName={session.bot}
+                  displayName={session.bot_display_name || session.bot}
+                  size="sm"
+                  className="mt-0.5"
+                />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-medium">{session.bot}</span>
+                    <span className="truncate text-sm font-medium">
+                      {session.bot_display_name || session.bot}
+                    </span>
                     <span className="text-xs text-muted-foreground">
                       {formatRelative(session.updated_at)}
                     </span>
