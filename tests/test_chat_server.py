@@ -458,6 +458,40 @@ async def test_chat_rejects_invalid_attachment_path(client):
 
 
 @pytest.mark.asyncio
+async def test_upload_count_cap_holds_under_concurrency(client, abyss_home, monkeypatch):
+    """Concurrent uploads must not exceed MAX_UPLOADS_PER_SESSION even when
+    the count → check → write window is squeezed."""
+    import asyncio as _asyncio
+
+    from abyss import chat_server
+
+    monkeypatch.setattr(chat_server, "MAX_UPLOADS_PER_SESSION", 2)
+    sid = await _new_session(client)
+
+    async def upload_one(suffix: bytes) -> int:
+        body, ctype = _multipart_form(
+            [
+                ("bot", b"alpha", None),
+                ("session_id", sid.encode(), None),
+                (f"x{suffix.decode()}.png", _MINIMAL_PNG_BYTES, "image/png"),
+            ]
+        )
+        resp = await client.post("/chat/upload", data=body, headers={"Content-Type": ctype})
+        return resp.status
+
+    statuses = await _asyncio.gather(
+        upload_one(b"1"),
+        upload_one(b"2"),
+        upload_one(b"3"),
+        upload_one(b"4"),
+    )
+    assert statuses.count(200) == 2
+    assert statuses.count(429) == 2
+    upload_dir = abyss_home / "bots" / "alpha" / "sessions" / sid / "workspace" / "uploads"
+    assert sum(1 for _ in upload_dir.iterdir()) == 2
+
+
+@pytest.mark.asyncio
 async def test_chat_rejects_too_many_attachments(client):
     from abyss.chat_server import MAX_UPLOADS_PER_MESSAGE
 

@@ -82,6 +82,17 @@ export function PromptInput({
     };
   }, [pending]);
 
+  // Drop pending attachments whenever the active bot or session changes —
+  // their `uploads/...` paths belong to the previous session's workspace
+  // and `/chat` would reject them as missing.
+  React.useEffect(() => {
+    setPending((prev) => {
+      prev.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      return [];
+    });
+    setTransientError(null);
+  }, [bot, sessionId]);
+
   const startUpload = React.useCallback(
     async (file: File) => {
       if (!bot || !sessionId) {

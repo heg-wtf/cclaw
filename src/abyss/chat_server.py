@@ -369,6 +369,11 @@ class ChatServer:
         self._runner: web.AppRunner | None = None
         self._site: web.BaseSite | None = None
         self._locks: dict[str, asyncio.Lock] = {}
+        # Separate lock keyed by ``bot:session`` for the upload critical
+        # section (count → cap check → reserve slot). Without this, two
+        # concurrent uploads can both observe a count below the cap and
+        # both proceed, exceeding ``MAX_UPLOADS_PER_SESSION``.
+        self._upload_locks: dict[str, asyncio.Lock] = {}
         self._register_routes()
 
     @property
@@ -416,6 +421,14 @@ class ChatServer:
         if lock is None:
             lock = asyncio.Lock()
             self._locks[key] = lock
+        return lock
+
+    def _upload_lock_for(self, bot: str, session_id: str) -> asyncio.Lock:
+        key = f"{bot}:{session_id}"
+        lock = self._upload_locks.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._upload_locks[key] = lock
         return lock
 
     # ------------------------------------------------------------------
@@ -678,15 +691,27 @@ class ChatServer:
             return web.json_response({"error": "invalid_mime"}, status=400)
 
         uploads_root = _uploads_dir(session_dir)
-        existing = sum(1 for _ in uploads_root.iterdir())
-        if existing >= MAX_UPLOADS_PER_SESSION:
-            return web.json_response({"error": "too_many_uploads"}, status=429)
-
         original_name = file_part.filename or f"file{ALLOWED_UPLOAD_MIMES[declared_mime]}"
         safe_stem = _basename_safe(original_name)
         ext = ALLOWED_UPLOAD_MIMES[declared_mime]
         stored_name = f"{uuid.uuid4().hex[:8]}__{safe_stem}{ext}"
         stored_path = uploads_root / stored_name
+
+        # Reserve a slot atomically: count the existing files, check the cap,
+        # and create the destination as a 0-byte placeholder — all under the
+        # per-session upload lock. Without this, two concurrent uploads can
+        # both observe ``count < cap`` and exceed ``MAX_UPLOADS_PER_SESSION``.
+        async with self._upload_lock_for(bot_name, session_id):
+            existing = sum(1 for _ in uploads_root.iterdir())
+            if existing >= MAX_UPLOADS_PER_SESSION:
+                return web.json_response({"error": "too_many_uploads"}, status=429)
+            try:
+                stored_path.touch(exist_ok=False)
+            except FileExistsError:
+                # Astronomical odds, but salvage with a fresh suffix.
+                stored_name = f"{uuid.uuid4().hex[:8]}__{safe_stem}{ext}"
+                stored_path = uploads_root / stored_name
+                stored_path.touch(exist_ok=False)
 
         # Stream the file to disk while enforcing the size cap. Defer magic
         # byte verification until we have the first 16 bytes.
