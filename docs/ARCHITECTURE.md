@@ -258,6 +258,16 @@ abyss routes every model call through `abyss.llm.LLMBackend`. New backends drop 
 - **`max_history` precedence** — explicit caller override (above the dataclass default of 20) wins, otherwise `bot.yaml`'s `backend.max_history` is honored, otherwise the dataclass default applies. `_load_history` reads `cap + 1` so dedup never trims below the configured window.
 - **Tests** — `tests/conftest.py::clear_llm_backend_cache` autouse fixture wipes the per-bot cache between tests. End-to-end OpenRouter tests under `tests/evaluation/test_openrouter_e2e.py` are gated on `OPENROUTER_API_KEY` and excluded from CI.
 
+### 13.7. Dashboard Chat (Internal HTTP/SSE Server)
+
+Abysscope can talk to bots in the browser via the same SDK pool that serves Telegram. To keep the dashboard purely a Next.js client, abyss runs an internal aiohttp server (`chat_server.py`) inside the `bot_manager` process.
+
+- **Lifecycle** — `bot_manager` constructs `get_server()` (singleton) before polling starts and stops it on shutdown. Bound to `127.0.0.1:CHAT_SERVER_PORT` and protected by an Origin allowlist + CORS middleware so only the local dashboard can call it
+- **Routes** — `/health`, `/bots`, `/sessions` (list/create/delete), `/messages` (parsed conversation log), `/chat` (SSE token stream), `/upload` (multipart with MIME sniffing), `/files/{id}` (inline serve), `/cancel`
+- **Concurrency** — per-session asyncio locks for chat (sequential turns) and a separate per-session upload lock. Path traversal is blocked by validating bot/session names and `_is_path_under` checks
+- **Session reuse** — `chat_core.process_chat_message` reuses the SDK pool client keyed by `bot:chat_id`, so a dashboard message and a Telegram message on the same chat ID share one persistent Claude session. Bootstrap fallback runs the same `_run_with_resume_fallback` used by Telegram
+- **Attachments** — uploads land in `sessions/chat_<id>/uploads/<8hex>__<safe>.<ext>` and are referenced from the user turn the same way Telegram file handlers compose them, so the conversation log is identical regardless of source
+
 ### 14. Session Continuity
 
 Each message runs `claude -p` as a new process, but maintains conversation context.

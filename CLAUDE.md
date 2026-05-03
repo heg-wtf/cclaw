@@ -54,7 +54,11 @@ uv run ruff check --fix . && uv run ruff format .  # Lint + format
 | `session.py` | Session directories, conversation logs (`conversation-YYMMDD.md`), Claude session ID (`--resume`), memory CRUD (bot + global) |
 | `handlers.py` | Telegram handler factory: messages, files, slash commands, streaming, session continuity, group-aware routing |
 | `group.py` | Group CRUD (create/delete/list/bind/unbind), shared conversation log, shared workspace, role detection |
-| `bot_manager.py` | Multi-bot polling, CLAUDE.md regeneration on start, SDK/QMD lifecycle, cron/heartbeat schedulers, dashboard status (port fallback), graceful shutdown |
+| `bot_manager.py` | Multi-bot polling, CLAUDE.md regeneration on start, SDK/QMD lifecycle, cron/heartbeat schedulers, internal `ChatServer` lifecycle, dashboard status (port fallback), graceful shutdown |
+| `chat_core.py` | Backend-agnostic chat orchestration shared by Telegram handlers and the dashboard chat. `prepare_session_context` + `process_chat_message` (SDK pool first, subprocess + bootstrap fallback) |
+| `chat_server.py` | Internal HTTP/SSE server (aiohttp) for the abysscope dashboard chat. Routes: `/bots`, `/sessions`, `/messages`, `/chat` (SSE), `/upload`, `/files/{id}`. Origin allowlist + CORS middleware, MIME sniffing, per-session asyncio locks |
+| `dashboard_ui.py` | Rich-powered checklist UI (`BuildProgress`, `BuildStep`, `StepStatus`) for `abyss dashboard start/restart` lifecycle, plus `tail()` log helper |
+| `tool_metrics.py` | Per-bot tool execution metrics — append jsonl events under `bots/<name>/tool_metrics/`, aggregate per-tool latency p50/p95/p99, daily rotation with retention |
 | `skill.py` | Skill discovery/linking, `compose_claude_md()` (merges personality + skills + memory + rules), MCP/env injection, QMD auto-injection, `import_skill_from_github()` / `parse_github_url()` (GitHub import) |
 | `cron.py` | Cron scheduling (croniter), natural language parsing via Claude haiku, per-job timezone, one-shot support, `edit_cron_job_message()` (message-only edit) |
 | `heartbeat.py` | Periodic situation awareness, active hours check, HEARTBEAT_OK detection |
@@ -63,6 +67,8 @@ uv run ruff check --fix . && uv run ruff format .  # Lint + format
 | `utils.py` | Message splitting, Markdown-to-HTML conversion, logging, IME-compatible CLI input |
 | `conversation_index.py` | SQLite FTS5 index over conversation markdown logs. Per-bot DB at `bots/<name>/conversation.db`, per-group at `groups/<name>/conversation.db`. Markdown stays the source of truth |
 | `mcp_servers/conversation_search.py` | stdio MCP server exposing `search_conversations` tool over the FTS5 index. Spawned automatically per Claude call when FTS5 is available |
+| `hooks/log_tool_metrics.py` | Claude Code `PostToolUse` / `PostToolUseFailure` hook — reads JSON payload from stdin, resolves bot name from cwd, appends event via `tool_metrics.append_event` |
+| `hooks/precompact_hook.py` | Claude Code `PreCompact` hook — runs `token_compact` for the active bot before host compaction, never blocks (always exits 0) |
 | `llm/base.py` | `LLMBackend` Protocol, `LLMRequest`, `LLMResult`. Backend-agnostic envelope used by handlers / cron / heartbeat |
 | `llm/registry.py` | `register`, `get_backend`, `get_or_create` (per-bot cache), `close_all` for shutdown |
 | `llm/claude_code.py` | `ClaudeCodeBackend` wrapping `claude_runner` (subprocess + Agent SDK). Default backend |
@@ -72,6 +78,10 @@ uv run ruff check --fix . && uv run ruff format .  # Lint + format
 ### Built-in Skills
 
 `src/abyss/builtin_skills/` contains skill templates (SKILL.md + skill.yaml + optional mcp.json). Each subdirectory is one skill. `__init__.py` scans subdirectories as a registry. All follow the same pattern -- adding a new builtin means creating a new subdirectory.
+
+Two skills are special and not exposed as user-installable:
+- `conversation_search/` — auto-injected MCP skill (`status: builtin`) when bundled SQLite supports FTS5. Backed by `mcp_servers/conversation_search.py`.
+- `code_review/` — CLI skill that runs `claude ultrareview` on a PR or path, restricted to `Bash(claude ultrareview:*)`.
 
 ## Key Architecture Patterns
 
@@ -232,7 +242,18 @@ Every bot and group has a SQLite FTS5 index at `bots/<name>/conversation.db` / `
 - Skills: built-in (read-only) vs custom (full CRUD: add/edit/delete), classified by `isBuiltin` flag from API
 - Session management: per-session delete in bot detail, per-conversation-file delete in conversation viewer
 - Memory editor: markdown rendering in view mode (react-markdown + @tailwindcss/typography), raw edit mode
-- Sidebar: collapsible Bots/Skills sections, theme toggle with emoji icon
+- Sidebar: collapsible Bots/Skills sections (localStorage-persisted), theme toggle with emoji icon
+- Dashboard chat: in-browser chat UI talks to internal `ChatServer` (aiohttp, started by `bot_manager`). SSE token streaming via `/chat`, image + PDF uploads via `/upload`, served back via `/files/{id}`. Uses the same SDK pool / session continuity as Telegram via `chat_core`
+- `abyss dashboard start/restart` shows a Rich `BuildProgress` checklist (install deps → build Next.js → boot server) instead of streaming raw `next build` output
+
+## Tool Metrics + Hooks
+
+`tool_metrics.py` records each Claude Code tool call (latency, success/error). Wired through Claude Code hooks declared in the bot's CLAUDE.md / settings:
+
+- `hooks/log_tool_metrics.py` — runs on `PostToolUse` and `PostToolUseFailure`. Resolves the active bot from `cwd`, writes `bots/<name>/tool_metrics/YYYY-MM-DD.jsonl`. `aggregate(bot_name)` returns per-tool count + p50/p95/p99 for the dashboard. Daily files rotate after `RETENTION_DAYS`
+- `hooks/precompact_hook.py` — runs on `PreCompact`. Invokes `token_compact.run_compact` for the active bot before Claude Code compacts in-process. Always exits 0 so a slow / failing compact never blocks the host run
+
+Both hooks resolve `bot_name` by walking parents of `cwd` until they find a directory whose parent is `bots/`, so DM / cron / heartbeat working dirs all map to the same bot.
 
 ## Essential References
 

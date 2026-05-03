@@ -107,6 +107,7 @@ abyss has a **skill system** that extends your bot's capabilities with tools and
 | 🏪 Daiso | Search Daiso Mall products via [daiso-cli](https://github.com/heg-wtf/daiso-cli) | [Guide](docs/skills/DAISO.md) |
 | 📚 QMD | Search markdown knowledge bases (BM25 + vector) via [QMD](https://github.com/tobi/qmd) MCP | [Guide](docs/skills/QMD.md) |
 | 🧠 Conversation Search | Recall past bot conversations via SQLite FTS5 (auto-injected when FTS5 is available) | — |
+| 🔎 Code Review | Run `claude ultrareview` on a PR or path and summarize findings | — |
 
 ```bash
 abyss skills builtins          # List available built-in skills
@@ -349,6 +350,14 @@ abyss/
 │   ├── handlers.py         # Telegram handler factory (group-aware)
 │   ├── group.py            # Group CRUD, shared conversation, workspace
 │   ├── bot_manager.py      # Multi-bot lifecycle (regenerate CLAUDE.md on start)
+│   ├── chat_core.py        # Backend-agnostic chat orchestration (Telegram + dashboard)
+│   ├── chat_server.py      # Internal aiohttp HTTP/SSE server for dashboard chat
+│   ├── dashboard_ui.py     # Rich checklist UI for `abyss dashboard` lifecycle
+│   ├── tool_metrics.py     # Per-bot tool call metrics (jsonl + p50/p95/p99)
+│   ├── conversation_index.py # SQLite FTS5 index over conversation markdown
+│   ├── llm/                # LLM backend layer (claude_code, openai_compat, openrouter)
+│   ├── mcp_servers/        # Bundled stdio MCP servers (conversation_search)
+│   ├── hooks/              # Claude Code hooks (log_tool_metrics, precompact_hook)
 │   ├── skill.py            # Skill management (create/attach/install/MCP/CLAUDE.md composition)
 │   ├── builtin_skills/     # Built-in skill templates (imessage, reminders, ...)
 │   │   ├── __init__.py     # Built-in skill registry
@@ -367,7 +376,9 @@ abyss/
 │   │   ├── dart/         # DART corporate disclosure skill (dartcli)
 │   │   ├── translate/    # Translate skill (translatecli, Gemini)
 │   │   ├── daiso/        # Daiso Mall skill (daiso-cli)
-│   │   └── qmd/          # QMD knowledge search skill (MCP, HTTP daemon)
+│   │   ├── qmd/          # QMD knowledge search skill (MCP, HTTP daemon)
+│   │   ├── conversation_search/ # Past conversation recall (FTS5 MCP, auto-injected)
+│   │   └── code_review/  # `claude ultrareview` PR/path review
 │   ├── backup.py            # Encrypted backup (AES-256 zip)
 │   ├── token_compact.py    # Token compaction (compress MD files via Claude)
 │   ├── cron.py             # Cron schedule automation (natural language parsing)
@@ -402,8 +413,10 @@ cd abysscope && npx next build && npx next start --port 3847
 | Settings | Timezone/language Select dropdowns, Home directory with Finder open, global memory editor |
 | Logs | Date picker, text filter, delete (single/bulk/by-age), daemon log truncate |
 | Conversations | Per-chat conversation viewer with date navigation, individual file delete |
+| Chat | In-browser chat with any bot — same SDK session pool as Telegram, SSE token streaming, image + PDF uploads |
+| Tool Metrics | Per-bot tool call latency (p50/p95/p99) and counts from Claude Code `PostToolUse` hooks |
 
-**Tech Stack**: Next.js 16 + shadcn/ui + Tailwind CSS + js-yaml. Reads `~/.abyss/` directly (no database).
+**Tech Stack**: Next.js 16 + shadcn/ui + Tailwind CSS + js-yaml. Reads `~/.abyss/` directly (no database). Chat / upload uses the internal aiohttp `ChatServer` started by `abyss start`.
 
 ## Runtime Data
 
@@ -420,6 +433,8 @@ Configuration and session data are stored in `~/.abyss/`. Override the path with
 │       ├── MEMORY.md             # Bot long-term memory (shared across all sessions)
 │       ├── cron.yaml             # Cron job config (schedule, timezone, optional)
 │       ├── cron_sessions/        # Cron job working directories
+│       ├── tool_metrics/         # Daily jsonl of tool calls (PostToolUse hook)
+│       ├── conversation.db       # SQLite FTS5 index (auto-built from markdown)
 │       ├── heartbeat_sessions/   # Heartbeat working directory
 │       │   ├── CLAUDE.md
 │       │   ├── HEARTBEAT.md      # Checklist (user-editable)
@@ -434,6 +449,7 @@ Configuration and session data are stored in `~/.abyss/`. Override the path with
 │   └── <group-name>/
 │       ├── group.yaml            # Group config (orchestrator, members, chat_id)
 │       ├── conversation/         # Shared conversation logs (YYMMDD.md)
+│       ├── conversation.db       # SQLite FTS5 index (auto-built from markdown)
 │       └── workspace/            # Shared workspace (persistent across resets)
 ├── skills/
 │   └── <skill-name>/
