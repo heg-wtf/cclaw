@@ -51,7 +51,7 @@ describe("checkVoiceboxHealth", () => {
 });
 
 describe("transcribe", () => {
-  it("posts FormData with default ko + medium and returns text", async () => {
+  it("posts FormData with default ko + large-v3 and returns text", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ text: "안녕" }), {
         status: 200,
@@ -68,7 +68,7 @@ describe("transcribe", () => {
     expect(init.method).toBe("POST");
     const body = init.body as FormData;
     expect(body.get("language")).toBe("ko");
-    expect(body.get("model_size")).toBe("medium");
+    expect(body.get("model_size")).toBe("large-v3");
     expect(body.get("audio")).toBeInstanceOf(Blob);
   });
 
@@ -104,7 +104,7 @@ describe("transcribe", () => {
 });
 
 describe("synthesize", () => {
-  it("posts JSON with chatterbox/ko defaults and returns audio blob", async () => {
+  it("posts JSON with qwen3-tts/ko defaults and returns audio blob", async () => {
     const audioPayload = new Uint8Array([1, 2, 3]);
     fetchMock.mockResolvedValueOnce(
       new Response(audioPayload, {
@@ -124,7 +124,7 @@ describe("synthesize", () => {
     const body = JSON.parse(init.body as string);
     expect(body).toMatchObject({
       text: "안녕",
-      engine: "chatterbox",
+      engine: "qwen3-tts",
       language: "ko",
     });
   });

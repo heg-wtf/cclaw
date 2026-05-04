@@ -13,9 +13,15 @@
 export const VOICEBOX_BASE = "http://localhost:47390";
 
 export const STT_LANGUAGE = "ko";
-export const STT_MODEL = "medium";
+// Whisper large-v3 — best Korean accuracy, also strong English. Trades ~1-2s
+// extra latency on M-series for noticeably better Korean transcription.
+export const STT_MODEL = "large-v3";
 
-export const TTS_ENGINE = "chatterbox";
+// Qwen3-TTS — most consistent quality across Korean + English (one of its 10
+// official languages). Switch to "chatterbox" if you want stronger emotional
+// expressiveness or zero-shot voice cloning at the cost of cross-language
+// uniformity.
+export const TTS_ENGINE = "qwen3-tts";
 export const TTS_LANGUAGE = "ko";
 
 export const HEALTH_TIMEOUT_MS = 2000;

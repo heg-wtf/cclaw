@@ -39,7 +39,7 @@ abysscope 대시보드의 개별 채팅 세션에 **Voice 버튼**을 추가해,
 핵심 제약:
 - **기존 chat 인프라 재사용** — `chat_core.process_chat_message`, `/chat` SSE 그대로 사용. 음성 분기는 STT(입력 변환) + TTS(출력 변환) 두 지점만 추가.
 - **세션 단위 토글** — 글로벌이 아닌 개별 채팅 세션에서 Voice 모드 진입/이탈.
-- **한국어 우선** — Whisper medium(STT), Chatterbox Multilingual(TTS).
+- **한·영 양쪽 자연스러움 우선** — Whisper large-v3(STT), Qwen3-TTS 1.7B(TTS).
 - **Voicebox 미실행 시 graceful degrade** — Voice 버튼 비활성화 + 안내 토스트.
 
 ## 2. 예상 임팩트
@@ -99,8 +99,9 @@ abysscope 대시보드의 개별 채팅 세션에 **Voice 버튼**을 추가해,
 - [ ] Voicebox 설치(macOS DMG) + Settings → API Server → Always On
 - [ ] `curl http://localhost:47390/api/status` 200 응답 확인
 - [ ] `curl -X POST http://localhost:47390/api/transcribe` 한국어 샘플 1건 정상 변환 확인
-- [ ] `curl -X POST http://localhost:47390/api/generate` Chatterbox + `language: ko` 한국어 합성 확인
-- [ ] Whisper medium 모델 다운로드 완료 확인
+- [ ] `curl -X POST http://localhost:47390/api/generate` Qwen3-TTS + `language: ko` 한국어 합성 확인
+- [ ] Whisper large-v3 모델 다운로드 완료 확인 (Voicebox UI에서)
+- [ ] Qwen3-TTS 1.7B 모델 다운로드 완료 확인 (Voicebox UI에서)
 
 ### Phase 1 — 프록시 라우트
 - [ ] `app/api/voice/status/route.ts` — `GET`, 2s timeout, `{ ok: boolean }` 반환
@@ -110,7 +111,7 @@ abysscope 대시보드의 개별 채팅 세션에 **Voice 버튼**을 추가해,
 
 ### Phase 2 — Voicebox 클라이언트 헬퍼
 - [ ] `lib/voicebox.ts` — `checkVoiceboxHealth()`, `transcribe(blob)`, `synthesize(text, voiceId?)`
-- [ ] 상수: `VOICEBOX_BASE`, `STT_LANGUAGE = "ko"`, `STT_MODEL = "medium"`, `TTS_ENGINE = "chatterbox"`
+- [ ] 상수: `VOICEBOX_BASE`, `STT_LANGUAGE = "ko"`, `STT_MODEL = "large-v3"`, `TTS_ENGINE = "qwen3-tts"`
 - [ ] 에러 클래스 `VoiceboxError` (status, code, message)
 
 ### Phase 3 — VoiceOrbVoid 컴포넌트
@@ -232,6 +233,8 @@ PCI-DSS: 결제 정보 무관. 영향 없음.
 ## 9. 참고
 
 - [Voicebox.sh](http://Voicebox.sh) Settings → API Server 활성화
-- 엔진 선택 근거: Whisper MLX medium = 한국어 정확도/속도 균형, Chatterbox Multilingual = 한국어 공식 지원(23개 언어)
+- 엔진 선택 근거 (2026-05-04 업데이트, 한·영 양쪽 자연스러움 우선):
+  - **STT — Whisper large-v3**: 한국어 정확도 최고, 영어 7.44% WER. Parakeet v3는 영어가 더 빠르지만 25개 유럽어 한정으로 한국어 미지원
+  - **TTS — Qwen3-TTS 1.7B**: 한국어가 공식 10개 주력 언어 중 하나, 다국어 일관성 최고. Chatterbox는 영어 voice cloning이 ElevenLabs 수준이지만 다국어 균질성은 Qwen3 우위. 표현력/voice cloning 강하게 원하면 `TTS_ENGINE="chatterbox"`로 1줄 수정
 - 레이턴시 최적화: sentence-chunker로 첫 문장 TTS를 LLM 스트리밍 도중 시작 → 체감 응답 단축
 - Tauri 아닌 브라우저 환경: `getUserMedia`는 HTTPS 또는 `localhost`에서만 동작 — abysscope 기본 호스팅(`localhost:3847`) OK
